@@ -27,6 +27,9 @@
       - shows kind badge + price
       - links to product detail
       - add-to-cart posts to cart:add using AddToCartForm fields: product_id, quantity
+      - Trending badge rules:
+          - manual: p.is_trending
+          - computed: p.is_computed_trending (set in core.views for home only)
     {% endcomment %}
 
     <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px;">
@@ -53,7 +56,12 @@
 
               <div style="padding:10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    {% if p.is_trending or p.is_computed_trending %}
+                      <span style="font-size:12px; background:#f59e0b; color:#111827; padding:2px 8px; border-radius:999px;">🔥 Trending</span>
+                    {% endif %}
+                    <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  </div>
                   <span style="font-weight:600;">{{ p.display_price }}</span>
                 </div>
 
@@ -114,7 +122,12 @@
 
               <div style="padding:10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    {% if p.is_trending or p.is_computed_trending %}
+                      <span style="font-size:12px; background:#f59e0b; color:#111827; padding:2px 8px; border-radius:999px;">🔥 Trending</span>
+                    {% endif %}
+                    <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  </div>
                   <span style="font-weight:600;">{{ p.display_price }}</span>
                 </div>
 
@@ -175,7 +188,12 @@
 
               <div style="padding:10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    {% if p.is_trending or p.is_computed_trending %}
+                      <span style="font-size:12px; background:#f59e0b; color:#111827; padding:2px 8px; border-radius:999px;">🔥 Trending</span>
+                    {% endif %}
+                    <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  </div>
                   <span style="font-weight:600;">{{ p.display_price }}</span>
                 </div>
 
@@ -236,7 +254,12 @@
 
               <div style="padding:10px;">
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    {% if p.is_trending or p.is_computed_trending %}
+                      <span style="font-size:12px; background:#f59e0b; color:#111827; padding:2px 8px; border-radius:999px;">🔥 Trending</span>
+                    {% endif %}
+                    <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  </div>
                   <span style="font-weight:600;">{{ p.display_price }}</span>
                 </div>
 

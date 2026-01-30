@@ -17,7 +17,7 @@
       </div>
     </div>
 
-    <form class="d-flex gap-2" method="get">
+    <form class="d-flex gap-2 flex-wrap" method="get">
       <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
 
       {% if kind %}
@@ -26,15 +26,30 @@
       {% else %}
         <!-- all-products view allows filtering -->
         <select class="form-select" name="kind" style="min-width:200px;">
-          <option value="">All</option>
-          <option value="MODEL">3D Models (Physical)</option>
-          <option value="FILE">3D Files (Digital)</option>
+          <option value="" {% if not kind %}selected{% endif %}>All</option>
+          <option value="MODEL" {% if kind == "MODEL" %}selected{% endif %}>3D Models (Physical)</option>
+          <option value="FILE" {% if kind == "FILE" %}selected{% endif %}>3D Files (Digital)</option>
         </select>
       {% endif %}
 
-      <button class="btn btn-dark" type="submit">Search</button>
+      <select class="form-select" name="sort" style="min-width:220px;">
+        {% for value,label in sort_choices %}
+          <option value="{{ value }}" {% if sort == value %}selected{% endif %}>Sort: {{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <button class="btn btn-dark" type="submit">Apply</button>
     </form>
   </div>
+
+  {% if sort == "trending" %}
+    <div class="alert alert-light border d-flex align-items-center gap-2">
+      <span class="badge text-bg-warning">🔥 Trending</span>
+      <div class="small text-secondary mb-0">
+        Trending is computed from paid purchases + recent reviews in the last {{ trending_window_days }} days (plus rating).
+      </div>
+    </div>
+  {% endif %}
 
   <div class="row g-3">
     {% for p in products %}
@@ -53,11 +68,28 @@
               <h2 class="h6 mb-1">
                 <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
               </h2>
-              <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+
+              <div class="d-flex align-items-center gap-2">
+                {% if p.is_trending %}
+                  <span class="badge text-bg-warning">🔥 Trending</span>
+                {% elif sort == "trending" and p.trending_score and p.trending_score|floatformat:2 != "0.00" %}
+                  <span class="badge text-bg-warning">🔥 Trending</span>
+                {% endif %}
+                <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+              </div>
             </div>
 
-            <div class="text-secondary small mb-2">
+            <div class="text-secondary small mb-1">
               by <strong>{{ p.seller.username }}</strong> · {{ p.category.name }}
+            </div>
+
+            <div class="small mb-2">
+              {% if p.review_count and p.review_count > 0 %}
+                <span class="badge text-bg-dark me-1">{{ p.avg_rating|floatformat:1 }}/5</span>
+                <span class="text-secondary">{{ p.review_count }} review{{ p.review_count|pluralize }}</span>
+              {% else %}
+                <span class="text-secondary">No reviews yet</span>
+              {% endif %}
             </div>
 
             {% if p.short_description %}
