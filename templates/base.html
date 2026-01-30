@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Home Craft 3D{% endblock %}</title>
+
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <script defer src="{% static 'js/sidebar.js' %}"></script>
+</head>
+
+<body>
+  {% include "partials/navbar.html" %}
+
+  <div class="hc3-layout">
+    <aside class="hc3-sidebar">
+      {% include "partials/sidebar.html" %}
+    </aside>
+
+    <main class="hc3-main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% include "partials/footer.html" %}
+</body>
+</html>

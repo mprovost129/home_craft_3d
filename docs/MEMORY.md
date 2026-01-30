@@ -24,11 +24,15 @@
   - Navbar (logo left, menu center, auth/profile right)
   - Sidebar (expandable categories)
   - Footer
+- **Navbar:**
+  - Brand/logo on left
+  - Menu links centered
+  - Auth links or profile dropdown on right
 - **Sidebar:**
   - Separate category trees for:
     - Physical models
     - Digital files
-  - Expand/collapse with arrows
+  - Expand/collapse with arrows/toggles
 
 ## Homepage
 - Public landing page for all visitors
@@ -75,4 +79,9 @@
     - 3D Models categories
     - 3D Files categories
   - Parent/child hierarchy supports expandable sidebar structure
-  - `/catalog/` browse page exists (placeholder styling for now)
+  - `/catalog/` browse page exists (placeholder styling)
+- Global layout implemented (public pages):
+  - `templates/base.html` provides navbar + sidebar + footer shell
+  - Sidebar uses category trees via context processor
+  - Expand/collapse behavior provided by `static/js/sidebar.js`
+  - Base styling provided by `static/css/site.css`

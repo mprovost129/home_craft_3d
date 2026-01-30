@@ -1,0 +1,79 @@
+<div class="hc3-sidebar-section">
+  <div class="hc3-sidebar-title">3D Models</div>
+
+  <ul class="hc3-tree">
+    {% for cat in sidebar_model_categories %}
+      <li class="hc3-tree-item">
+        <div class="hc3-tree-row">
+          {% if cat.children.all %}
+            <button class="hc3-tree-toggle"
+                    type="button"
+                    data-target="cat-{{ cat.id }}"
+                    aria-expanded="false"
+                    aria-controls="cat-{{ cat.id }}">
+              ▸
+            </button>
+          {% else %}
+            <span class="hc3-tree-spacer"></span>
+          {% endif %}
+
+          <a class="hc3-tree-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+        </div>
+
+        {% if cat.children.all %}
+          <ul class="hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+            {% for child in cat.children.all %}
+              {% if child.is_active %}
+                <li class="hc3-tree-child">
+                  <a class="hc3-tree-link" href="{{ child.get_absolute_url }}">{{ child.name }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="hc3-tree-empty">No model categories yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+
+<div class="hc3-sidebar-section">
+  <div class="hc3-sidebar-title">3D Files</div>
+
+  <ul class="hc3-tree">
+    {% for cat in sidebar_file_categories %}
+      <li class="hc3-tree-item">
+        <div class="hc3-tree-row">
+          {% if cat.children.all %}
+            <button class="hc3-tree-toggle"
+                    type="button"
+                    data-target="cat-{{ cat.id }}"
+                    aria-expanded="false"
+                    aria-controls="cat-{{ cat.id }}">
+              ▸
+            </button>
+          {% else %}
+            <span class="hc3-tree-spacer"></span>
+          {% endif %}
+
+          <a class="hc3-tree-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+        </div>
+
+        {% if cat.children.all %}
+          <ul class="hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+            {% for child in cat.children.all %}
+              {% if child.is_active %}
+                <li class="hc3-tree-child">
+                  <a class="hc3-tree-link" href="{{ child.get_absolute_url }}">{{ child.name }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="hc3-tree-empty">No file categories yet.</li>
+    {% endfor %}
+  </ul>
+</div>

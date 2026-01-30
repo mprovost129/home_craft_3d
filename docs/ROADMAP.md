@@ -17,7 +17,8 @@
 
 ## Phase 2 – Core Marketplace
 - [x] Categories model and browse page (`catalog` app)
-- [ ] Sidebar UI (expand/collapse categories in global layout)
+- [x] Global layout shell (navbar + sidebar + footer) for public pages
+- [ ] Migrate accounts templates to global layout shell
 - [ ] Product base model
 - [ ] Physical model product flow
 - [ ] Digital file product flow

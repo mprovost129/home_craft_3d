@@ -33,6 +33,15 @@
 - Provide category trees to templates using a context processor:
   - `catalog.context_processors.sidebar_categories`
 
+## Global Layout (Implemented)
+- Use a single `templates/base.html` shell for public pages with:
+  - navbar partial
+  - sidebar partial
+  - footer partial
+- Sidebar expand/collapse uses lightweight vanilla JS (`static/js/sidebar.js`)
+- Styling is centralized in `static/css/site.css`
+- Accounts templates are still on a separate minimal shell and will be migrated later
+
 ## Payments
 - Stripe Checkout for purchases
 - Mandatory Stripe onboarding for sellers

@@ -1,0 +1,34 @@
+<nav class="hc3-navbar">
+  <div class="hc3-nav-left">
+    <a class="hc3-brand" href="{% url 'home' %}">
+      <!-- Later: replace with your actual logo -->
+      <span class="hc3-brand-mark">HC3</span>
+      <span class="hc3-brand-name">Home Craft 3D</span>
+    </a>
+  </div>
+
+  <div class="hc3-nav-center">
+    <a href="{% url 'home' %}" class="hc3-nav-link">Home</a>
+    <a href="{% url 'catalog:category_list' %}" class="hc3-nav-link">Browse</a>
+    <!-- Later: Models, Files, Sellers, About, etc. -->
+  </div>
+
+  <div class="hc3-nav-right">
+    {% if user.is_authenticated %}
+      <div class="hc3-dropdown">
+        <button class="hc3-dropdown-btn" type="button">
+          {{ user.username }} ▾
+        </button>
+        <div class="hc3-dropdown-menu">
+          <a href="{% url 'accounts:profile' %}">Profile</a>
+          <a href="#" aria-disabled="true">Settings (soon)</a>
+          <div class="hc3-dropdown-sep"></div>
+          <a href="{% url 'accounts:logout' %}">Logout</a>
+        </div>
+      </div>
+    {% else %}
+      <a class="hc3-nav-link" href="{% url 'accounts:login' %}">Login</a>
+      <a class="hc3-btn" href="{% url 'accounts:register' %}">Register</a>
+    {% endif %}
+  </div>
+</nav>

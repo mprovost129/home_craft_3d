@@ -1,48 +1,40 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Home Craft 3D</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 0; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
-    .hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; }
-    .card { border: 1px solid #e5e7eb; border-radius: 14px; padding: 22px; }
-    h1 { margin-top: 0; }
-    .actions a { margin-right: 10px; }
-    .btn { display: inline-block; padding: 12px 18px; border-radius: 10px; background: #111827; color: #fff; text-decoration: none; }
-    .btn.secondary { background: #fff; color: #111827; border: 1px solid #111827; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="hero">
-      <div class="card">
-        <h1>Home Craft 3D</h1>
-        <p>
-          Buy and sell high-quality 3D printed models and 3D print files.
-        </p>
-        <p>
-          Browse as a consumer, or register as a seller to list your own designs.
-        </p>
+{% extends "base.html" %}
+{% block title %}Home · Home Craft 3D{% endblock %}
 
-        <div class="actions">
-          <a class="btn" href="#">Browse marketplace</a>
-          <a class="btn secondary" href="{% url 'accounts:register' %}">Register</a>
-          <a class="btn secondary" href="{% url 'accounts:login' %}">Login</a>
-        </div>
+{% block content %}
+  <div style="max-width:1200px; margin:0 auto;">
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:22px;">
+      <h1 style="margin-top:0;">Home Craft 3D</h1>
+      <p style="color:#6b7280; margin-top:6px;">
+        Buy and sell high-quality 3D printed models and 3D print files.
+      </p>
+
+      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <a class="hc3-btn" href="{% url 'catalog:category_list' %}">Browse marketplace</a>
+        {% if not user.is_authenticated %}
+          <a class="hc3-btn" style="background:#fff; color:#111827;" href="{% url 'accounts:register' %}">Register</a>
+          <a class="hc3-btn" style="background:#fff; color:#111827;" href="{% url 'accounts:login' %}">Login</a>
+        {% endif %}
       </div>
+    </div>
 
-      <div class="card">
-        <h3>How it works</h3>
-        <ul>
-          <li>Browse without an account</li>
-          <li>Register as a consumer or seller</li>
-          <li>Sellers print & ship models or sell digital files</li>
-        </ul>
+    <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px;">
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+        <strong>Featured</strong>
+        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder cards (wire to products next)</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+        <strong>New</strong>
+        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+        <strong>Trending</strong>
+        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
+      </div>
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
+        <strong>Misc</strong>
+        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
       </div>
     </div>
   </div>
-</body>
-</html>
+{% endblock %}
