@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Home Craft 3D{% endblock %}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; padding: 0; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row-1 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    label { font-size: 13px; color: #374151; display: block; margin-bottom: 6px; }
+    input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+    .actions { margin-top: 14px; display: flex; gap: 10px; }
+    .btn { display: inline-block; padding: 10px 14px; border-radius: 8px; border: 1px solid #111827; background: #111827; color: white; text-decoration: none; cursor: pointer; }
+    .btn.secondary { background: white; color: #111827; }
+    .help { color: #6b7280; font-size: 13px; margin-top: 6px; }
+    .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .msg { padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #e5e7eb; }
+    .msg.success { border-color: #bbf7d0; background: #f0fdf4; }
+    .msg.error { border-color: #fecaca; background: #fef2f2; }
+    .nav a { margin-left: 10px; color: #111827; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div><strong>Home Craft 3D</strong></div>
+      <div class="nav">
+        {% if user.is_authenticated %}
+          <a href="{% url 'accounts:profile' %}">Profile</a>
+          <a href="{% url 'accounts:logout' %}">Logout</a>
+        {% else %}
+          <a href="{% url 'accounts:login' %}">Login</a>
+          <a href="{% url 'accounts:register' %}">Register</a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="msg {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

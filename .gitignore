@@ -1,0 +1,80 @@
+# ================================
+# Django
+# ================================
+*.log
+*.pot
+*.pyc
+__pycache__/
+db.sqlite3
+db.sqlite3-journal
+
+# ================================
+# Python / Virtual Environments
+# ================================
+.env
+.env.*
+.venv/
+venv/
+ENV/
+env/
+pip-wheel-metadata/
+*.egg-info/
+
+# ================================
+# Django static & media
+# ================================
+staticfiles/
+media/
+
+# ================================
+# Migrations (keep __init__.py)
+# ================================
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# ================================
+# VS Code / Editors
+# ================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ================================
+# OS files
+# ================================
+.DS_Store
+Thumbs.db
+
+# ================================
+# Node / Frontend (future-proof)
+# ================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ================================
+# Testing / Coverage
+# ================================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ================================
+# Celery / Redis (future)
+# ================================
+celerybeat-schedule
+celerybeat.pid
+
+# ================================
+# Secrets / Keys
+# ================================
+*.pem
+*.key
+
+# ================================
+# Build / Dist
+# ================================
+build/
+dist/

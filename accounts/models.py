@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+from django.conf import settings
+from django.db import models
+from django.core.validators import RegexValidator
+
+
+class Profile(models.Model):
+    """
+    Extends Django's default User with marketplace-specific profile data and role flags.
+
+    Roles:
+      - Consumer: default for any registered user
+      - Seller: can list products (requires Stripe onboarding later)
+      - Owner/Admin: full permissions; should be your account (can be enforced via superuser/staff too)
+    """
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
+
+    # Contact / identity
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+
+    email = models.EmailField(blank=True)  # Used for correspondence; username is public
+
+    phone_regex = RegexValidator(
+        regex=r"^[0-9\-\+\(\) ]{7,20}$",
+        message="Enter a valid phone number (digits and - + ( ) allowed).",
+    )
+    phone_1 = models.CharField(max_length=20, blank=True, validators=[phone_regex])
+    phone_2 = models.CharField(max_length=20, blank=True, validators=[phone_regex])
+
+    address_1 = models.CharField(max_length=255, blank=True)
+    address_2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+
+    US_STATES = [
+        ("AL", "Alabama"), ("AK", "Alaska"), ("AZ", "Arizona"), ("AR", "Arkansas"),
+        ("CA", "California"), ("CO", "Colorado"), ("CT", "Connecticut"), ("DE", "Delaware"),
+        ("FL", "Florida"), ("GA", "Georgia"), ("HI", "Hawaii"), ("ID", "Idaho"),
+        ("IL", "Illinois"), ("IN", "Indiana"), ("IA", "Iowa"), ("KS", "Kansas"),
+        ("KY", "Kentucky"), ("LA", "Louisiana"), ("ME", "Maine"), ("MD", "Maryland"),
+        ("MA", "Massachusetts"), ("MI", "Michigan"), ("MN", "Minnesota"), ("MS", "Mississippi"),
+        ("MO", "Missouri"), ("MT", "Montana"), ("NE", "Nebraska"), ("NV", "Nevada"),
+        ("NH", "New Hampshire"), ("NJ", "New Jersey"), ("NM", "New Mexico"), ("NY", "New York"),
+        ("NC", "North Carolina"), ("ND", "North Dakota"), ("OH", "Ohio"), ("OK", "Oklahoma"),
+        ("OR", "Oregon"), ("PA", "Pennsylvania"), ("RI", "Rhode Island"), ("SC", "South Carolina"),
+        ("SD", "South Dakota"), ("TN", "Tennessee"), ("TX", "Texas"), ("UT", "Utah"),
+        ("VT", "Vermont"), ("VA", "Virginia"), ("WA", "Washington"), ("WV", "West Virginia"),
+        ("WI", "Wisconsin"), ("WY", "Wyoming"),
+        ("DC", "District of Columbia"),
+    ]
+    state = models.CharField(max_length=2, blank=True, choices=US_STATES)
+    zip_code = models.CharField(max_length=10, blank=True)
+
+    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+
+    # Role flags
+    is_seller = models.BooleanField(default=False)
+    is_owner = models.BooleanField(default=False)  # Owner/admin override in UI
+
+    # Stripe (seller onboarding later)
+    stripe_account_id = models.CharField(max_length=255, blank=True)
+    stripe_onboarding_complete = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["is_seller"]),
+            models.Index(fields=["is_owner"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Profile<{self.user.username}>"
+
+    @property
+    def display_name(self) -> str:
+        # Public identity is username; name is optional
+        name = f"{self.first_name} {self.last_name}".strip()
+        return name or self.user.username
+
+    @property
+    def can_access_seller_dashboard(self) -> bool:
+        # Owner/admin can view everything; sellers can view seller dashboard
+        return self.is_owner or self.user.is_superuser or self.user.is_staff or self.is_seller
+
+    @property
+    def can_access_consumer_dashboard(self) -> bool:
+        # Any authenticated user is effectively a consumer; owner/admin too
+        return self.user.is_authenticated
+
+    @property
+    def can_access_admin_dashboard(self) -> bool:
+        return self.is_owner or self.user.is_superuser or self.user.is_staff

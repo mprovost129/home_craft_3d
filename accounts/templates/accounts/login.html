@@ -1,0 +1,35 @@
+{% extends "accounts/base_accounts.html" %}
+{% block title %}Login · Home Craft 3D{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 style="margin-top:0;">Login</h2>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="msg error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row-1">
+        <div>
+          <label for="{{ form.username.id_for_label }}">Username</label>
+          {{ form.username }}
+          {% for e in form.username.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.password.id_for_label }}">Password</label>
+          {{ form.password }}
+          {% for e in form.password.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">Login</button>
+        <a class="btn secondary" href="{% url 'accounts:register' %}">Create account</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "accounts/base_accounts.html" %}
+{% block title %}Register · Home Craft 3D{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 style="margin-top:0;">Create account</h2>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="msg error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row">
+        <div>
+          <label for="{{ form.username.id_for_label }}">Username (public)</label>
+          {{ form.username }}
+          {% for e in form.username.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+          <div class="help">Your username is visible across the marketplace.</div>
+        </div>
+
+        <div>
+          <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
+          {{ form.email }}
+          {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.password1.id_for_label }}">Password</label>
+          {{ form.password1 }}
+          {% for e in form.password1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+          {{ form.password2 }}
+          {% for e in form.password2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="{{ form.register_as_seller.id_for_label }}">Register as seller</label>
+        {{ form.register_as_seller }}
+        <div class="help">{{ form.register_as_seller.help_text }}</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">Create account</button>
+        <a class="btn secondary" href="{% url 'accounts:login' %}">Already have an account?</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
