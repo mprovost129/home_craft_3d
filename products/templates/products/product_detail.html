@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }} · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card">
+        {% if product.images.all %}
+          <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+              {% for img in product.images.all %}
+                <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                  <img src="{{ img.image.url }}" class="d-block w-100" alt="{{ img.alt_text|default:product.title }}">
+                </div>
+              {% endfor %}
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+              <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+              <span class="carousel-control-next-icon" aria-hidden="true"></span>
+              <span class="visually-hidden">Next</span>
+            </button>
+          </div>
+        {% else %}
+          <div class="bg-light d-flex align-items-center justify-content-center" style="height:360px;">
+            <span class="text-secondary small">No images uploaded yet.</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <h1 class="h4 mb-1">{{ product.title }}</h1>
+              <div class="text-secondary small">
+                by <strong>{{ product.seller.username }}</strong> · {{ product.category.name }}
+              </div>
+
+              <div class="mt-1 small">
+                {% if review_count and review_count > 0 %}
+                  <span class="badge text-bg-dark me-1">{{ avg_rating|floatformat:1 }}/5</span>
+                  <span class="text-secondary">{{ review_count }} review{{ review_count|pluralize }}</span>
+                  <a class="ms-2 text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">
+                    View reviews
+                  </a>
+                {% else %}
+                  <span class="text-secondary">No reviews yet.</span>
+                {% endif %}
+              </div>
+            </div>
+            <span class="badge text-bg-secondary">{{ product.get_kind_display }}</span>
+          </div>
+
+          <div class="mt-3">
+            <div class="h5 mb-2">{{ product.display_price }}</div>
+
+            <form method="post" action="{% url 'cart:add' %}">
+              {% csrf_token %}
+              <input type="hidden" name="product_id" value="{{ product.pk }}">
+
+              {% if product.kind == "MODEL" %}
+                <div class="d-flex gap-2">
+                  <input class="form-control" type="number" name="quantity" min="1" value="1" style="max-width:120px;">
+                  <button class="btn btn-dark flex-grow-1" type="submit">
+                    <i class="bi bi-cart-plus me-1"></i>Add to cart
+                  </button>
+                </div>
+              {% else %}
+                <input type="hidden" name="quantity" value="1">
+                <button class="btn btn-dark w-100" type="submit">
+                  <i class="bi bi-cart-plus me-1"></i>Add to cart
+                </button>
+                <div class="text-secondary small mt-2">Digital items are limited to 1 per cart.</div>
+              {% endif %}
+            </form>
+
+            <div class="mt-2">
+              <a class="btn btn-outline-dark w-100" href="{% url 'cart:detail' %}">
+                <i class="bi bi-bag me-1"></i>View cart
+              </a>
+            </div>
+          </div>
+
+          {% if product.short_description %}
+            <hr>
+            <div class="text-secondary">{{ product.short_description }}</div>
+          {% endif %}
+
+          {% if product.description %}
+            <hr>
+            <div style="white-space: pre-wrap;">{{ product.description }}</div>
+          {% endif %}
+
+          <hr>
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">Recent reviews</div>
+            <a class="text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">All reviews</a>
+          </div>
+
+          <div class="mt-2">
+            {% for r in recent_reviews %}
+              <div class="border rounded p-2 mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div class="small fw-semibold">{{ r.buyer.username }}</div>
+                  <div class="small text-secondary">{{ r.created_at|date:"M j, Y" }}</div>
+                </div>
+                <div class="mt-1">
+                  <span class="badge text-bg-dark">{{ r.rating }}/5</span>
+                  {% if r.title %}
+                    <span class="ms-2 fw-semibold">{{ r.title }}</span>
+                  {% endif %}
+                </div>
+                {% if r.body %}
+                  <div class="small mt-2">{{ r.body|linebreaksbr }}</div>
+                {% endif %}
+              </div>
+            {% empty %}
+              <div class="text-secondary small">No reviews yet.</div>
+            {% endfor %}
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <h2 class="h5 mb-3">More like this item</h2>
+    <div class="row g-3">
+      {% for p in more_like_this %}
+        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+          <div class="card h-100">
+            {% if p.primary_image %}
+              <img src="{{ p.primary_image.image.url }}" class="card-img-top" alt="{{ p.primary_image.alt_text|default:p.title }}">
+            {% else %}
+              <div class="bg-light d-flex align-items-center justify-content-center" style="height:140px;">
+                <span class="text-secondary small">No image</span>
+              </div>
+            {% endif %}
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="fw-semibold">
+                  <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+                </div>
+                <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+              </div>
+              <div class="text-secondary small">by {{ p.seller.username }}</div>
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+              <strong>{{ p.display_price }}</strong>
+              <a class="btn btn-sm btn-outline-dark" href="{{ p.get_absolute_url }}">View</a>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-12">
+          <div class="alert alert-secondary mb-0">No similar items yet.</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

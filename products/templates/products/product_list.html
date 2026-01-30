@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ page_title }}</h1>
+      <div class="text-secondary small">
+        {% if kind == "MODEL" %}
+          Physical prints shipped by sellers.
+        {% elif kind == "FILE" %}
+          Digital downloads from sellers.
+        {% else %}
+          Explore models and files from sellers.
+        {% endif %}
+      </div>
+    </div>
+
+    <form class="d-flex gap-2" method="get">
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
+
+      {% if kind %}
+        <!-- locked kind view -->
+        <input type="hidden" name="kind" value="{{ kind }}">
+      {% else %}
+        <!-- all-products view allows filtering -->
+        <select class="form-select" name="kind" style="min-width:200px;">
+          <option value="">All</option>
+          <option value="MODEL">3D Models (Physical)</option>
+          <option value="FILE">3D Files (Digital)</option>
+        </select>
+      {% endif %}
+
+      <button class="btn btn-dark" type="submit">Search</button>
+    </form>
+  </div>
+
+  <div class="row g-3">
+    {% for p in products %}
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="card h-100">
+          {% if p.primary_image %}
+            <img src="{{ p.primary_image.image.url }}" class="card-img-top" alt="{{ p.primary_image.alt_text|default:p.title }}">
+          {% else %}
+            <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
+              <span class="text-secondary small">No image</span>
+            </div>
+          {% endif %}
+
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <h2 class="h6 mb-1">
+                <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+              </h2>
+              <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+            </div>
+
+            <div class="text-secondary small mb-2">
+              by <strong>{{ p.seller.username }}</strong> · {{ p.category.name }}
+            </div>
+
+            {% if p.short_description %}
+              <div class="text-secondary small">{{ p.short_description }}</div>
+            {% endif %}
+          </div>
+
+          <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <strong>{{ p.display_price }}</strong>
+            <a class="btn btn-sm btn-outline-dark" href="{{ p.get_absolute_url }}">View</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-secondary mb-0">No products yet.</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

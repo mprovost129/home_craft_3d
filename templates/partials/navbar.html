@@ -1,34 +1,81 @@
-<nav class="hc3-navbar">
-  <div class="hc3-nav-left">
-    <a class="hc3-brand" href="{% url 'home' %}">
-      <!-- Later: replace with your actual logo -->
-      <span class="hc3-brand-mark">HC3</span>
-      <span class="hc3-brand-name">Home Craft 3D</span>
+<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+  <div class="container-fluid">
+
+    <!-- Brand -->
+    <a class="navbar-brand fw-semibold" href="{% url 'home' %}">
+      Home Craft 3D
     </a>
-  </div>
 
-  <div class="hc3-nav-center">
-    <a href="{% url 'home' %}" class="hc3-nav-link">Home</a>
-    <a href="{% url 'catalog:category_list' %}" class="hc3-nav-link">Browse</a>
-    <!-- Later: Models, Files, Sellers, About, etc. -->
-  </div>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
 
-  <div class="hc3-nav-right">
-    {% if user.is_authenticated %}
-      <div class="hc3-dropdown">
-        <button class="hc3-dropdown-btn" type="button">
-          {{ user.username }} ▾
-        </button>
-        <div class="hc3-dropdown-menu">
-          <a href="{% url 'accounts:profile' %}">Profile</a>
-          <a href="#" aria-disabled="true">Settings (soon)</a>
-          <div class="hc3-dropdown-sep"></div>
-          <a href="{% url 'accounts:logout' %}">Logout</a>
-        </div>
-      </div>
-    {% else %}
-      <a class="hc3-nav-link" href="{% url 'accounts:login' %}">Login</a>
-      <a class="hc3-btn" href="{% url 'accounts:register' %}">Register</a>
-    {% endif %}
+    <div class="collapse navbar-collapse" id="mainNav">
+
+      <!-- Center nav -->
+      <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-3">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'products:models' %}">Models</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'products:files' %}">Files</a>
+        </li>
+      </ul>
+
+      <!-- Right side -->
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
+
+        {% if user.is_authenticated %}
+
+          <!-- Stripe status badge (SELLERS ONLY) -->
+          {% if seller_stripe_ready is not None %}
+            {% if seller_stripe_ready %}
+              <li class="nav-item">
+                <span class="badge text-bg-success">
+                  <i class="bi bi-check2-circle me-1"></i>Stripe Ready
+                </span>
+              </li>
+            {% else %}
+              <li class="nav-item">
+                <a href="{% url 'payments:connect_status' %}"
+                   class="badge text-bg-warning text-dark text-decoration-none">
+                  <i class="bi bi-exclamation-triangle me-1"></i>Finish Stripe Setup
+                </a>
+              </li>
+            {% endif %}
+          {% endif %}
+
+          <!-- Profile dropdown -->
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+              {{ user.username }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Profile</a></li>
+
+              {% if user.is_seller %}
+                <li><a class="dropdown-item" href="{% url 'products:seller_list' %}">Seller Dashboard</a></li>
+              {% endif %}
+
+              {% if user.is_staff %}
+                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin</a></li>
+              {% endif %}
+
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
+            </ul>
+          </li>
+
+        {% else %}
+          <li class="nav-item">
+            <a class="btn btn-outline-dark" href="{% url 'accounts:login' %}">Login</a>
+          </li>
+          <li class="nav-item">
+            <a class="btn btn-dark" href="{% url 'accounts:register' %}">Register</a>
+          </li>
+        {% endif %}
+
+      </ul>
+    </div>
   </div>
 </nav>

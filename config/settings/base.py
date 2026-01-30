@@ -29,6 +29,11 @@ LOCAL_APPS = [
     "accounts",
     "core",
     "catalog",
+    "products",
+    "cart",
+    "orders",
+    "payments",
+    "reviews",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -58,6 +63,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Sidebar category trees
                 "catalog.context_processors.sidebar_categories",
+                "payments.context_processors.seller_stripe_status",
             ],
         },
     }

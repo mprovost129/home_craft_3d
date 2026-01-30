@@ -1,0 +1,200 @@
+from __future__ import annotations
+
+from django.contrib import messages
+from django.db.models import Q
+from django.http import Http404
+from django.shortcuts import get_object_or_404, redirect, render
+
+from payments.models import SellerStripeAccount
+from payments.permissions import stripe_ready_required
+from .forms import ProductForm, ProductImageUploadForm, DigitalAssetUploadForm
+from .models import Product, ProductImage, DigitalAsset
+from .permissions import seller_required, is_owner_user
+
+
+def _can_edit_product(user, product: Product) -> bool:
+    if is_owner_user(user):
+        return True
+    return product.seller_id == user.id
+
+
+def _get_owned_product_or_404(request, pk: int) -> Product:
+    product = get_object_or_404(Product, pk=pk)
+    if not _can_edit_product(request.user, product):
+        raise Http404("Not found")
+    return product
+
+
+@seller_required
+def seller_product_list(request):
+    """
+    Seller dashboard: list your products.
+    Owner/admin sees all products.
+
+    NOTE: This is NOT gated by Stripe readiness. Sellers can still view what they have.
+    """
+    qs = Product.objects.select_related("category", "seller").prefetch_related("images").order_by("-created_at")
+    if not is_owner_user(request.user):
+        qs = qs.filter(seller=request.user)
+
+    q = (request.GET.get("q") or "").strip()
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(short_description__icontains=q) | Q(description__icontains=q))
+
+    stripe_account = None
+    stripe_ready = True
+    if not is_owner_user(request.user):
+        stripe_account = SellerStripeAccount.objects.filter(user=request.user).first()
+        stripe_ready = bool(stripe_account and stripe_account.is_ready)
+
+    return render(
+        request,
+        "products/seller/product_list.html",
+        {
+            "products": qs,
+            "q": q,
+            "stripe_account": stripe_account,
+            "stripe_ready": stripe_ready,
+        },
+    )
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_create(request):
+    if request.method == "POST":
+        form = ProductForm(request.POST, user=request.user)
+        if form.is_valid():
+            product = form.save(commit=False)
+            product.seller = request.user
+            product.save()
+            messages.success(request, "Product created. Next: add images (and digital assets if applicable).")
+            return redirect("products:seller_images", pk=product.pk)
+    else:
+        form = ProductForm(user=request.user)
+
+    return render(request, "products/seller/product_form.html", {"form": form, "mode": "create"})
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_edit(request, pk: int):
+    product = _get_owned_product_or_404(request, pk)
+
+    if request.method == "POST":
+        form = ProductForm(request.POST, instance=product, user=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Product updated.")
+            return redirect("products:seller_list")
+    else:
+        form = ProductForm(instance=product, user=request.user)
+
+    return render(
+        request,
+        "products/seller/product_form.html",
+        {"form": form, "mode": "edit", "product": product},
+    )
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_images(request, pk: int):
+    product = _get_owned_product_or_404(request, pk)
+
+    if request.method == "POST":
+        form = ProductImageUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            img: ProductImage = form.save(commit=False)
+            img.product = product
+            img.save()
+
+            # If primary set, unset others
+            if img.is_primary:
+                ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+
+            messages.success(request, "Image uploaded.")
+            return redirect("products:seller_images", pk=product.pk)
+    else:
+        form = ProductImageUploadForm()
+
+    images = product.images.all().order_by("sort_order", "id")
+    return render(
+        request,
+        "products/seller/product_images.html",
+        {"product": product, "form": form, "images": images},
+    )
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_image_delete(request, pk: int, image_id: int):
+    product = _get_owned_product_or_404(request, pk)
+    img = get_object_or_404(ProductImage, pk=image_id, product=product)
+
+    if request.method == "POST":
+        was_primary = img.is_primary
+        img.delete()
+        if was_primary:
+            # Make the next image primary automatically (nice UX)
+            next_img = ProductImage.objects.filter(product=product).order_by("sort_order", "id").first()
+            if next_img:
+                next_img.is_primary = True
+                next_img.save(update_fields=["is_primary"])
+        messages.success(request, "Image deleted.")
+        return redirect("products:seller_images", pk=product.pk)
+
+    return redirect("products:seller_images", pk=product.pk)
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_assets(request, pk: int):
+    product = _get_owned_product_or_404(request, pk)
+
+    if product.kind != Product.Kind.FILE:
+        messages.info(request, "This is not a digital file product. Assets are only for FILE listings.")
+        return redirect("products:seller_list")
+
+    if request.method == "POST":
+        form = DigitalAssetUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            asset: DigitalAsset = form.save(commit=False)
+            asset.product = product
+            asset.save()
+            messages.success(request, "Digital asset uploaded.")
+            return redirect("products:seller_assets", pk=product.pk)
+    else:
+        form = DigitalAssetUploadForm()
+
+    assets = product.digital_assets.all().order_by("id")
+    return render(
+        request,
+        "products/seller/product_assets.html",
+        {"product": product, "form": form, "assets": assets},
+    )
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_asset_delete(request, pk: int, asset_id: int):
+    product = _get_owned_product_or_404(request, pk)
+    asset = get_object_or_404(DigitalAsset, pk=asset_id, product=product)
+
+    if request.method == "POST":
+        asset.delete()
+        messages.success(request, "Digital asset deleted.")
+        return redirect("products:seller_assets", pk=product.pk)
+
+    return redirect("products:seller_assets", pk=product.pk)
+
+
+@seller_required
+@stripe_ready_required
+def seller_product_toggle_active(request, pk: int):
+    product = _get_owned_product_or_404(request, pk)
+    if request.method == "POST":
+        product.is_active = not product.is_active
+        product.save(update_fields=["is_active"])
+        messages.success(request, f"Listing is now {'active' if product.is_active else 'inactive'}.")
+    return redirect("products:seller_list")

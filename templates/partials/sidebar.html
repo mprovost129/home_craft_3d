@@ -1,31 +1,37 @@
-<div class="hc3-sidebar-section">
-  <div class="hc3-sidebar-title">3D Models</div>
+<div class="p-3">
+  <div class="text-uppercase small text-secondary fw-semibold mb-2">
+    <i class="bi bi-box-seam me-1"></i>3D Models
+  </div>
 
-  <ul class="hc3-tree">
+  <ul class="list-unstyled mb-4">
     {% for cat in sidebar_model_categories %}
-      <li class="hc3-tree-item">
-        <div class="hc3-tree-row">
+      <li class="mb-1">
+        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
           {% if cat.children.all %}
-            <button class="hc3-tree-toggle"
+            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
                     type="button"
                     data-target="cat-{{ cat.id }}"
                     aria-expanded="false"
                     aria-controls="cat-{{ cat.id }}">
-              ▸
+              <i class="bi bi-caret-right-fill"></i>
             </button>
           {% else %}
-            <span class="hc3-tree-spacer"></span>
+            <span style="width:38px;"></span>
           {% endif %}
 
-          <a class="hc3-tree-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
+            {{ cat.name }}
+          </a>
         </div>
 
         {% if cat.children.all %}
-          <ul class="hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
             {% for child in cat.children.all %}
               {% if child.is_active %}
-                <li class="hc3-tree-child">
-                  <a class="hc3-tree-link" href="{{ child.get_absolute_url }}">{{ child.name }}</a>
+                <li class="py-1">
+                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
+                    <i class="bi bi-dot"></i>{{ child.name }}
+                  </a>
                 </li>
               {% endif %}
             {% endfor %}
@@ -33,39 +39,43 @@
         {% endif %}
       </li>
     {% empty %}
-      <li class="hc3-tree-empty">No model categories yet.</li>
+      <li class="text-secondary small">No model categories yet.</li>
     {% endfor %}
   </ul>
-</div>
 
-<div class="hc3-sidebar-section">
-  <div class="hc3-sidebar-title">3D Files</div>
+  <div class="text-uppercase small text-secondary fw-semibold mb-2">
+    <i class="bi bi-file-earmark-zip me-1"></i>3D Files
+  </div>
 
-  <ul class="hc3-tree">
+  <ul class="list-unstyled mb-0">
     {% for cat in sidebar_file_categories %}
-      <li class="hc3-tree-item">
-        <div class="hc3-tree-row">
+      <li class="mb-1">
+        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
           {% if cat.children.all %}
-            <button class="hc3-tree-toggle"
+            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
                     type="button"
                     data-target="cat-{{ cat.id }}"
                     aria-expanded="false"
                     aria-controls="cat-{{ cat.id }}">
-              ▸
+              <i class="bi bi-caret-right-fill"></i>
             </button>
           {% else %}
-            <span class="hc3-tree-spacer"></span>
+            <span style="width:38px;"></span>
           {% endif %}
 
-          <a class="hc3-tree-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
+            {{ cat.name }}
+          </a>
         </div>
 
         {% if cat.children.all %}
-          <ul class="hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
             {% for child in cat.children.all %}
               {% if child.is_active %}
-                <li class="hc3-tree-child">
-                  <a class="hc3-tree-link" href="{{ child.get_absolute_url }}">{{ child.name }}</a>
+                <li class="py-1">
+                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
+                    <i class="bi bi-dot"></i>{{ child.name }}
+                  </a>
                 </li>
               {% endif %}
             {% endfor %}
@@ -73,7 +83,7 @@
         {% endif %}
       </li>
     {% empty %}
-      <li class="hc3-tree-empty">No file categories yet.</li>
+      <li class="text-secondary small">No file categories yet.</li>
     {% endfor %}
   </ul>
 </div>

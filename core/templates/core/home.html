@@ -10,7 +10,10 @@
       </p>
 
       <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
-        <a class="hc3-btn" href="{% url 'catalog:category_list' %}">Browse marketplace</a>
+        <a class="hc3-btn" href="{% url 'products:models' %}">Browse Models</a>
+        <a class="hc3-btn" href="{% url 'products:files' %}">Browse Files</a>
+        <a class="hc3-btn" style="background:#fff; color:#111827;" href="{% url 'catalog:category_list' %}">Browse Categories</a>
+
         {% if not user.is_authenticated %}
           <a class="hc3-btn" style="background:#fff; color:#111827;" href="{% url 'accounts:register' %}">Register</a>
           <a class="hc3-btn" style="background:#fff; color:#111827;" href="{% url 'accounts:login' %}">Login</a>
@@ -18,23 +21,260 @@
       </div>
     </div>
 
-    <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 16px;">
+    {% comment %}
+      Reusable card markup:
+      - uses product.primary_image if available
+      - shows kind badge + price
+      - links to product detail
+      - add-to-cart posts to cart:add using AddToCartForm fields: product_id, quantity
+    {% endcomment %}
+
+    <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px;">
+
+      <!-- Featured -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-        <strong>Featured</strong>
-        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder cards (wire to products next)</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <strong>Featured</strong>
+          <span style="color:#6b7280; font-size:13px;">Top picks</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-top: 12px;">
+          {% for p in featured %}
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff;">
+              <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                <div style="aspect-ratio: 1 / 1; background:#f3f4f6; display:flex; align-items:center; justify-content:center;">
+                  {% if p.primary_image %}
+                    <img src="{{ p.primary_image.image.url }}" alt="{{ p.title }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <span style="color:#9ca3af; font-size:12px;">No image</span>
+                  {% endif %}
+                </div>
+              </a>
+
+              <div style="padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <span style="font-weight:600;">{{ p.display_price }}</span>
+                </div>
+
+                <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                  <div style="margin-top:6px; font-weight:600; font-size:13px; line-height:1.2;">
+                    {{ p.title|truncatechars:38 }}
+                  </div>
+                </a>
+
+                <div style="margin-top:6px; color:#6b7280; font-size:12px;">
+                  by {{ p.seller.username }}
+                </div>
+
+                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                  {% if p.can_buy %}
+                    <form method="post" action="{% url 'cart:add' %}" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ p.id }}">
+                      <input type="hidden" name="quantity" value="1">
+                      <button class="hc3-btn" type="submit" style="padding:8px 10px; font-size:12px;">
+                        Add to cart
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="hc3-btn" type="button" disabled style="padding:8px 10px; font-size:12px; opacity:.55; cursor:not-allowed;">
+                      Add to cart
+                    </button>
+                    <span style="color:#b45309; font-size:12px;">Seller not ready</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div style="grid-column: 1 / -1; color:#6b7280; font-size:13px;">No featured products yet.</div>
+          {% endfor %}
+        </div>
       </div>
+
+      <!-- New -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-        <strong>New</strong>
-        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <strong>New</strong>
+          <span style="color:#6b7280; font-size:13px;">Just added</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-top: 12px;">
+          {% for p in new_items %}
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff;">
+              <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                <div style="aspect-ratio: 1 / 1; background:#f3f4f6; display:flex; align-items:center; justify-content:center;">
+                  {% if p.primary_image %}
+                    <img src="{{ p.primary_image.image.url }}" alt="{{ p.title }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <span style="color:#9ca3af; font-size:12px;">No image</span>
+                  {% endif %}
+                </div>
+              </a>
+
+              <div style="padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <span style="font-weight:600;">{{ p.display_price }}</span>
+                </div>
+
+                <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                  <div style="margin-top:6px; font-weight:600; font-size:13px; line-height:1.2;">
+                    {{ p.title|truncatechars:38 }}
+                  </div>
+                </a>
+
+                <div style="margin-top:6px; color:#6b7280; font-size:12px;">
+                  by {{ p.seller.username }}
+                </div>
+
+                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                  {% if p.can_buy %}
+                    <form method="post" action="{% url 'cart:add' %}" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ p.id }}">
+                      <input type="hidden" name="quantity" value="1">
+                      <button class="hc3-btn" type="submit" style="padding:8px 10px; font-size:12px;">
+                        Add to cart
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="hc3-btn" type="button" disabled style="padding:8px 10px; font-size:12px; opacity:.55; cursor:not-allowed;">
+                      Add to cart
+                    </button>
+                    <span style="color:#b45309; font-size:12px;">Seller not ready</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div style="grid-column: 1 / -1; color:#6b7280; font-size:13px;">No products yet.</div>
+          {% endfor %}
+        </div>
       </div>
+
+      <!-- Trending -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-        <strong>Trending</strong>
-        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <strong>Trending</strong>
+          <span style="color:#6b7280; font-size:13px;">Popular now</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-top: 12px;">
+          {% for p in trending %}
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff;">
+              <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                <div style="aspect-ratio: 1 / 1; background:#f3f4f6; display:flex; align-items:center; justify-content:center;">
+                  {% if p.primary_image %}
+                    <img src="{{ p.primary_image.image.url }}" alt="{{ p.title }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <span style="color:#9ca3af; font-size:12px;">No image</span>
+                  {% endif %}
+                </div>
+              </a>
+
+              <div style="padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <span style="font-weight:600;">{{ p.display_price }}</span>
+                </div>
+
+                <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                  <div style="margin-top:6px; font-weight:600; font-size:13px; line-height:1.2;">
+                    {{ p.title|truncatechars:38 }}
+                  </div>
+                </a>
+
+                <div style="margin-top:6px; color:#6b7280; font-size:12px;">
+                  by {{ p.seller.username }}
+                </div>
+
+                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                  {% if p.can_buy %}
+                    <form method="post" action="{% url 'cart:add' %}" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ p.id }}">
+                      <input type="hidden" name="quantity" value="1">
+                      <button class="hc3-btn" type="submit" style="padding:8px 10px; font-size:12px;">
+                        Add to cart
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="hc3-btn" type="button" disabled style="padding:8px 10px; font-size:12px; opacity:.55; cursor:not-allowed;">
+                      Add to cart
+                    </button>
+                    <span style="color:#b45309; font-size:12px;">Seller not ready</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div style="grid-column: 1 / -1; color:#6b7280; font-size:13px;">No trending products yet.</div>
+          {% endfor %}
+        </div>
       </div>
+
+      <!-- Misc -->
       <div style="background:#fff; border:1px solid #e5e7eb; border-radius:16px; padding:16px;">
-        <strong>Misc</strong>
-        <div style="color:#6b7280; font-size:13px; margin-top:6px;">Placeholder</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <strong>Misc</strong>
+          <span style="color:#6b7280; font-size:13px;">More to explore</span>
+        </div>
+
+        <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px; margin-top: 12px;">
+          {% for p in misc %}
+            <div style="border:1px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff;">
+              <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                <div style="aspect-ratio: 1 / 1; background:#f3f4f6; display:flex; align-items:center; justify-content:center;">
+                  {% if p.primary_image %}
+                    <img src="{{ p.primary_image.image.url }}" alt="{{ p.title }}" style="width:100%; height:100%; object-fit:cover;">
+                  {% else %}
+                    <span style="color:#9ca3af; font-size:12px;">No image</span>
+                  {% endif %}
+                </div>
+              </a>
+
+              <div style="padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <span style="font-size:12px; color:#6b7280;">{{ p.get_kind_display }}</span>
+                  <span style="font-weight:600;">{{ p.display_price }}</span>
+                </div>
+
+                <a href="{{ p.get_absolute_url }}" style="text-decoration:none; color:inherit;">
+                  <div style="margin-top:6px; font-weight:600; font-size:13px; line-height:1.2;">
+                    {{ p.title|truncatechars:38 }}
+                  </div>
+                </a>
+
+                <div style="margin-top:6px; color:#6b7280; font-size:12px;">
+                  by {{ p.seller.username }}
+                </div>
+
+                <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+                  {% if p.can_buy %}
+                    <form method="post" action="{% url 'cart:add' %}" style="margin:0;">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ p.id }}">
+                      <input type="hidden" name="quantity" value="1">
+                      <button class="hc3-btn" type="submit" style="padding:8px 10px; font-size:12px;">
+                        Add to cart
+                      </button>
+                    </form>
+                  {% else %}
+                    <button class="hc3-btn" type="button" disabled style="padding:8px 10px; font-size:12px; opacity:.55; cursor:not-allowed;">
+                      Add to cart
+                    </button>
+                    <span style="color:#b45309; font-size:12px;">Seller not ready</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <div style="grid-column: 1 / -1; color:#6b7280; font-size:13px;">Nothing else yet.</div>
+          {% endfor %}
+        </div>
       </div>
+
     </div>
   </div>
 {% endblock %}

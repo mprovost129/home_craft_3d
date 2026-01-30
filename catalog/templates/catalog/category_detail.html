@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ category.name }} · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ category.name }}</h1>
+      <div class="text-secondary small">
+        {{ category.get_type_display }}
+        {% if category.parent %}
+          · Parent: <a href="{{ category.parent.get_absolute_url }}" class="text-decoration-none">{{ category.parent.name }}</a>
+        {% endif %}
+      </div>
+      {% if category.description %}
+        <div class="text-secondary mt-2">{{ category.description }}</div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-dark" href="{% url 'catalog:category_list' %}">
+        <i class="bi bi-arrow-left me-1"></i>All Categories
+      </a>
+      <a class="btn btn-outline-dark" href="{% url 'products:list' %}">
+        <i class="bi bi-grid me-1"></i>All Products
+      </a>
+    </div>
+  </div>
+
+  {% if children %}
+    <div class="mb-3">
+      <div class="text-secondary small mb-2">Sub-categories</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for c in children %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ c.get_absolute_url }}">
+            {{ c.name }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="row g-3">
+    {% for p in products %}
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="card h-100">
+          {% if p.primary_image %}
+            <img src="{{ p.primary_image.image.url }}" class="card-img-top" alt="{{ p.primary_image.alt_text|default:p.title }}">
+          {% else %}
+            <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
+              <span class="text-secondary small">No image</span>
+            </div>
+          {% endif %}
+
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <h2 class="h6 mb-1">
+                <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+              </h2>
+              <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+            </div>
+
+            <div class="text-secondary small mb-2">
+              by <strong>{{ p.seller.username }}</strong>
+              · {{ p.category.name }}
+            </div>
+
+            {% if p.short_description %}
+              <div class="text-secondary small">{{ p.short_description }}</div>
+            {% endif %}
+          </div>
+
+          <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <strong>{{ p.display_price }}</strong>
+            <a class="btn btn-sm btn-outline-dark" href="{{ p.get_absolute_url }}">View</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-secondary mb-0">No products in this category yet.</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Checkout Success · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px;">
+  <div class="card">
+    <div class="card-body">
+      <h1 class="h4 mb-2"><i class="bi bi-check2-circle me-1"></i>Payment received</h1>
+      <p class="text-secondary mb-3">
+        Thanks! Your payment was submitted successfully. Your order may take a moment to update.
+      </p>
+
+      {% if order %}
+        <a class="btn btn-dark" href="{% url 'orders:detail' order.id %}">
+          View Order #{{ order.id }}
+        </a>
+      {% else %}
+        <a class="btn btn-dark" href="{% url 'products:list' %}">
+          Continue Shopping
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
