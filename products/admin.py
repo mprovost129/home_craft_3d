@@ -1,6 +1,15 @@
+from __future__ import annotations
+
 from django.contrib import admin
 
-from .models import Product, ProductImage, ProductDigital, DigitalAsset, ProductPhysical
+from .models import (
+    Product,
+    ProductImage,
+    ProductDigital,
+    ProductPhysical,
+    DigitalAsset,
+    ProductEngagementEvent,
+)
 
 
 class ProductImageInline(admin.TabularInline):
@@ -16,6 +25,7 @@ class DigitalAssetInline(admin.TabularInline):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
+        "id",
         "title",
         "kind",
         "seller",
@@ -23,45 +33,40 @@ class ProductAdmin(admin.ModelAdmin):
         "is_active",
         "is_featured",
         "is_trending",
-        "price",
         "created_at",
     )
     list_filter = ("kind", "is_active", "is_featured", "is_trending", "category")
-    search_fields = ("title", "slug", "seller__username")
+    search_fields = ("title", "slug", "seller__username", "short_description", "description")
     prepopulated_fields = {"slug": ("title",)}
-    autocomplete_fields = ("seller", "category")
     inlines = [ProductImageInline, DigitalAssetInline]
-
-    fieldsets = (
-        ("Ownership", {"fields": ("seller", "kind")}),
-        ("Listing", {"fields": ("title", "slug", "short_description", "description", "category")}),
-        ("Pricing", {"fields": ("is_free", "price")}),
-        ("Visibility", {"fields": ("is_active", "is_featured", "is_trending")}),
-        ("Timestamps", {"fields": ("created_at", "updated_at")}),
-    )
-    readonly_fields = ("created_at", "updated_at")
 
 
 @admin.register(ProductDigital)
 class ProductDigitalAdmin(admin.ModelAdmin):
-    list_display = ("product", "file_count")
-    autocomplete_fields = ("product",)
+    list_display = ("id", "product", "file_count")
 
 
 @admin.register(ProductPhysical)
 class ProductPhysicalAdmin(admin.ModelAdmin):
-    list_display = ("product", "material", "color", "width_mm", "height_mm", "depth_mm")
-    autocomplete_fields = ("product",)
+    list_display = ("id", "product", "material", "color")
 
 
 @admin.register(ProductImage)
 class ProductImageAdmin(admin.ModelAdmin):
-    list_display = ("product", "is_primary", "sort_order", "id")
+    list_display = ("id", "product", "is_primary", "sort_order", "created_at")
     list_filter = ("is_primary",)
-    autocomplete_fields = ("product",)
+    search_fields = ("product__title",)
 
 
 @admin.register(DigitalAsset)
 class DigitalAssetAdmin(admin.ModelAdmin):
-    list_display = ("product", "original_filename", "id", "created_at")
-    autocomplete_fields = ("product",)
+    list_display = ("id", "product", "original_filename", "created_at")
+    search_fields = ("product__title", "original_filename")
+
+
+@admin.register(ProductEngagementEvent)
+class ProductEngagementEventAdmin(admin.ModelAdmin):
+    list_display = ("id", "event_type", "product", "created_at")
+    list_filter = ("event_type",)
+    search_fields = ("product__title", "product__seller__username")
+    date_hierarchy = "created_at"

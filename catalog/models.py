@@ -15,6 +15,8 @@ class Category(models.Model):
     name = models.CharField(max_length=120)
     slug = models.SlugField(max_length=140)
 
+    # Root categories have parent = NULL.
+    # Subcategories have parent = a root Category.
     parent = models.ForeignKey(
         "self",
         null=True,
@@ -58,3 +60,22 @@ class Category(models.Model):
 
     def get_absolute_url(self) -> str:
         return reverse("catalog:category_detail", kwargs={"pk": self.pk})
+
+
+# -----------------------------
+# Admin UX: Category vs Subcategory
+# Proxy models (NO DB changes)
+# -----------------------------
+
+class RootCategory(Category):
+    class Meta:
+        proxy = True
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
+
+class SubCategory(Category):
+    class Meta:
+        proxy = True
+        verbose_name = "Subcategory"
+        verbose_name_plural = "Subcategories"

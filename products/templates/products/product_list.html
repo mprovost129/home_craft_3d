@@ -15,41 +15,50 @@
           Explore models and files from sellers.
         {% endif %}
       </div>
+
+      {% if sort == "top" and not top_fallback %}
+        <div class="text-secondary small mt-1">
+          Showing only products with at least {{ min_reviews_top_rated }} reviews.
+        </div>
+      {% endif %}
+
+      {% if sort == "top" and top_fallback %}
+        <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="max-width: 760px;">
+          <strong>Not enough reviews yet.</strong>
+          Showing best early ratings (this will switch to “min {{ min_reviews_top_rated }} reviews” automatically once the shop has more feedback).
+        </div>
+      {% endif %}
+
+      {% if sort == "trending" and trending_fallback %}
+        <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="max-width: 760px;">
+          <strong>Early trending signal.</strong>
+          Until purchases/reviews build up, Trending is based on review activity + ratings + recency.
+        </div>
+      {% endif %}
     </div>
 
-    <form class="d-flex gap-2 flex-wrap" method="get">
+    <form class="d-flex gap-2" method="get">
       <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
 
-      {% if kind %}
-        <!-- locked kind view -->
+      {% if kind and (kind == "MODEL" or kind == "FILE") %}
         <input type="hidden" name="kind" value="{{ kind }}">
       {% else %}
-        <!-- all-products view allows filtering -->
         <select class="form-select" name="kind" style="min-width:200px;">
-          <option value="" {% if not kind %}selected{% endif %}>All</option>
-          <option value="MODEL" {% if kind == "MODEL" %}selected{% endif %}>3D Models (Physical)</option>
-          <option value="FILE" {% if kind == "FILE" %}selected{% endif %}>3D Files (Digital)</option>
+          <option value="">All</option>
+          <option value="MODEL" {% if request.GET.kind == "MODEL" %}selected{% endif %}>3D Models (Physical)</option>
+          <option value="FILE" {% if request.GET.kind == "FILE" %}selected{% endif %}>3D Files (Digital)</option>
         </select>
       {% endif %}
 
       <select class="form-select" name="sort" style="min-width:220px;">
-        {% for value,label in sort_choices %}
-          <option value="{{ value }}" {% if sort == value %}selected{% endif %}>Sort: {{ label }}</option>
-        {% endfor %}
+        <option value="new" {% if sort == "new" %}selected{% endif %}>Sort: New</option>
+        <option value="trending" {% if sort == "trending" %}selected{% endif %}>Sort: Trending</option>
+        <option value="top" {% if sort == "top" %}selected{% endif %}>Sort: Top Rated</option>
       </select>
 
-      <button class="btn btn-dark" type="submit">Apply</button>
+      <button class="btn btn-dark" type="submit">Search</button>
     </form>
   </div>
-
-  {% if sort == "trending" %}
-    <div class="alert alert-light border d-flex align-items-center gap-2">
-      <span class="badge text-bg-warning">🔥 Trending</span>
-      <div class="small text-secondary mb-0">
-        Trending is computed from paid purchases + recent reviews in the last {{ trending_window_days }} days (plus rating).
-      </div>
-    </div>
-  {% endif %}
 
   <div class="row g-3">
     {% for p in products %}
@@ -69,31 +78,30 @@
                 <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
               </h2>
 
-              <div class="d-flex align-items-center gap-2">
-                {% if p.is_trending %}
-                  <span class="badge text-bg-warning">🔥 Trending</span>
-                {% elif sort == "trending" and p.trending_score and p.trending_score|floatformat:2 != "0.00" %}
-                  <span class="badge text-bg-warning">🔥 Trending</span>
+              <div class="d-flex flex-column align-items-end gap-1">
+                {% if p.trending_badge %}
+                  <span class="badge" style="background:#f59e0b; color:#111827;">🔥 Trending</span>
                 {% endif %}
                 <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
               </div>
             </div>
 
-            <div class="text-secondary small mb-1">
-              by <strong>{{ p.seller.username }}</strong> · {{ p.category.name }}
-            </div>
+            <div class="d-flex justify-content-between align-items-center mt-1">
+              <div class="text-secondary small">
+                by <strong>{{ p.seller.username }}</strong> · {{ p.category.name }}
+              </div>
 
-            <div class="small mb-2">
-              {% if p.review_count and p.review_count > 0 %}
-                <span class="badge text-bg-dark me-1">{{ p.avg_rating|floatformat:1 }}/5</span>
-                <span class="text-secondary">{{ p.review_count }} review{{ p.review_count|pluralize }}</span>
-              {% else %}
-                <span class="text-secondary">No reviews yet</span>
-              {% endif %}
+              <div class="small text-secondary" style="white-space:nowrap;">
+                {% if p.review_count and p.review_count > 0 %}
+                  ★ {{ p.avg_rating|floatformat:1 }}/5 ({{ p.review_count }})
+                {% else %}
+                  No reviews
+                {% endif %}
+              </div>
             </div>
 
             {% if p.short_description %}
-              <div class="text-secondary small">{{ p.short_description }}</div>
+              <div class="text-secondary small mt-2">{{ p.short_description }}</div>
             {% endif %}
           </div>
 
@@ -105,7 +113,13 @@
       </div>
     {% empty %}
       <div class="col-12">
-        <div class="alert alert-secondary mb-0">No products yet.</div>
+        <div class="alert alert-secondary mb-0">
+          {% if sort == "top" and not top_fallback %}
+            No products have at least {{ min_reviews_top_rated }} reviews yet.
+          {% else %}
+            No products yet.
+          {% endif %}
+        </div>
       </div>
     {% endfor %}
   </div>

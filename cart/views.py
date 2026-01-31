@@ -4,8 +4,7 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from payments.utils import seller_is_stripe_ready
-from products.models import Product
+from products.models import Product, ProductEngagementEvent
 from .cart import Cart
 from .forms import AddToCartForm, UpdateCartLineForm
 
@@ -44,16 +43,17 @@ def cart_add(request):
     product = get_object_or_404(Product, pk=form.cleaned_data["product_id"], is_active=True)
     qty = form.cleaned_data.get("quantity") or 1
 
-    # Block purchases for sellers not Stripe-ready (owner/admin bypass handled in helper)
-    if not seller_is_stripe_ready(product.seller):
-        messages.warning(
-            request,
-            f"“{product.title}” can’t be purchased yet because the seller hasn’t finished Stripe payout setup.",
-        )
-        return redirect(product.get_absolute_url())
-
     cart = Cart(request)
     cart.add(product, quantity=qty)
+
+    # Engagement event (best-effort)
+    try:
+        ProductEngagementEvent.objects.create(
+            product=product,
+            event_type=ProductEngagementEvent.EventType.ADD_TO_CART,
+        )
+    except Exception:
+        pass
 
     messages.success(request, "Added to cart.")
     return redirect("cart:detail")
@@ -68,16 +68,6 @@ def cart_update(request):
 
     product = get_object_or_404(Product, pk=form.cleaned_data["product_id"])
     qty = form.cleaned_data["quantity"]
-
-    # Block updates for sellers not Stripe-ready (prevents quantity changes on invalid items)
-    if not seller_is_stripe_ready(product.seller):
-        cart = Cart(request)
-        cart.remove(product)
-        messages.warning(
-            request,
-            f"Removed “{product.title}” from your cart because the seller hasn’t finished Stripe payout setup.",
-        )
-        return redirect("cart:detail")
 
     cart = Cart(request)
     cart.set_quantity(product, qty)

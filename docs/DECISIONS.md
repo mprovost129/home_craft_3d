@@ -1,64 +1,64 @@
-## Authentication
-- Use **Django default User model**
-- Username-based login (no email login)
-- Public usernames
+# Home Craft 3D — DECISIONS
 
-## Authorization Model
-- Roles implemented as **capabilities**, not separate user tables
-- Owner/Admin override permissions across all dashboards
-- Implement roles via `accounts.Profile`:
-  - `is_seller`
-  - `is_owner`
-  - plus `user.is_staff` / `user.is_superuser`
+Last updated: 2026-01-31 (America/New_York)
 
-## Accounts MVP (Implemented)
-- `accounts.Profile` extends default User via OneToOne
-- Profile stores:
-  - contact fields (email, phones, address)
-  - avatar
-  - role flags
-  - Stripe onboarding placeholders (`stripe_account_id`, `stripe_onboarding_complete`)
+## Data + performance decisions
+### 1) Ratings on cards via annotations
+Decision:
+- Use queryset annotations for `avg_rating` and `review_count`.
+Reason:
+- Prevent per-card DB queries and keep lists fast.
 
-## Product Architecture
-- Two distinct product types:
-  1. PhysicalModelProduct – printed & shipped by seller
-  2. DigitalFileProduct – downloadable files
-- Shared abstract/base product fields where appropriate
+### 2) Trending badge normalization
+Decision:
+- Templates only check `p.trending_badge`.
+- Views set `p.trending_badge` based on manual flag OR computed-trending membership.
+Reason:
+- Keeps UI consistent across home/browse/detail.
 
-## Categories (Implemented)
-- Use a single `catalog.Category` model with:
-  - `type` to separate trees (`MODEL` vs `FILE`)
-  - `parent` self-FK for hierarchy
-  - `sort_order` for sidebar ordering
-- Provide category trees to templates using a context processor:
-  - `catalog.context_processors.sidebar_categories`
+### 3) Trending computation and tie-breakers
+Decision:
+- trending_score combines:
+  - recent_purchases (high weight)
+  - recent_add_to_cart (medium/high intent)
+  - recent_reviews (velocity)
+  - recent_views (low weight, day-1 realism)
+  - avg_rating (low weight quality)
+- Tie-breakers:
+  - trending_score DESC
+  - avg_rating DESC
+  - created_at DESC
+Reason:
+- Purchases drive demand; add-to-cart is intent; views help early-stage; reviews add velocity; rating adds quality without dominating.
 
-## Global Layout (Implemented)
-- Use a single `templates/base.html` shell for public pages with:
-  - navbar partial
-  - sidebar partial
-  - footer partial
-- Sidebar expand/collapse uses lightweight vanilla JS (`static/js/sidebar.js`)
-- Styling is centralized in `static/css/site.css`
-- Accounts templates are still on a separate minimal shell and will be migrated later
+### 4) Top Rated sort with minimum review threshold + fallback
+Decision:
+- “Top Rated” requires `MIN_REVIEWS_TOP_RATED` (default 3).
+- If nothing qualifies, fall back to best early ratings and show a UI warning.
+Reason:
+- Prevent 1 review from dominating and keep day-1 lists populated.
 
-## Payments
-- Stripe Checkout for purchases
-- Mandatory Stripe onboarding for sellers
-- Platform does not print or ship products itself
+### 5) Engagement events (v1) are minimal and best-effort
+Decision:
+- Add lightweight `ProductEngagementEvent` model with only VIEW and ADD_TO_CART.
+- Logging must never break page/cart flow (best-effort try/except).
+- VIEW logging should be throttled to avoid refresh spam.
+Reason:
+- Early-stage stores need signal; analytics must be safe and low-risk.
 
-## Admin Strategy
-- Primary admin control via **custom web admin dashboard**
-- Django admin used only as backup/emergency
-- Web admin mirrors and controls site-wide settings
+## UX decisions
+### 6) Early-signal banners
+Decision:
+- Show warning banners when:
+  - Trending has weak signal (no meaningful activity yet)
+  - Top Rated cannot meet min review threshold
+Reason:
+- Transparency builds trust and avoids “this feels broken” impressions.
 
-## Public Pages
-- Public-facing pages live in a dedicated `core` app
-- Root URL (`/`) renders a logged-out home/landing page
-- Authenticated users may still access public pages
-
-## Documentation Rule (Enforced)
-- After **every code change**, update:
-  - docs/MEMORY.md
-  - docs/DECISIONS.md
-  - docs/ROADMAP.md
+### 7) Seller gating for purchases on home (UI)
+Decision:
+- Home cards show Add-to-cart only when seller is Stripe-ready (or owner).
+Reason:
+- Prevent checkout failures and customer frustration.
+Note:
+- Server-side enforcement can be added later in cart/checkout.

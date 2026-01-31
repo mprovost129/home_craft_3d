@@ -1,0 +1,86 @@
+[
+  {"model":"catalog.category","pk":1,"fields":{"type":"MODEL","name":"Home & Building","slug":"home-building","parent":null,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":2,"fields":{"type":"MODEL","name":"Tools & Workshop","slug":"tools-workshop","parent":null,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":3,"fields":{"type":"MODEL","name":"Organization & Storage","slug":"organization-storage","parent":null,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":4,"fields":{"type":"MODEL","name":"Home Decor","slug":"home-decor","parent":null,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":5,"fields":{"type":"MODEL","name":"Tech & Desk","slug":"tech-desk","parent":null,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":6,"fields":{"type":"MODEL","name":"Toys & Games","slug":"toys-games","parent":null,"description":"","is_active":true,"sort_order":60,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":7,"fields":{"type":"MODEL","name":"Pets","slug":"pets","parent":null,"description":"","is_active":true,"sort_order":70,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":11,"fields":{"type":"MODEL","name":"Tools & Jigs","slug":"tools-jigs","parent":1,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":12,"fields":{"type":"MODEL","name":"Electrical Accessories","slug":"electrical-accessories","parent":1,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":13,"fields":{"type":"MODEL","name":"Plumbing Accessories","slug":"plumbing-accessories","parent":1,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":14,"fields":{"type":"MODEL","name":"Hardware & Fasteners","slug":"hardware-fasteners","parent":1,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":15,"fields":{"type":"MODEL","name":"Mounts & Brackets","slug":"mounts-brackets","parent":1,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":21,"fields":{"type":"MODEL","name":"Tool Holders","slug":"tool-holders","parent":2,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":22,"fields":{"type":"MODEL","name":"Tool Organizers","slug":"tool-organizers","parent":2,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":23,"fields":{"type":"MODEL","name":"Drill & Bit Storage","slug":"drill-bit-storage","parent":2,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":24,"fields":{"type":"MODEL","name":"Bench Accessories","slug":"bench-accessories","parent":2,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":25,"fields":{"type":"MODEL","name":"Cable Management","slug":"cable-management","parent":2,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":31,"fields":{"type":"MODEL","name":"Drawer Organizers","slug":"drawer-organizers","parent":3,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":32,"fields":{"type":"MODEL","name":"Shelf Systems","slug":"shelf-systems","parent":3,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":33,"fields":{"type":"MODEL","name":"Wall Storage","slug":"wall-storage","parent":3,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":34,"fields":{"type":"MODEL","name":"Modular Storage","slug":"modular-storage","parent":3,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":41,"fields":{"type":"MODEL","name":"Wall Decor","slug":"wall-decor","parent":4,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":42,"fields":{"type":"MODEL","name":"Tabletop Decor","slug":"tabletop-decor","parent":4,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":43,"fields":{"type":"MODEL","name":"Planters","slug":"planters","parent":4,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":44,"fields":{"type":"MODEL","name":"Signs & Nameplates","slug":"signs-nameplates","parent":4,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":51,"fields":{"type":"MODEL","name":"Phone Stands","slug":"phone-stands","parent":5,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":52,"fields":{"type":"MODEL","name":"Tablet Stands","slug":"tablet-stands","parent":5,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":53,"fields":{"type":"MODEL","name":"Desktop Accessories","slug":"desktop-accessories","parent":5,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":61,"fields":{"type":"MODEL","name":"Board Game Accessories","slug":"board-game-accessories","parent":6,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":62,"fields":{"type":"MODEL","name":"Miniatures","slug":"miniatures","parent":6,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":63,"fields":{"type":"MODEL","name":"Puzzles","slug":"puzzles","parent":6,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":71,"fields":{"type":"MODEL","name":"Dog Accessories","slug":"dog-accessories","parent":7,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":72,"fields":{"type":"MODEL","name":"Cat Accessories","slug":"cat-accessories","parent":7,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":73,"fields":{"type":"MODEL","name":"Pet Toys","slug":"pet-toys","parent":7,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+
+  {"model":"catalog.category","pk":101,"fields":{"type":"FILE","name":"Home & Building","slug":"home-building","parent":null,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":102,"fields":{"type":"FILE","name":"Tools & Workshop","slug":"tools-workshop","parent":null,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":103,"fields":{"type":"FILE","name":"Organization & Storage","slug":"organization-storage","parent":null,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":104,"fields":{"type":"FILE","name":"Home Decor","slug":"home-decor","parent":null,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":105,"fields":{"type":"FILE","name":"Tech & Desk","slug":"tech-desk","parent":null,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":106,"fields":{"type":"FILE","name":"Toys & Games","slug":"toys-games","parent":null,"description":"","is_active":true,"sort_order":60,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":107,"fields":{"type":"FILE","name":"Pets","slug":"pets","parent":null,"description":"","is_active":true,"sort_order":70,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":111,"fields":{"type":"FILE","name":"Tools & Jigs","slug":"tools-jigs","parent":101,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":112,"fields":{"type":"FILE","name":"Electrical Accessories","slug":"electrical-accessories","parent":101,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":113,"fields":{"type":"FILE","name":"Plumbing Accessories","slug":"plumbing-accessories","parent":101,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":114,"fields":{"type":"FILE","name":"Hardware & Fasteners","slug":"hardware-fasteners","parent":101,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":115,"fields":{"type":"FILE","name":"Mounts & Brackets","slug":"mounts-brackets","parent":101,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":121,"fields":{"type":"FILE","name":"Tool Holders","slug":"tool-holders","parent":102,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":122,"fields":{"type":"FILE","name":"Tool Organizers","slug":"tool-organizers","parent":102,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":123,"fields":{"type":"FILE","name":"Drill & Bit Storage","slug":"drill-bit-storage","parent":102,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":124,"fields":{"type":"FILE","name":"Bench Accessories","slug":"bench-accessories","parent":102,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":125,"fields":{"type":"FILE","name":"Cable Management","slug":"cable-management","parent":102,"description":"","is_active":true,"sort_order":50,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":131,"fields":{"type":"FILE","name":"Drawer Organizers","slug":"drawer-organizers","parent":103,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":132,"fields":{"type":"FILE","name":"Shelf Systems","slug":"shelf-systems","parent":103,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":133,"fields":{"type":"FILE","name":"Wall Storage","slug":"wall-storage","parent":103,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":134,"fields":{"type":"FILE","name":"Modular Storage","slug":"modular-storage","parent":103,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":141,"fields":{"type":"FILE","name":"Wall Decor","slug":"wall-decor","parent":104,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":142,"fields":{"type":"FILE","name":"Tabletop Decor","slug":"tabletop-decor","parent":104,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":143,"fields":{"type":"FILE","name":"Planters","slug":"planters","parent":104,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00:00Z"}},
+  {"model":"catalog.category","pk":144,"fields":{"type":"FILE","name":"Signs & Nameplates","slug":"signs-nameplates","parent":104,"description":"","is_active":true,"sort_order":40,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":151,"fields":{"type":"FILE","name":"Phone Stands","slug":"phone-stands","parent":105,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":152,"fields":{"type":"FILE","name":"Tablet Stands","slug":"tablet-stands","parent":105,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":153,"fields":{"type":"FILE","name":"Desktop Accessories","slug":"desktop-accessories","parent":105,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":161,"fields":{"type":"FILE","name":"Board Game Accessories","slug":"board-game-accessories","parent":106,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":162,"fields":{"type":"FILE","name":"Miniatures","slug":"miniatures","parent":106,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":163,"fields":{"type":"FILE","name":"Puzzles","slug":"puzzles","parent":106,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+
+  {"model":"catalog.category","pk":171,"fields":{"type":"FILE","name":"Dog Accessories","slug":"dog-accessories","parent":107,"description":"","is_active":true,"sort_order":10,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":172,"fields":{"type":"FILE","name":"Cat Accessories","slug":"cat-accessories","parent":107,"description":"","is_active":true,"sort_order":20,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}},
+  {"model":"catalog.category","pk":173,"fields":{"type":"FILE","name":"Pet Toys","slug":"pet-toys","parent":107,"description":"","is_active":true,"sort_order":30,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}}
+]

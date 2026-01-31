@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
@@ -175,3 +176,37 @@ class ProductPhysical(models.Model):
 
     def __str__(self) -> str:
         return f"Physical<{self.product_id}>"
+
+
+class ProductEngagementEvent(models.Model):
+    """
+    Lightweight event log to make Trending feel real on day 1.
+
+    We keep it minimal:
+      - VIEW (product detail page view)
+      - ADD_TO_CART (cart add action)
+
+    Trending annotation counts these within a rolling time window (e.g., last 30 days).
+    """
+
+    class EventType(models.TextChoices):
+        VIEW = "VIEW", "View"
+        ADD_TO_CART = "ADD_TO_CART", "Add to cart"
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="engagement_events",
+    )
+    event_type = models.CharField(max_length=20, choices=EventType.choices)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["product", "event_type", "created_at"]),
+            models.Index(fields=["event_type", "created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.event_type} product={self.product_id} at {self.created_at}"
