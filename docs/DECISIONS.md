@@ -2,63 +2,55 @@
 
 Last updated: 2026-01-31 (America/New_York)
 
-## Data + performance decisions
-### 1) Ratings on cards via annotations
+## Data and performance
+### 1) Card ratings via annotations
 Decision:
-- Use queryset annotations for `avg_rating` and `review_count`.
+- Use queryset annotations (`avg_rating`, `review_count`) for lists.
 Reason:
-- Prevent per-card DB queries and keep lists fast.
+- Avoid N+1 queries and keep pages fast.
 
-### 2) Trending badge normalization
+### 2) Trending badge normalization rule
 Decision:
-- Templates only check `p.trending_badge`.
-- Views set `p.trending_badge` based on manual flag OR computed-trending membership.
+- Templates ONLY check `p.trending_badge`.
 Reason:
-- Keeps UI consistent across home/browse/detail.
+- Prevent drift across home/browse/detail templates.
 
-### 3) Trending computation and tie-breakers
-Decision:
-- trending_score combines:
-  - recent_purchases (high weight)
-  - recent_add_to_cart (medium/high intent)
-  - recent_reviews (velocity)
-  - recent_views (low weight, day-1 realism)
-  - avg_rating (low weight quality)
-- Tie-breakers:
-  - trending_score DESC
-  - avg_rating DESC
-  - created_at DESC
-Reason:
-- Purchases drive demand; add-to-cart is intent; views help early-stage; reviews add velocity; rating adds quality without dominating.
+Implementation:
+- Home: `p.trending_badge = is_trending OR (id in computed_home_trending_ids)`
+- Browse: `p.trending_badge` should be driven by a consistent subset rule (top N and/or score threshold), not “everything in trending sort”.
 
-### 4) Top Rated sort with minimum review threshold + fallback
+### 3) Trending computation uses engagement events
 Decision:
-- “Top Rated” requires `MIN_REVIEWS_TOP_RATED` (default 3).
-- If nothing qualifies, fall back to best early ratings and show a UI warning.
-Reason:
-- Prevent 1 review from dominating and keep day-1 lists populated.
+Trending signals include:
+- Paid purchases (highest weight)
+- Add-to-cart (strong intent)
+- Reviews (velocity)
+- Views (weak, day-1 realism)
+- Avg rating (quality, low weight)
 
-### 5) Engagement events (v1) are minimal and best-effort
-Decision:
-- Add lightweight `ProductEngagementEvent` model with only VIEW and ADD_TO_CART.
-- Logging must never break page/cart flow (best-effort try/except).
-- VIEW logging should be throttled to avoid refresh spam.
 Reason:
-- Early-stage stores need signal; analytics must be safe and low-risk.
+- Day-1 trending needs signals even without sales volume.
 
-## UX decisions
-### 6) Early-signal banners
+### 4) Trending tie-breakers prioritize quality
 Decision:
-- Show warning banners when:
-  - Trending has weak signal (no meaningful activity yet)
-  - Top Rated cannot meet min review threshold
+When trending_score ties:
+- sort by `avg_rating` then `created_at`
 Reason:
-- Transparency builds trust and avoids “this feels broken” impressions.
+- Trending should not promote junk when the score is tied.
 
-### 7) Seller gating for purchases on home (UI)
+### 5) Top Rated has a minimum review threshold + fallback
 Decision:
-- Home cards show Add-to-cart only when seller is Stripe-ready (or owner).
+- Require `MIN_REVIEWS_TOP_RATED` (currently 3).
+- If none meet threshold, fall back to best early ratings and show a warning banner.
 Reason:
-- Prevent checkout failures and customer frustration.
-Note:
-- Server-side enforcement can be added later in cart/checkout.
+- Prevent a single review from dominating early and keep browse pages populated.
+
+### 6) Engagement logging is “best effort”
+Decision:
+- Engagement logging must never block core flows.
+Reason:
+- Analytics is optional; purchase flow is not.
+
+Implementation:
+- cart_add logs ADD_TO_CART inside try/except
+- product_detail logs VIEW inside try/except with session throttling

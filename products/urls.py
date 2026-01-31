@@ -1,15 +1,21 @@
 from django.urls import path
+
 from . import views
 from . import views_seller
 
 app_name = "products"
 
 urlpatterns = [
-    # Public browsing (keep these aligned with your existing views.py)
+    # Public browsing
     path("", views.product_list, name="list"),
     path("models/", views.models_list, name="models"),
     path("files/", views.files_list, name="files"),
-    path("<slug:slug>/", views.product_detail, name="detail"),
+
+    # Engagement redirect endpoint (cards)
+    path("go/<int:pk>/<slug:slug>/", views.product_go, name="go"),
+
+    # Product detail (canonical)
+    path("<int:pk>/<slug:slug>/", views.product_detail, name="detail"),
 
     # Seller area (names kept stable for templates)
     path("seller/", views_seller.seller_product_list, name="seller_list"),

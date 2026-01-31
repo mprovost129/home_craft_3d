@@ -93,7 +93,6 @@ class Product(models.Model):
         if self.is_free:
             self.price = Decimal("0.00")
         if not self.is_free and self.price <= Decimal("0.00"):
-            # allow 0 only if free
             raise ValidationError({"price": "Price must be greater than $0.00 unless the item is marked free."})
 
     @property
@@ -103,6 +102,7 @@ class Product(models.Model):
         return f"${self.price:,.2f}"
 
     def get_absolute_url(self) -> str:
+        # Must match products.urls detail route.
         return reverse("products:detail", kwargs={"pk": self.pk, "slug": self.slug})
 
     @property
@@ -182,16 +182,16 @@ class ProductEngagementEvent(models.Model):
     """
     Lightweight event log to make Trending feel real on day 1.
 
-    We keep it minimal:
+    Event types:
       - VIEW (product detail page view)
       - ADD_TO_CART (cart add action)
-
-    Trending annotation counts these within a rolling time window (e.g., last 30 days).
+      - CLICK (click from a product card; recorded when detail loads with ?src=...)
     """
 
     class EventType(models.TextChoices):
         VIEW = "VIEW", "View"
         ADD_TO_CART = "ADD_TO_CART", "Add to cart"
+        CLICK = "CLICK", "Click"
 
     product = models.ForeignKey(
         Product,
