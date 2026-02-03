@@ -1,13 +1,51 @@
 # config/settings/base.py
 
+from __future__ import annotations
+
 from pathlib import Path
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-dev-key-change-me")
-DEBUG = False
-ALLOWED_HOSTS: list[str] = []
+
+# ============================================================
+# Helpers
+# ============================================================
+def _csv_env(name: str, default: str = "") -> list[str]:
+    """
+    Read a comma-separated env var into a clean list.
+
+    - Strips whitespace
+    - Drops empty entries
+    - Safe if unset/blank
+    """
+    raw = (os.getenv(name, default) or "").strip()
+    if not raw:
+        return []
+    return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _bool_env(name: str, default: str = "False") -> bool:
+    raw = (os.getenv(name, default) or "").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+# ============================================================
+# Core
+# ============================================================
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or os.getenv("SECRET_KEY") or "unsafe-dev-key-change-me"
+
+# Allow either DEBUG or DJANGO_DEBUG in env
+DEBUG = _bool_env("DEBUG", os.getenv("DJANGO_DEBUG", "False"))
+
+# IMPORTANT: ALLOWED_HOSTS must NOT contain schemes.
+# Example: "homecraft3d.onrender.com,homecraft3d.com,www.homecraft3d.com"
+ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS")
+
+# IMPORTANT: CSRF_TRUSTED_ORIGINS MUST include scheme.
+# Example: "https://homecraft3d.onrender.com,https://homecraft3d.com,https://www.homecraft3d.com"
+CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS")
+
 
 DJANGO_APPS = [
     "django.contrib.admin",
@@ -18,7 +56,7 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS: list[str] = []
 
 LOCAL_APPS = [
     "accounts.apps.AccountsConfig",
@@ -113,8 +151,6 @@ X_FRAME_OPTIONS = "DENY"
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
 
-# ✅ Prevent dev/prod NameError
-CSRF_TRUSTED_ORIGINS: list[str] = []
 
 # -------- Cache (used by throttling) --------
 CACHES = {
@@ -125,14 +161,17 @@ CACHES = {
     }
 }
 
+
 # -------- reCAPTCHA v3 --------
-RECAPTCHA_ENABLED = os.getenv("RECAPTCHA_ENABLED", "1").strip() not in ("0", "false", "False")
+RECAPTCHA_ENABLED = (os.getenv("RECAPTCHA_ENABLED", "1").strip().lower() not in ("0", "false", "off", "no"))
 RECAPTCHA_V3_SITE_KEY = os.getenv("RECAPTCHA_V3_SITE_KEY", "").strip()
 RECAPTCHA_V3_SECRET_KEY = os.getenv("RECAPTCHA_V3_SECRET_KEY", "").strip()
 RECAPTCHA_V3_MIN_SCORE = float(os.getenv("RECAPTCHA_V3_MIN_SCORE", "0.5"))
 
+
 # -------- Site base URL --------
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").strip().rstrip("/")
+
 
 # Stripe secrets remain env-based (NOT DB settings)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
