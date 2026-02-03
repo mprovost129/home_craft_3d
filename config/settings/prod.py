@@ -17,7 +17,7 @@ DEBUG = False
 ALLOWED_HOSTS = [
     "homecraft3d.com",
     "www.homecraft3d.com",
-    "homecraft3d.onrender.com"
+    "homecraft3d.onrender.com",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
