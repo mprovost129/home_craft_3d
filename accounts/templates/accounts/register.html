@@ -13,51 +13,55 @@
       {% endif %}
 
       <div class="row g-3">
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-lg-6">
           <label for="{{ form.username.id_for_label }}">Username (public)</label>
           {{ form.username }}
           {% for e in form.username.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
           <div class="help">Your username is visible across the marketplace.</div>
         </div>
 
-        <div class="col-12 col-md-6">
-          <label for="{{ form.first_name.id_for_label }}">First name (optional)</label>
-          {{ form.first_name }}
-          {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-        </div>
-
-        <div class="col-12 col-md-6">
-          <label for="{{ form.last_name.id_for_label }}">Last name (optional)</label>
-          {{ form.last_name }}
-          {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-        </div>
-
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-lg-6">
           <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
           {{ form.email }}
           {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label for="{{ form.first_name.id_for_label }}">First name (optional)</label>
+          {{ form.first_name }}
+          {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label for="{{ form.last_name.id_for_label }}">Last name (optional)</label>
+          {{ form.last_name }}
+          {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="col-12 col-lg-6">
           <label for="{{ form.password1.id_for_label }}">Password</label>
           {{ form.password1 }}
           {% for e in form.password1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-lg-6">
           <label for="{{ form.password2.id_for_label }}">Confirm password</label>
           {{ form.password2 }}
           {% for e in form.password2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
       </div>
 
-      <div class="mt-3">
-        <label for="{{ form.register_as_seller.id_for_label }}">Register as seller</label>
-        <div class="d-flex align-items-center gap-2">
-          {{ form.register_as_seller }}
-          <div class="help mb-0">{{ form.register_as_seller.help_text }}</div>
-        </div>
+      <hr class="my-3">
+      
+      <div class="form-check">
+        {{ form.register_as_seller }}
+        <label class="form-check-label" for="{{ form.register_as_seller.id_for_label }}">
+          {{ form.register_as_seller.label }}
+        </label>
       </div>
+      {% if form.register_as_seller.help_text %}
+        <div class="help mt-2 mb-3">{{ form.register_as_seller.help_text }}</div>
+      {% endif %}
 
       <div class="actions">
         <button class="btn" type="submit">Create account</button>
