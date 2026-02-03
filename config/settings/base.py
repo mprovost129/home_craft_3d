@@ -3,10 +3,42 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlparse
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# ...
+
+def _db_from_database_url(url: str) -> dict:
+    parsed = urlparse(url)
+    return {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": parsed.path.lstrip("/"),
+        "USER": parsed.username or "",
+        "PASSWORD": parsed.password or "",
+        "HOST": parsed.hostname or "",
+        "PORT": str(parsed.port or "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+    }
+
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+
+if DATABASE_URL:
+    DATABASES = {"default": _db_from_database_url(DATABASE_URL)}
+else:
+    # Local fallback
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("POSTGRES_DB", "home_craft_3d"),
+            "USER": os.getenv("POSTGRES_USER", "hc3user"),
+            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "homecraftpass!"),
+            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+            "PORT": os.getenv("POSTGRES_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "0")),
+        }
+    }
 
 # ============================================================
 # Helpers
@@ -40,11 +72,11 @@ DEBUG = _bool_env("DEBUG", os.getenv("DJANGO_DEBUG", "False"))
 
 # IMPORTANT: ALLOWED_HOSTS must NOT contain schemes.
 # Example: "homecraft3d.onrender.com,homecraft3d.com,www.homecraft3d.com"
-ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", default="homecraft3d.onrender.com")
+ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", default="localhost,127.0.0.1,homecraft3d.onrender.com")
 
 # IMPORTANT: CSRF_TRUSTED_ORIGINS MUST include scheme.
 # Example: "https://homecraft3d.onrender.com,https://homecraft3d.com,https://www.homecraft3d.com"
-CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = _csv_env("CSRF_TRUSTED_ORIGINS", default="https://homecraft3d.onrender.com")
 
 
 DJANGO_APPS = [
@@ -77,6 +109,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -110,17 +143,6 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "home_craft_3d"),
-        "USER": os.getenv("POSTGRES_USER", "hc3user"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "homecraftpass!"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-    }
-}
-
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -136,6 +158,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -150,6 +173,15 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+
+# Production security settings for Render
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 
 # -------- Cache (used by throttling) --------
