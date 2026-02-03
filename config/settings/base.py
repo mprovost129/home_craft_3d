@@ -1,10 +1,4 @@
 # config/settings/base.py
-"""
-Base Django settings.
-
-Common settings for all environments. Environment-specific overrides live in
-dev.py and prod.py.
-"""
 
 from pathlib import Path
 import os
