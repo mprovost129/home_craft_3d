@@ -40,7 +40,7 @@ DEBUG = _bool_env("DEBUG", os.getenv("DJANGO_DEBUG", "False"))
 
 # IMPORTANT: ALLOWED_HOSTS must NOT contain schemes.
 # Example: "homecraft3d.onrender.com,homecraft3d.com,www.homecraft3d.com"
-ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS")
+ALLOWED_HOSTS = _csv_env("ALLOWED_HOSTS", default="homecraft3d.onrender.com")
 
 # IMPORTANT: CSRF_TRUSTED_ORIGINS MUST include scheme.
 # Example: "https://homecraft3d.onrender.com,https://homecraft3d.com,https://www.homecraft3d.com"
