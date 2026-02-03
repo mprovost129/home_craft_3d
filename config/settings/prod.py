@@ -23,7 +23,7 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://homecraft3d.com",
     "https://www.homecraft3d.com",
-    "homecraft3d.onrender.com",
+    "https://homecraft3d.onrender.com",
 ]
 
 # ------------------------------------------------------------------------------
