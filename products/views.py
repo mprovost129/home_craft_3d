@@ -32,10 +32,25 @@ def _base_qs():
 
 
 def _annotate_rating(qs):
-    return qs.annotate(
+    qs = qs.annotate(
         avg_rating=Coalesce(Avg("reviews__rating"), Value(0.0), output_field=FloatField()),
         review_count=Coalesce(Count("reviews", distinct=True), Value(0)),
     )
+
+    # Seller reputation (purchased-only seller reviews)
+    qs = qs.annotate(
+        seller_avg_rating=Coalesce(
+            Avg("seller__seller_reviews_received__rating"),
+            Value(0.0),
+            output_field=FloatField(),
+        ),
+        seller_review_count=Coalesce(
+            Count("seller__seller_reviews_received", distinct=True),
+            Value(0),
+        ),
+    )
+
+    return qs
 
 
 def _annotate_trending(qs, *, since_days: int = TRENDING_WINDOW_DAYS):
@@ -112,6 +127,34 @@ def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int
         p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
 
 
+def _seller_can_sell(product: Product) -> bool:
+    try:
+        if product.seller and is_owner_user(product.seller):
+            return True
+    except Exception:
+        pass
+
+    try:
+        acct = getattr(product.seller, "stripe_connect", None)
+        if acct is not None:
+            return bool(acct.is_ready)
+    except Exception:
+        pass
+
+    try:
+        if not product.seller_id:
+            return False
+        return SellerStripeAccount.objects.filter(
+            user_id=product.seller_id,
+            stripe_account_id__gt="",
+            details_submitted=True,
+            charges_enabled=True,
+            payouts_enabled=True,
+        ).exists()
+    except Exception:
+        return False
+
+
 def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: str) -> HttpResponse:
     qs = _base_qs()
 
@@ -137,11 +180,14 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
     if sort == "trending":
         qs = _annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS)
         qs = qs.order_by("-trending_score", "-avg_rating", "-created_at")
+
         top_rows = list(qs.filter(trending_score__gt=0).values_list("id", flat=True)[:TRENDING_BADGE_TOP_N])
         computed_ids = set(top_rows)
 
     elif sort == "top":
-        filtered = qs.filter(review_count__gte=MIN_REVIEWS_TOP_RATED).order_by("-avg_rating", "-review_count", "-created_at")
+        filtered = qs.filter(review_count__gte=MIN_REVIEWS_TOP_RATED).order_by(
+            "-avg_rating", "-review_count", "-created_at"
+        )
         first = list(filtered.values_list("id", flat=True)[:1])
         if first:
             qs = filtered
@@ -149,6 +195,7 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
         else:
             qs = qs.order_by("-avg_rating", "-review_count", "-created_at")
             top_fallback = True
+
     else:
         qs = qs.order_by("-created_at")
 
@@ -159,6 +206,9 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
         trending_fallback = not any_signal
 
     _apply_trending_badge_flag(products, computed_ids=computed_ids)
+
+    for p in products:
+        p.can_buy = _seller_can_sell(p)
 
     return render(
         request,
@@ -193,6 +243,7 @@ def _log_event_throttled(request: HttpRequest, *, product: Product, event_type: 
         key = f"hc3_event_{event_type.lower()}_{product.id}"
         now = timezone.now()
         last_iso = request.session.get(key)
+
         if last_iso:
             try:
                 last_dt = timezone.datetime.fromisoformat(last_iso)
@@ -209,38 +260,20 @@ def _log_event_throttled(request: HttpRequest, *, product: Product, event_type: 
         return
 
 
-def product_go(request: HttpRequest, pk: int, slug: str):
+def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     product = get_object_or_404(
         Product.objects.filter(is_active=True).select_related("category", "seller"),
         pk=pk,
         slug=slug,
     )
+
     _log_event_throttled(
         request,
         product=product,
         event_type=ProductEngagementEvent.EventType.CLICK,
-        minutes=CLICK_THROTTLE_MINUTES,
+        minutes=5,
     )
     return redirect("products:detail", pk=product.pk, slug=product.slug)
-
-
-def _seller_is_ready_to_sell(product: Product) -> bool:
-    """
-    Matches your SellerStripeAccount fields:
-      ready = charges_enabled AND payouts_enabled AND details_submitted
-    Owner bypass allowed.
-    """
-    try:
-        if product.seller_id and SellerStripeAccount.objects.filter(
-            user_id=product.seller_id,
-            charges_enabled=True,
-            payouts_enabled=True,
-            details_submitted=True,
-        ).exists():
-            return True
-        return bool(product.seller and is_owner_user(product.seller))
-    except Exception:
-        return False
 
 
 def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
@@ -256,18 +289,23 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
         request,
         product=product,
         event_type=ProductEngagementEvent.EventType.VIEW,
-        minutes=VIEW_THROTTLE_MINUTES,
+        minutes=10,
     )
 
-    can_buy = _seller_is_ready_to_sell(product)
+    can_buy = _seller_can_sell(product)
 
-    from reviews.models import Review  # local import avoids hard dependency at import-time
+    from reviews.models import Review, SellerReview
 
     review_qs = Review.objects.filter(product=product).select_related("buyer").order_by("-created_at")
     summary = review_qs.aggregate(avg=Avg("rating"), count=Count("id"))
     avg_rating = summary.get("avg") or 0
     review_count = summary.get("count") or 0
     recent_reviews = list(review_qs[:5])
+
+    seller_qs = SellerReview.objects.filter(seller_id=product.seller_id)
+    seller_summary = seller_qs.aggregate(avg=Avg("rating"), count=Count("id"))
+    seller_avg_rating = seller_summary.get("avg") or 0
+    seller_review_count = seller_summary.get("count") or 0
 
     more_like_this = (
         _base_qs()
@@ -285,6 +323,21 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
 
     _apply_trending_badge_flag(more_like_this_list, computed_ids=set())
 
+    # -------------------------
+    # Q&A Tab (A)
+    # -------------------------
+    from qa.models import ProductQuestionThread
+
+    qa_threads = (
+        ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True)
+        .select_related("buyer", "product", "product__seller")
+        .prefetch_related("messages", "messages__author")
+        .order_by("-updated_at", "-created_at")
+    )
+
+    qa_threads_list = list(qa_threads[:20])
+    qa_thread_count = ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True).count()
+
     return render(
         request,
         "products/product_detail.html",
@@ -294,6 +347,11 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
             "avg_rating": avg_rating,
             "review_count": review_count,
             "recent_reviews": recent_reviews,
+            "seller_avg_rating": seller_avg_rating,
+            "seller_review_count": seller_review_count,
             "can_buy": can_buy,
+            # Q&A
+            "qa_threads": qa_threads_list,
+            "qa_thread_count": qa_thread_count,
         },
     )

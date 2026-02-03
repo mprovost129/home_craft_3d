@@ -23,7 +23,7 @@
             <th>Order</th>
             <th>Status</th>
             <th>Buyer</th>
-            <th class="text-end">Order total</th>
+            <th class="text-end">Your total</th>
             <th class="text-end">Action</th>
           </tr>
         </thead>
@@ -47,7 +47,7 @@
                   Guest
                 {% endif %}
               </td>
-              <td class="text-end"><strong>${{ o.subtotal }}</strong></td>
+              <td class="text-end"><strong>${{ o.seller_total|floatformat:2 }}</strong></td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-dark" href="{% url 'orders:seller_order_detail' o.id %}">
                   View

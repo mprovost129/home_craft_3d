@@ -6,14 +6,7 @@ from django.db import models
 
 
 class Review(models.Model):
-    """
-    Buyer review for a purchased product.
-
-    MVP rules:
-    - Only authenticated buyers can create reviews
-    - Must be tied to a PAID order item
-    - One review per (buyer, order_item)
-    """
+    """Buyer review for a purchased product."""
 
     product = models.ForeignKey(
         "products.Product",
@@ -55,3 +48,59 @@ class Review(models.Model):
 
     def __str__(self) -> str:
         return f"Review<{self.product_id}> by {self.buyer_id} ({self.rating}/5)"
+
+
+class SellerReview(models.Model):
+    """Purchased-only rating for a seller.
+
+    Rules:
+    - Only an authenticated buyer (Order.buyer) can rate.
+    - Order must be PAID.
+    - Order must include at least one OrderItem for that seller.
+
+    We bind to the Order itself (not a specific item) so a buyer can leave ONE
+    seller rating per order for that seller.
+    """
+
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="seller_reviews_received",
+    )
+
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="seller_reviews_written",
+    )
+
+    order = models.ForeignKey(
+        "orders.Order",
+        on_delete=models.CASCADE,
+        related_name="seller_reviews",
+    )
+
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="1–5 stars",
+    )
+
+    title = models.CharField(max_length=120, blank=True, default="")
+    body = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["buyer", "seller", "order"], name="uniq_seller_review_per_order"),
+        ]
+        indexes = [
+            models.Index(fields=["seller", "created_at"]),
+            models.Index(fields=["buyer", "created_at"]),
+            models.Index(fields=["rating"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"SellerReview<seller={self.seller_id} buyer={self.buyer_id} order={self.order_id}> ({self.rating}/5)"

@@ -1,3 +1,4 @@
+# config/settings/base.py
 """
 Base Django settings.
 
@@ -26,14 +27,18 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
-    "accounts",
-    "core",
+    "accounts.apps.AccountsConfig",
+    "core.apps.CoreConfig",
     "catalog",
     "products",
     "cart",
     "orders",
     "payments",
     "reviews",
+    "dashboards",
+    "refunds.apps.RefundsConfig",
+    "qa",
+    "legal.apps.LegalConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -46,6 +51,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.security_headers.SecurityHeadersMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -61,9 +67,9 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                # Sidebar category trees
                 "catalog.context_processors.sidebar_categories",
                 "payments.context_processors.seller_stripe_status",
+                "core.context_processors.sidebar_flags",
             ],
         },
     }
@@ -112,3 +118,32 @@ SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 CSRF_COOKIE_HTTPONLY = True
 SESSION_COOKIE_HTTPONLY = True
+
+# ✅ Prevent dev/prod NameError
+CSRF_TRUSTED_ORIGINS: list[str] = []
+
+# -------- Cache (used by throttling) --------
+CACHES = {
+    "default": {
+        "BACKEND": os.getenv("DJANGO_CACHE_BACKEND", "django.core.cache.backends.locmem.LocMemCache"),
+        "LOCATION": os.getenv("DJANGO_CACHE_LOCATION", "hc3-default"),
+        "TIMEOUT": int(os.getenv("DJANGO_CACHE_TIMEOUT", "300")),
+    }
+}
+
+# -------- reCAPTCHA v3 --------
+RECAPTCHA_ENABLED = os.getenv("RECAPTCHA_ENABLED", "1").strip() not in ("0", "false", "False")
+RECAPTCHA_V3_SITE_KEY = os.getenv("RECAPTCHA_V3_SITE_KEY", "").strip()
+RECAPTCHA_V3_SECRET_KEY = os.getenv("RECAPTCHA_V3_SECRET_KEY", "").strip()
+RECAPTCHA_V3_MIN_SCORE = float(os.getenv("RECAPTCHA_V3_MIN_SCORE", "0.5"))
+
+# -------- Site base URL --------
+SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").strip().rstrip("/")
+
+# Stripe secrets remain env-based (NOT DB settings)
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
+STRIPE_PUBLISHABLE_KEY = STRIPE_PUBLIC_KEY
+
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+STRIPE_CONNECT_WEBHOOK_SECRET = os.getenv("STRIPE_CONNECT_WEBHOOK_SECRET")

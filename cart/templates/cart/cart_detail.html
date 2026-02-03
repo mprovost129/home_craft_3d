@@ -15,18 +15,25 @@
       </a>
       <form method="post" action="{% url 'cart:clear' %}">
         {% csrf_token %}
-        <button class="btn btn-outline-danger" type="submit">
+        <button class="btn btn-outline-danger" type="submit" {% if not cart_lines %}disabled{% endif %}>
           <i class="bi bi-trash me-1"></i>Clear cart
         </button>
       </form>
     </div>
   </div>
 
-  {% if messages %}
-    <div class="mb-3">
-      {% for message in messages %}
-        <div class="alert alert-info mb-2">{{ message }}</div>
-      {% endfor %}
+  {% if unready_sellers %}
+    <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <div class="fw-semibold">Checkout blocked</div>
+        <div class="small">
+          One or more sellers in your cart haven’t completed Stripe payout setup yet:
+          <strong>{{ unready_sellers|join:", " }}</strong>
+        </div>
+      </div>
+      <a class="btn btn-dark" href="{% url 'products:list' %}">
+        <i class="bi bi-shop me-1"></i>Browse other items
+      </a>
     </div>
   {% endif %}
 
@@ -74,7 +81,7 @@
               </td>
 
               <td>
-                {% if line.product.kind == "FILE" %}
+                {% if line.product.kind == KIND_FILE %}
                   <div class="text-secondary small">1 (digital)</div>
                 {% else %}
                   <form method="post" action="{% url 'cart:update' %}" class="d-flex gap-2">
@@ -122,15 +129,25 @@
         <div class="mb-2">
           <label class="form-label small text-secondary mb-1">Email (required for guest checkout)</label>
           <input class="form-control" type="email" name="guest_email" placeholder="you@example.com" required>
-          <div class="form-text">
-            We’ll email you a secure link for order status and downloads.
-          </div>
+          <div class="form-text">We’ll email you a secure link for order status and downloads.</div>
         </div>
       {% endif %}
 
-      <button class="btn btn-dark w-100" type="submit" {% if not cart_lines %}disabled{% endif %}>
+      <div class="alert alert-light border small mb-2">
+        By placing an order you agree to our
+        <a href="{% url 'legal:terms' %}" class="text-decoration-none">Terms</a> and
+        <a href="{% url 'legal:privacy' %}" class="text-decoration-none">Privacy Policy</a>.
+      </div>
+
+      <button class="btn btn-dark w-100" type="submit" {% if not can_checkout %}disabled{% endif %}>
         <i class="bi bi-receipt me-1"></i>Place order (pending payment)
       </button>
+
+      {% if cart_lines and not can_checkout %}
+        <div class="small mt-2" style="color:#b45309;">
+          Remove items from sellers who haven’t finished Stripe setup to proceed.
+        </div>
+      {% endif %}
     </form>
   </div>
 </div>

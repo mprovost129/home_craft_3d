@@ -1,7 +1,12 @@
+# config/urls.py
+
+from __future__ import annotations
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import include, path
+
 from core import views as core_views
 
 urlpatterns = [
@@ -11,12 +16,17 @@ urlpatterns = [
     path("catalog/", include("catalog.urls")),
     path("products/", include("products.urls")),
     path("cart/", include("cart.urls")),
-    path("orders/", include("orders.urls")),
-    path("reviews/", include("reviews.urls")),
+    path("legal/", include(("legal.urls", "legal"), namespace="legal")),
 
+    # Orders include refunds under /orders/refunds/ via orders.urls
+    path("orders/", include("orders.urls")),
 
     # Stripe Connect onboarding
     path("payments/", include("payments.urls")),
+
+    path("reviews/", include("reviews.urls")),
+    path("qa/", include("qa.urls")),          # ✅ IMPORTANT: add Q&A routes
+    path("dashboard/", include("dashboards.urls")),
 ]
 
 if settings.DEBUG:

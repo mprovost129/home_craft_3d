@@ -1,12 +1,58 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
+
+
+def _get_setting_int(name: str, default: int) -> int:
+    try:
+        return int(getattr(settings, name, default) or default)
+    except Exception:
+        return default
+
+
+def _get_setting_set(name: str, default: set[str]) -> set[str]:
+    raw = getattr(settings, name, None)
+    if not raw:
+        return default
+    if isinstance(raw, (list, tuple, set)):
+        return {str(x).lower().lstrip(".") for x in raw if str(x).strip()}
+    if isinstance(raw, str):
+        return {x.strip().lower().lstrip(".") for x in raw.split(",") if x.strip()}
+    return default
+
+
+# --- defaults (can be overridden in settings) ---
+DEFAULT_IMAGE_EXTS = {"jpg", "jpeg", "png", "webp"}
+DEFAULT_ASSET_EXTS = {"stl", "obj", "3mf", "zip"}
+
+MAX_IMAGE_MB = _get_setting_int("HC3_MAX_IMAGE_MB", 8)
+MAX_ASSET_MB = _get_setting_int("HC3_MAX_ASSET_MB", 200)
+
+ALLOWED_IMAGE_EXTS = _get_setting_set("HC3_ALLOWED_IMAGE_EXTS", DEFAULT_IMAGE_EXTS)
+ALLOWED_ASSET_EXTS = _get_setting_set("HC3_ALLOWED_ASSET_EXTS", DEFAULT_ASSET_EXTS)
+
+
+def _validate_uploaded_file(*, f, allowed_exts: set[str], max_mb: int, field_label: str) -> None:
+    if not f:
+        return
+    name = getattr(f, "name", "") or ""
+    ext = Path(name).suffix.lower().lstrip(".")
+    if ext not in allowed_exts:
+        raise ValidationError({field_label: f"Unsupported file type .{ext or '?'}"})
+
+    size = getattr(f, "size", None)
+    if size is not None:
+        limit_bytes = int(max_mb) * 1024 * 1024
+        if int(size) > limit_bytes:
+            raise ValidationError({field_label: f"File too large. Max {max_mb} MB."})
 
 
 class Product(models.Model):
@@ -14,7 +60,6 @@ class Product(models.Model):
         MODEL = "MODEL", "3D Model (Physical)"
         FILE = "FILE", "3D File (Digital)"
 
-    # Ownership / publishing
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -23,20 +68,17 @@ class Product(models.Model):
     )
     kind = models.CharField(max_length=10, choices=Kind.choices)
 
-    # Core listing fields
     title = models.CharField(max_length=160)
     slug = models.SlugField(max_length=180)
     short_description = models.CharField(max_length=280, blank=True)
     description = models.TextField(blank=True)
 
-    # Category: must match the correct tree for kind (validated in clean())
     category = models.ForeignKey(
         "catalog.Category",
         on_delete=models.PROTECT,
         related_name="products",
     )
 
-    # Pricing
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -45,14 +87,11 @@ class Product(models.Model):
     )
     is_free = models.BooleanField(default=False)
 
-    # Visibility
     is_active = models.BooleanField(default=True)
 
-    # Home page buckets (simple flags for MVP; can become computed later)
     is_featured = models.BooleanField(default=False)
     is_trending = models.BooleanField(default=False)
 
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -67,7 +106,7 @@ class Product(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.title} ({self.get_kind_display()})"
+        return f"{self.title} ({self.get_kind_display()})"  # type: ignore[attr-defined]
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -75,12 +114,6 @@ class Product(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
-        """
-        Enforce that product.kind matches the category tree type:
-          - MODEL products must use Category.type = MODEL
-          - FILE products must use Category.type = FILE
-        """
-        from django.core.exceptions import ValidationError
         from catalog.models import Category
 
         if self.category_id:
@@ -89,7 +122,6 @@ class Product(models.Model):
             if self.kind == Product.Kind.FILE and self.category.type != Category.CategoryType.FILE:
                 raise ValidationError({"category": "File products must use a 3D Files category."})
 
-        # price rules
         if self.is_free:
             self.price = Decimal("0.00")
         if not self.is_free and self.price <= Decimal("0.00"):
@@ -97,17 +129,29 @@ class Product(models.Model):
 
     @property
     def display_price(self) -> str:
-        if self.is_free:
-            return "Free"
-        return f"${self.price:,.2f}"
+        return "Free" if self.is_free else f"${self.price:,.2f}"
 
     def get_absolute_url(self) -> str:
-        # Must match products.urls detail route.
         return reverse("products:detail", kwargs={"pk": self.pk, "slug": self.slug})
 
     @property
     def primary_image(self):
-        return self.images.filter(is_primary=True).first() or self.images.first()
+        return self.images.filter(is_primary=True).first() or self.images.order_by("sort_order", "id").first()
+
+    @property
+    def seller_public_name(self) -> str:
+        try:
+            profile = self.seller.profile
+        except Exception:
+            profile = None
+        if profile is not None:
+            try:
+                name = (profile.shop_name or "").strip()
+                if name:
+                    return name
+            except Exception:
+                pass
+        return getattr(self.seller, "username", "Seller")
 
 
 class ProductImage(models.Model):
@@ -126,16 +170,20 @@ class ProductImage(models.Model):
         ordering = ["sort_order", "id"]
 
     def __str__(self) -> str:
-        return f"Image<{self.product_id}>#{self.id}"
+        return f"Image<{self.product_id}>#{self.pk}"
+
+    def clean(self):
+        super().clean()
+        _validate_uploaded_file(
+            f=self.image,
+            allowed_exts=ALLOWED_IMAGE_EXTS,
+            max_mb=MAX_IMAGE_MB,
+            field_label="image",
+        )
 
 
 class ProductDigital(models.Model):
-    """
-    Extension table for digital file products.
-    """
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="digital")
-
-    # Optional fields (MVP)
     license_text = models.TextField(blank=True)
     file_count = models.PositiveIntegerField(default=0)
 
@@ -145,8 +193,7 @@ class ProductDigital(models.Model):
 
 class DigitalAsset(models.Model):
     """
-    Individual downloadable asset (STL/OBJ/3MF/etc).
-    In MVP we store the file; later we can gate download via paid orders.
+    Individual downloadable asset (STL/OBJ/3MF/ZIP).
     """
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="digital_assets")
     file = models.FileField(upload_to="digital_assets/")
@@ -158,16 +205,21 @@ class DigitalAsset(models.Model):
         ordering = ["id"]
 
     def __str__(self) -> str:
-        return f"Asset<{self.product_id}>#{self.id}"
+        return f"Asset<{self.product_id}>#{self.pk}"
+
+    def clean(self):
+        super().clean()
+        _validate_uploaded_file(
+            f=self.file,
+            allowed_exts=ALLOWED_ASSET_EXTS,
+            max_mb=MAX_ASSET_MB,
+            field_label="file",
+        )
 
 
 class ProductPhysical(models.Model):
-    """
-    Extension table for physical printed model products.
-    """
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="physical")
 
-    # MVP placeholders
     material = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=120, blank=True)
     width_mm = models.PositiveIntegerField(null=True, blank=True)
@@ -179,15 +231,6 @@ class ProductPhysical(models.Model):
 
 
 class ProductEngagementEvent(models.Model):
-    """
-    Lightweight event log to make Trending feel real on day 1.
-
-    Event types:
-      - VIEW (product detail page view)
-      - ADD_TO_CART (cart add action)
-      - CLICK (click from a product card; recorded when detail loads with ?src=...)
-    """
-
     class EventType(models.TextChoices):
         VIEW = "VIEW", "View"
         ADD_TO_CART = "ADD_TO_CART", "Add to cart"

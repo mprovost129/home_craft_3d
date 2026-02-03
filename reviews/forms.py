@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from django import forms
 
-from .models import Review
+from .models import Review, SellerReview
 
 
 class ReviewForm(forms.ModelForm):
@@ -10,10 +10,18 @@ class ReviewForm(forms.ModelForm):
         model = Review
         fields = ["rating", "title", "body"]
         widgets = {
-            "rating": forms.Select(
-                choices=[(i, f"{i} Star{'s' if i != 1 else ''}") for i in range(5, 0, -1)],
-                attrs={"class": "form-select"},
-            ),
-            "title": forms.TextInput(attrs={"class": "form-control", "placeholder": "Optional title"}),
-            "body": forms.Textarea(attrs={"class": "form-control", "rows": 5, "placeholder": "Optional review text"}),
+            "rating": forms.NumberInput(attrs={"min": 1, "max": 5, "class": "form-control"}),
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "body": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+        }
+
+
+class SellerReviewForm(forms.ModelForm):
+    class Meta:
+        model = SellerReview
+        fields = ["rating", "title", "body"]
+        widgets = {
+            "rating": forms.NumberInput(attrs={"min": 1, "max": 5, "class": "form-control"}),
+            "title": forms.TextInput(attrs={"class": "form-control"}),
+            "body": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
         }

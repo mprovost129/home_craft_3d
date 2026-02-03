@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load money %}
+
+{% block title %}Refund Requests · Seller · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Refund requests</h1>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'orders:seller_orders_list' %}">Fulfillment</a>
+  </div>
+
+  {% if refunds %}
+    <div class="list-group">
+      {% for rr in refunds %}
+        <a class="list-group-item list-group-item-action" href="{% url 'refunds:seller_detail' refund_id=rr.pk %}">
+          <div class="d-flex justify-content-between gap-3">
+            <div>
+              <div class="fw-semibold">{{ rr.order_item.product.title }}</div>
+              <div class="text-muted small">
+                {{ rr.get_status_display }} · {{ rr.get_reason_display }} · Order #{{ rr.order_id }}
+              </div>
+              <div class="text-muted small">
+                Buyer:
+                {% if rr.buyer_id %}
+                  {{ rr.buyer.username }}
+                {% else %}
+                  Guest ({{ rr.requester_email }})
+                {% endif %}
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="fw-semibold">${{ rr.total_refund_cents_snapshot|cents_to_dollars }}</div>
+              <div class="text-muted small">{{ rr.created_at|date:"M j, Y" }}</div>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info mb-0">No refund requests.</div>
+  {% endif %}
+</div>
+{% endblock %}

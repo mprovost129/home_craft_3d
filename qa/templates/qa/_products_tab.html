@@ -1,0 +1,124 @@
+{% load humanize %}
+
+<div id="qa">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div class="fw-semibold">Product Q&amp;A</div>
+    <div class="text-secondary small">{{ qa_thread_count }} thread{{ qa_thread_count|pluralize }}</div>
+  </div>
+
+  {% if user.is_authenticated %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <form method="post" action="{% url 'qa:thread_create' product.id %}">
+          {% csrf_token %}
+          <div class="row g-2">
+            <div class="col-12">
+              <input type="text" name="subject" class="form-control" placeholder="Optional subject" maxlength="180">
+            </div>
+            <div class="col-12">
+              <textarea name="body" class="form-control" rows="3" placeholder="Ask a question…" required></textarea>
+            </div>
+            <div class="col-12 d-flex justify-content-end">
+              <button class="btn btn-dark" type="submit">
+                <i class="bi bi-chat-left-text me-1"></i>Post question
+              </button>
+            </div>
+          </div>
+        </form>
+        <div class="text-secondary small mt-2">Only you and the seller can reply. Messages are visible on this page.</div>
+      </div>
+    </div>
+  {% else %}
+    <div class="alert alert-light border mb-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-semibold">Want to ask a question?</div>
+          <div class="small text-secondary">Log in to post. Only the buyer and seller can reply.</div>
+        </div>
+        <a class="btn btn-outline-dark" href="{% url 'accounts:login' %}?next={{ request.path }}#qa">Login</a>
+      </div>
+    </div>
+  {% endif %}
+
+  {% for thread in qa_threads %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div>
+            <div class="fw-semibold">
+              {% if thread.subject %}{{ thread.subject }}{% else %}Question{% endif %}
+            </div>
+            <div class="small text-secondary">
+              Started by <strong>{{ thread.buyer.username }}</strong> · {{ thread.created_at|naturaltime }}
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#thread{{ thread.id }}">
+            View
+          </button>
+        </div>
+
+        <div class="collapse mt-3" id="thread{{ thread.id }}">
+          {% for m in thread.messages.all %}
+            <div class="border rounded p-2 mb-2 {% if m.is_deleted %}opacity-75{% endif %}">
+              <div class="d-flex justify-content-between align-items-center">
+                <div class="small fw-semibold">{{ m.author.username }}</div>
+                <div class="small text-secondary">{{ m.created_at|naturaltime }}</div>
+              </div>
+
+              {% if m.is_deleted %}
+                <div class="small text-secondary fst-italic mt-1">(Message deleted)</div>
+              {% else %}
+                <div class="small mt-2" style="white-space: pre-wrap;">{{ m.body }}</div>
+
+                <div class="d-flex gap-2 justify-content-end mt-2">
+                  {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'qa:message_report' m.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="reason" value="other">
+                      <input type="hidden" name="details" value="">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">
+                        <i class="bi bi-flag me-1"></i>Report
+                      </button>
+                    </form>
+
+                    {% if user.id == m.author_id and m.can_author_delete_now %}
+                      <form method="post" action="{% url 'qa:message_delete' m.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">Delete</button>
+                      </form>
+                    {% elif user.is_staff or user.is_superuser %}
+                      <form method="post" action="{% url 'qa:message_delete' m.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">Staff delete</button>
+                      </form>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          {% if user.is_authenticated %}
+            {% if user.id == thread.buyer_id or user.id == product.seller_id or user.is_staff or user.is_superuser %}
+              <form method="post" action="{% url 'qa:reply_create' thread.id %}" class="mt-2">
+                {% csrf_token %}
+                <div class="input-group">
+                  <textarea name="body" class="form-control" rows="2" placeholder="Reply…" required></textarea>
+                  <button class="btn btn-dark" type="submit">Reply</button>
+                </div>
+              </form>
+            {% else %}
+              <div class="text-secondary small">Only the buyer and seller can reply in this thread.</div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% empty %}
+    <div class="text-secondary small">No Q&amp;A yet.</div>
+  {% endfor %}
+
+  <div class="text-secondary small mt-3">
+    * Reports never auto-hide in v1. Staff reviews reported messages in a moderation queue.
+  </div>
+</div>

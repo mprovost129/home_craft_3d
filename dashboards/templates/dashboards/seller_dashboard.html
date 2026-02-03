@@ -1,0 +1,70 @@
+{# templates/dashboards/seller_dashboard.html #}
+{% extends "base.html" %}
+{% block title %}Seller Dashboard · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <!-- Existing header stays unchanged -->
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-secondary small">Available for payout</div>
+          <div class="h4 mb-0">${{ payout_available }}</div>
+          <div class="text-secondary small mt-1">
+            Balance: ${{ balance }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-secondary small">Net earnings (last {{ since_days }} days)</div>
+          <div class="h4 mb-0">${{ net_revenue }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-white">
+      <div class="fw-semibold">Balance Activity</div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Date</th>
+            <th>Reason</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in ledger_entries %}
+            <tr>
+              <td class="small">{{ e.created_at|date:"Y-m-d" }}</td>
+              <td class="small">{{ e.get_reason_display }}</td>
+              <td class="text-end {% if e.amount_cents < 0 %}text-danger{% else %}text-success{% endif %}">
+                ${{ e.amount_cents|floatformat:2 }}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3" class="text-center text-secondary py-3">
+                No balance activity yet.
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Existing Recent Sales table continues below unchanged -->
+
+</div>
+{% endblock %}

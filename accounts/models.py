@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.db import models
 from django.core.validators import RegexValidator
+from django.db import models
 
 
 class Profile(models.Model):
-    """
-    Extends Django's default User with marketplace-specific profile data and role flags.
+    """Marketplace Profile.
+
+    Extends the configured AUTH_USER_MODEL with marketplace-specific profile data and role flags.
 
     Roles:
       - Consumer: default for any registered user
       - Seller: can list products (requires Stripe onboarding later)
       - Owner/Admin: full permissions; should be your account (can be enforced via superuser/staff too)
+
+    Notes:
+      - Public identity is username.
+      - Profile is created automatically via signal (Option A).
+
+    Seller identity:
+      - Some sellers are individuals; others are a "shop".
+      - `shop_name` is an optional *public* label used across the marketplace.
+        If blank, we fall back to username.
     """
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile")
@@ -21,7 +31,15 @@ class Profile(models.Model):
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
 
-    email = models.EmailField(blank=True)  # Used for correspondence; username is public
+    # Seller-facing identity (public)
+    shop_name = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text="Optional public shop name. If blank, your username is shown.",
+    )
+
+    # Used for correspondence; username is public
+    email = models.EmailField(blank=True)
 
     phone_regex = RegexValidator(
         regex=r"^[0-9\-\+\(\) ]{7,20}$",
@@ -59,7 +77,7 @@ class Profile(models.Model):
     is_seller = models.BooleanField(default=False)
     is_owner = models.BooleanField(default=False)  # Owner/admin override in UI
 
-    # Stripe (seller onboarding later)
+    # Stripe (legacy placeholders; primary source of truth is payments.SellerStripeAccount)
     stripe_account_id = models.CharField(max_length=255, blank=True)
     stripe_onboarding_complete = models.BooleanField(default=False)
 
@@ -70,6 +88,7 @@ class Profile(models.Model):
         indexes = [
             models.Index(fields=["is_seller"]),
             models.Index(fields=["is_owner"]),
+            models.Index(fields=["shop_name"]),
         ]
 
     def __str__(self) -> str:
@@ -82,13 +101,16 @@ class Profile(models.Model):
         return name or self.user.username
 
     @property
+    def public_seller_name(self) -> str:
+        """Public seller label used across the marketplace."""
+        return (self.shop_name or "").strip() or self.user.username
+
+    @property
     def can_access_seller_dashboard(self) -> bool:
-        # Owner/admin can view everything; sellers can view seller dashboard
         return self.is_owner or self.user.is_superuser or self.user.is_staff or self.is_seller
 
     @property
     def can_access_consumer_dashboard(self) -> bool:
-        # Any authenticated user is effectively a consumer; owner/admin too
         return self.user.is_authenticated
 
     @property

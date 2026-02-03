@@ -39,18 +39,25 @@
             <div>
               <h1 class="h4 mb-1">{{ product.title }}</h1>
               <div class="text-secondary small">
-                by <strong>{{ product.seller.username }}</strong> · {{ product.category.name }}
+                by <strong>{{ product.seller_public_name }}</strong> · {{ product.category.name }}
               </div>
 
               <div class="mt-1 small">
                 {% if review_count and review_count > 0 %}
                   <span class="badge text-bg-dark me-1">{{ avg_rating|floatformat:1 }}/5</span>
                   <span class="text-secondary">{{ review_count }} review{{ review_count|pluralize }}</span>
-                  <a class="ms-2 text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">
-                    View reviews
-                  </a>
+                  <a class="ms-2 text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">View reviews</a>
                 {% else %}
-                  <span class="text-secondary">No reviews yet.</span>
+                  <span class="text-secondary">No product reviews yet.</span>
+                {% endif %}
+              </div>
+
+              <div class="mt-1 small">
+                {% if seller_review_count and seller_review_count > 0 %}
+                  <span class="badge text-bg-secondary me-1">Seller {{ seller_avg_rating|floatformat:1 }}/5</span>
+                  <span class="text-secondary">{{ seller_review_count }} seller rating{{ seller_review_count|pluralize }}</span>
+                {% else %}
+                  <span class="text-secondary">Seller has no ratings yet.</span>
                 {% endif %}
               </div>
             </div>
@@ -84,9 +91,7 @@
               <button class="btn btn-dark w-100" type="button" disabled style="opacity:.6; cursor:not-allowed;">
                 <i class="bi bi-cart-plus me-1"></i>Add to cart
               </button>
-              <div class="small mt-2" style="color:#b45309;">
-                Seller not ready (Stripe onboarding incomplete).
-              </div>
+              <div class="small mt-2" style="color:#b45309;">Seller not ready (Stripe onboarding incomplete).</div>
             {% endif %}
 
             <div class="mt-2">
@@ -107,89 +112,58 @@
           {% endif %}
 
           <hr>
-          <div class="d-flex align-items-center justify-content-between">
-            <div class="fw-semibold">Recent reviews</div>
-            <a class="text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">All reviews</a>
-          </div>
 
-          <div class="mt-2">
-            {% for r in recent_reviews %}
-              <div class="border rounded p-2 mb-2">
-                <div class="d-flex justify-content-between align-items-center">
-                  <div class="small fw-semibold">{{ r.buyer.username }}</div>
-                  <div class="small text-secondary">{{ r.created_at|date:"M j, Y" }}</div>
-                </div>
-                <div class="mt-1">
-                  <span class="badge text-bg-dark">{{ r.rating }}/5</span>
-                  {% if r.title %}
-                    <span class="ms-2 fw-semibold">{{ r.title }}</span>
-                  {% endif %}
-                </div>
-                {% if r.body %}
-                  <div class="small mt-2">{{ r.body|linebreaksbr }}</div>
-                {% endif %}
+          <!-- Tabs: Q&A + Reviews -->
+          <ul class="nav nav-tabs" id="productTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active" id="qa-tab" data-bs-toggle="tab" data-bs-target="#qa-pane" type="button" role="tab" aria-controls="qa-pane" aria-selected="true">
+                Q&amp;A <span class="badge text-bg-light text-dark ms-1">{{ qa_thread_count }}</span>
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews-pane" type="button" role="tab" aria-controls="reviews-pane" aria-selected="false">
+                Reviews <span class="badge text-bg-light text-dark ms-1">{{ review_count }}</span>
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content pt-3" id="productTabsContent">
+            <div class="tab-pane fade show active" id="qa-pane" role="tabpanel" aria-labelledby="qa-tab" tabindex="0">
+              {% include "qa/_product_tab.html" %}
+            </div>
+
+            <div class="tab-pane fade" id="reviews-pane" role="tabpanel" aria-labelledby="reviews-tab" tabindex="0">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="fw-semibold">Recent reviews</div>
+                <a class="text-decoration-none" href="{% url 'reviews:product_reviews' product.id %}">All reviews</a>
               </div>
-            {% empty %}
-              <div class="text-secondary small">No reviews yet.</div>
-            {% endfor %}
+
+              <div class="mt-2">
+                {% for r in recent_reviews %}
+                  <div class="border rounded p-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="small fw-semibold">{{ r.buyer.username }}</div>
+                      <div class="small text-secondary">{{ r.created_at|date:"M j, Y" }}</div>
+                    </div>
+                    <div class="mt-1">
+                      <span class="badge text-bg-dark">{{ r.rating }}/5</span>
+                      {% if r.title %}
+                        <span class="ms-2 fw-semibold">{{ r.title }}</span>
+                      {% endif %}
+                    </div>
+                    {% if r.body %}
+                      <div class="small mt-2">{{ r.body|linebreaksbr }}</div>
+                    {% endif %}
+                  </div>
+                {% empty %}
+                  <div class="text-secondary small">No reviews yet.</div>
+                {% endfor %}
+              </div>
+            </div>
           </div>
 
         </div>
       </div>
-    </div>
-  </div>
-
-  <div class="mt-4">
-    <h2 class="h5 mb-3">More like this item</h2>
-    <div class="row g-3">
-      {% for p in more_like_this %}
-        <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-          <div class="card h-100">
-            {% if p.primary_image %}
-              <img src="{{ p.primary_image.image.url }}" class="card-img-top" alt="{{ p.primary_image.alt_text|default:p.title }}">
-            {% else %}
-              <div class="bg-light d-flex align-items-center justify-content-center" style="height:140px;">
-                <span class="text-secondary small">No image</span>
-              </div>
-            {% endif %}
-
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div class="fw-semibold">
-                  <a class="text-decoration-none" href="{% url 'products:go' p.pk p.slug %}">{{ p.title }}</a>
-                </div>
-
-                <div class="d-flex flex-column align-items-end gap-1">
-                  {% if p.trending_badge %}
-                    <span class="badge" style="background:#f59e0b; color:#111827;">🔥 Trending</span>
-                  {% endif %}
-                  <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
-                </div>
-              </div>
-
-              <div class="d-flex justify-content-between align-items-center mt-1">
-                <div class="text-secondary small">by {{ p.seller.username }}</div>
-                <div class="small text-secondary" style="white-space:nowrap;">
-                  {% if p.review_count and p.review_count > 0 %}
-                    ★ {{ p.avg_rating|floatformat:1 }}/5 ({{ p.review_count }})
-                  {% else %}
-                    No reviews
-                  {% endif %}
-                </div>
-              </div>
-            </div>
-
-            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-              <strong>{{ p.display_price }}</strong>
-              <a class="btn btn-sm btn-outline-dark" href="{% url 'products:go' p.pk p.slug %}">View</a>
-            </div>
-          </div>
-        </div>
-      {% empty %}
-        <div class="col-12">
-          <div class="alert alert-secondary mb-0">No similar items yet.</div>
-        </div>
-      {% endfor %}
     </div>
   </div>
 </div>

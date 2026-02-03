@@ -1,10 +1,12 @@
+# cart/cart.py
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Tuple
+from decimal import Decimal
+from typing import Dict, List
 
 from products.models import Product
-
 
 CART_SESSION_KEY = "hc3_cart_v1"
 
@@ -15,19 +17,19 @@ class CartLine:
     quantity: int
 
     @property
-    def unit_price(self):
+    def unit_price(self) -> Decimal:
         return product_unit_price(self.product)
 
     @property
-    def line_total(self):
+    def line_total(self) -> Decimal:
         return self.unit_price * self.quantity
 
 
-def product_unit_price(product: Product):
+def product_unit_price(product: Product) -> Decimal:
     # Free items are always 0.00
-    if product.is_free:
-        return product.price.__class__("0.00")
-    return product.price
+    if getattr(product, "is_free", False):
+        return Decimal("0.00")
+    return Decimal(str(getattr(product, "price", "0.00")))
 
 
 class Cart:
@@ -44,15 +46,15 @@ class Cart:
         self.session = request.session
         self.data: Dict[str, Dict[str, int]] = self.session.get(CART_SESSION_KEY, {})
 
-    def _save(self):
+    def _save(self) -> None:
         self.session[CART_SESSION_KEY] = self.data
         self.session.modified = True
 
-    def clear(self):
+    def clear(self) -> None:
         self.data = {}
         self._save()
 
-    def add(self, product: Product, quantity: int = 1):
+    def add(self, product: Product, quantity: int = 1) -> None:
         if not product.is_active:
             return
 
@@ -74,7 +76,7 @@ class Cart:
 
         self._save()
 
-    def set_quantity(self, product: Product, quantity: int):
+    def set_quantity(self, product: Product, quantity: int) -> None:
         pid = str(product.pk)
         if pid not in self.data:
             return
@@ -90,7 +92,7 @@ class Cart:
 
         self._save()
 
-    def remove(self, product: Product):
+    def remove(self, product: Product) -> None:
         pid = str(product.pk)
         if pid in self.data:
             del self.data[pid]
@@ -107,6 +109,7 @@ class Cart:
 
     def lines(self) -> List[CartLine]:
         ids = self.product_ids()
+
         products = (
             Product.objects.filter(pk__in=ids, is_active=True)
             .select_related("category", "seller")
@@ -115,15 +118,22 @@ class Cart:
         by_id = {p.pk: p for p in products}
 
         result: List[CartLine] = []
-        for pid_str, payload in self.data.items():
+        dirty = False
+
+        for pid_str, payload in list(self.data.items()):
             try:
                 pid = int(pid_str)
             except ValueError:
+                # invalid key in session -> drop
+                del self.data[pid_str]
+                dirty = True
                 continue
 
             product = by_id.get(pid)
             if not product:
-                # product no longer active or deleted -> drop it
+                # product no longer active or deleted -> drop it from session
+                del self.data[pid_str]
+                dirty = True
                 continue
 
             qty = int(payload.get("qty", 1))
@@ -135,18 +145,15 @@ class Cart:
 
             result.append(CartLine(product=product, quantity=qty))
 
+        if dirty:
+            self._save()
+
         return result
 
-    def subtotal(self):
-        total = None
+    def subtotal(self) -> Decimal:
+        total = Decimal("0.00")
         for line in self.lines():
-            if total is None:
-                total = line.product.price.__class__("0.00")
             total += line.line_total
-        if total is None:
-            # Decimal class safe fallback
-            from decimal import Decimal
-            return Decimal("0.00")
         return total
 
     def count_items(self) -> int:

@@ -21,6 +21,18 @@
         </div>
 
         <div>
+          <label for="{{ form.first_name.id_for_label }}">First name (optional)</label>
+          {{ form.first_name }}
+          {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.last_name.id_for_label }}">Last name (optional)</label>
+          {{ form.last_name }}
+          {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
           <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
           {{ form.email }}
           {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}

@@ -5,8 +5,17 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 
+from core.throttle import ThrottleRule, throttle
 from .forms import RegisterForm, UsernameAuthenticationForm, ProfileForm
+
+
+# ----------------------------
+# Throttle rules (tune anytime)
+# ----------------------------
+AUTH_LOGIN_RULE = ThrottleRule(key_prefix="auth_login", limit=10, window_seconds=60)
+AUTH_REGISTER_RULE = ThrottleRule(key_prefix="auth_register", limit=5, window_seconds=60)
 
 
 def login_view(request):
@@ -14,16 +23,26 @@ def login_view(request):
         return redirect("accounts:profile")
 
     if request.method == "POST":
-        form = UsernameAuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
-            login(request, user)
-            messages.success(request, "Welcome back.")
-            next_url = request.GET.get("next") or reverse("accounts:profile")
-            return redirect(next_url)
-    else:
-        form = UsernameAuthenticationForm(request)
+        # throttle only the POST attempt
+        return _login_post(request)
 
+    form = UsernameAuthenticationForm(request)
+    return render(request, "accounts/login.html", {"form": form})
+
+
+@require_POST
+@throttle(AUTH_LOGIN_RULE)
+def _login_post(request):
+    form = UsernameAuthenticationForm(request, data=request.POST)
+    if form.is_valid():
+        user = form.get_user()
+        login(request, user)
+        messages.success(request, "Welcome back.")
+        next_url = request.GET.get("next") or reverse("accounts:profile")
+        return redirect(next_url)
+
+    # Optional: generic message to avoid hinting “user exists”
+    messages.error(request, "Invalid credentials.")
     return render(request, "accounts/login.html", {"form": form})
 
 
@@ -38,21 +57,31 @@ def register_view(request):
         return redirect("accounts:profile")
 
     if request.method == "POST":
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            login(request, user)
-            messages.success(request, "Account created.")
-            return redirect("accounts:profile")
-    else:
-        form = RegisterForm()
+        return _register_post(request)
 
+    form = RegisterForm()
+    return render(request, "accounts/register.html", {"form": form})
+
+
+@require_POST
+@throttle(AUTH_REGISTER_RULE)
+def _register_post(request):
+    form = RegisterForm(request.POST)
+    if form.is_valid():
+        user = form.save()
+        login(request, user)
+        messages.success(request, "Account created.")
+        return redirect("accounts:profile")
+
+    messages.error(request, "Please correct the form.")
     return render(request, "accounts/register.html", {"form": form})
 
 
 @login_required
 def profile_view(request):
-    profile = request.user.profile  # created via signal
+    # Profile is created via signal; assume it exists.
+    profile = request.user.profile
+
     if request.method == "POST":
         form = ProfileForm(request.POST, request.FILES, instance=profile, user=request.user)
         if form.is_valid():

@@ -7,3 +7,8 @@
 .hc3-tree-toggle {
   width: 38px; /* keep consistent spacer width when no children */
 }
+
+.navbar-brand img {
+  max-height: 36px;
+  width: auto;
+}

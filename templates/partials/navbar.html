@@ -1,80 +1,96 @@
-<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+{# templates/partials/navbar.html #}
+<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
   <div class="container-fluid">
+    <a class="navbar-brand fw-semibold" href="{% url 'home' %}">Home Craft 3D</a>
 
-    <!-- Brand -->
-    <a class="navbar-brand fw-semibold" href="{% url 'home' %}">
-      Home Craft 3D
-    </a>
-
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
-    <div class="collapse navbar-collapse" id="mainNav">
-
-      <!-- Center nav -->
-      <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-3">
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'products:models' %}">Models</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'products:files' %}">Files</a>
-        </li>
-      </ul>
-
-      <!-- Right side -->
-      <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Browse</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'products:models' %}">3D Models</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'products:files' %}">3D Files</a></li>
 
         {% if user.is_authenticated %}
+          {% with user_is_seller=user_is_seller|default:False user_is_owner=user_is_owner|default:False %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="ordersDropdown" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false">
+                Orders
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="ordersDropdown">
+                <li>
+                  <a class="dropdown-item" href="{% url 'orders:my_orders' %}">
+                    <i class="bi bi-receipt me-1"></i>Order history
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'orders:purchases' %}">
+                    <i class="bi bi-download me-1"></i>Purchases & downloads
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'orders:refunds:buyer_list' %}">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Refund requests
+                  </a>
+                </li>
 
-          <!-- Stripe status badge (SELLERS ONLY) -->
-          {% if seller_stripe_ready is not None %}
-            {% if seller_stripe_ready %}
-              <li class="nav-item">
-                <span class="badge text-bg-success">
-                  <i class="bi bi-check2-circle me-1"></i>Stripe Ready
-                </span>
-              </li>
-            {% else %}
-              <li class="nav-item">
-                <a href="{% url 'payments:connect_status' %}"
-                   class="badge text-bg-warning text-dark text-decoration-none">
-                  <i class="bi bi-exclamation-triangle me-1"></i>Finish Stripe Setup
-                </a>
-              </li>
-            {% endif %}
-          {% endif %}
+                {% if user_is_seller or user_is_owner %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li class="dropdown-header">Seller</li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'orders:seller_orders_list' %}">
+                      <i class="bi bi-box-seam me-1"></i>Seller orders
+                    </a>
+                  </li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'orders:refunds:seller_queue' %}">
+                      <i class="bi bi-arrow-counterclockwise me-1"></i>Seller refunds
+                    </a>
+                  </li>
+                {% endif %}
 
-          <!-- Profile dropdown -->
+                {% if user.is_staff or user.is_superuser %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li class="dropdown-header">Staff</li>
+                  <li>
+                    <a class="dropdown-item" href="{% url 'orders:refunds:staff_queue' %}">
+                      <i class="bi bi-shield-check me-1"></i>Refund safety valve
+                    </a>
+                  </li>
+                {% endif %}
+              </ul>
+            </li>
+          {% endwith %}
+        {% endif %}
+      </ul>
+
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'cart:detail' %}">
+            <i class="bi bi-bag me-1"></i>Cart
+          </a>
+        </li>
+
+        {% if user.is_authenticated %}
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-              {{ user.username }}
+            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle me-1"></i>{{ user.username }}
             </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Profile</a></li>
-
-              {% if user.is_seller %}
-                <li><a class="dropdown-item" href="{% url 'products:seller_list' %}">Seller Dashboard</a></li>
-              {% endif %}
-
-              {% if user.is_staff %}
-                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin</a></li>
-              {% endif %}
-
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="{% url 'dashboards:consumer' %}">Dashboard</a></li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
             </ul>
           </li>
-
         {% else %}
-          <li class="nav-item">
-            <a class="btn btn-outline-dark" href="{% url 'accounts:login' %}">Login</a>
-          </li>
-          <li class="nav-item">
-            <a class="btn btn-dark" href="{% url 'accounts:register' %}">Register</a>
-          </li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}">Login</a></li>
+          <li class="nav-item"><a class="btn btn-dark btn-sm ms-lg-2" href="{% url 'accounts:register' %}">Sign up</a></li>
         {% endif %}
-
       </ul>
     </div>
   </div>

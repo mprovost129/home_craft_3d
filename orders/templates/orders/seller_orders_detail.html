@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Order · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h4 mb-0">Order #{{ order.id }}</h1>
+      <div class="text-secondary small">{{ order.get_status_display }}{% if order.paid_at %} · Paid {{ order.paid_at }}{% endif %}</div>
+    </div>
+    <a class="btn btn-outline-dark" href="{% url 'orders:seller_orders_list' %}">Back</a>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Unit</th>
+            <th class="text-end">Marketplace fee</th>
+            <th class="text-end">Seller net</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in seller_items %}
+            <tr>
+              <td class="fw-semibold">{{ it.product.title }}</td>
+              <td class="text-end">{{ it.quantity }}</td>
+              <td class="text-end">{{ it.unit_price_cents }}</td>
+              <td class="text-end">{{ it.marketplace_fee_cents }}</td>
+              <td class="text-end fw-semibold">{{ it.seller_net_cents }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-secondary py-4">No items for this seller.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

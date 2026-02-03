@@ -5,17 +5,23 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
-from payments.permissions import stripe_ready_required
+from payments.decorators import stripe_ready_required
 from .forms import ProductForm, ProductImageUploadForm, DigitalAssetUploadForm
 from .models import Product, ProductImage, DigitalAsset
 from .permissions import seller_required, is_owner_user
 
 
+SELLER_PRODUCT_MUTATE_RULE = ThrottleRule(key_prefix="seller_product_mutate", limit=20, window_seconds=60)
+SELLER_UPLOAD_RULE = ThrottleRule(key_prefix="seller_upload", limit=12, window_seconds=60)
+SELLER_DELETE_RULE = ThrottleRule(key_prefix="seller_delete", limit=20, window_seconds=60)
+
+
 def _can_edit_product(user, product: Product) -> bool:
     if is_owner_user(user):
         return True
-    return product.seller_id == user.id
+    return product.seller == user
 
 
 def _get_owned_product_or_404(request, pk: int) -> Product:
@@ -26,7 +32,7 @@ def _get_owned_product_or_404(request, pk: int) -> Product:
 
 
 @seller_required
-def seller_product_list(request):
+def seller_product_list(request, *args, **kwargs):
     """
     Seller dashboard: list your products.
     Owner/admin sees all products.
@@ -61,12 +67,14 @@ def seller_product_list(request):
 
 @seller_required
 @stripe_ready_required
-def seller_product_create(request):
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
+def seller_product_create(request, *args, **kwargs):
     if request.method == "POST":
         form = ProductForm(request.POST, user=request.user)
         if form.is_valid():
             product = form.save(commit=False)
             product.seller = request.user
+            product.full_clean()
             product.save()
             messages.success(request, "Product created. Next: add images (and digital assets if applicable).")
             return redirect("products:seller_images", pk=product.pk)
@@ -78,13 +86,16 @@ def seller_product_create(request):
 
 @seller_required
 @stripe_ready_required
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_edit(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
     if request.method == "POST":
         form = ProductForm(request.POST, instance=product, user=request.user)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            obj.full_clean()
+            obj.save()
             messages.success(request, "Product updated.")
             return redirect("products:seller_list")
     else:
@@ -99,6 +110,7 @@ def seller_product_edit(request, pk: int):
 
 @seller_required
 @stripe_ready_required
+@throttle(SELLER_UPLOAD_RULE)
 def seller_product_images(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
@@ -107,9 +119,9 @@ def seller_product_images(request, pk: int):
         if form.is_valid():
             img: ProductImage = form.save(commit=False)
             img.product = product
+            img.full_clean()
             img.save()
 
-            # If primary set, unset others
             if img.is_primary:
                 ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
 
@@ -128,7 +140,10 @@ def seller_product_images(request, pk: int):
 
 @seller_required
 @stripe_ready_required
-def seller_product_image_delete(request, pk: int, image_id: int):
+@throttle(SELLER_DELETE_RULE)
+def seller_product_image_delete(request, *args, **kwargs):
+    pk = kwargs.get("pk")
+    image_id = kwargs.get("image_id")
     product = _get_owned_product_or_404(request, pk)
     img = get_object_or_404(ProductImage, pk=image_id, product=product)
 
@@ -136,7 +151,6 @@ def seller_product_image_delete(request, pk: int, image_id: int):
         was_primary = img.is_primary
         img.delete()
         if was_primary:
-            # Make the next image primary automatically (nice UX)
             next_img = ProductImage.objects.filter(product=product).order_by("sort_order", "id").first()
             if next_img:
                 next_img.is_primary = True
@@ -149,6 +163,7 @@ def seller_product_image_delete(request, pk: int, image_id: int):
 
 @seller_required
 @stripe_ready_required
+@throttle(SELLER_UPLOAD_RULE)
 def seller_product_assets(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
@@ -161,6 +176,7 @@ def seller_product_assets(request, pk: int):
         if form.is_valid():
             asset: DigitalAsset = form.save(commit=False)
             asset.product = product
+            asset.full_clean()
             asset.save()
             messages.success(request, "Digital asset uploaded.")
             return redirect("products:seller_assets", pk=product.pk)
@@ -177,7 +193,10 @@ def seller_product_assets(request, pk: int):
 
 @seller_required
 @stripe_ready_required
-def seller_product_asset_delete(request, pk: int, asset_id: int):
+@throttle(SELLER_DELETE_RULE)
+def seller_product_asset_delete(request, *args, **kwargs):
+    pk = kwargs.get("pk")
+    asset_id = kwargs.get("asset_id")
     product = _get_owned_product_or_404(request, pk)
     asset = get_object_or_404(DigitalAsset, pk=asset_id, product=product)
 
@@ -191,6 +210,7 @@ def seller_product_asset_delete(request, pk: int, asset_id: int):
 
 @seller_required
 @stripe_ready_required
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_toggle_active(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
     if request.method == "POST":

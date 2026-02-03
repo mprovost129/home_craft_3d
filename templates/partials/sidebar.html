@@ -1,89 +1,14 @@
-<div class="p-3">
-  <div class="text-uppercase small text-secondary fw-semibold mb-2">
-    <i class="bi bi-box-seam me-1"></i>3D Models
-  </div>
+{% comment %}
+Sidebar router.
 
-  <ul class="list-unstyled mb-4">
-    {% for cat in sidebar_model_categories %}
-      <li class="mb-1">
-        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
-          {% if cat.children.all %}
-            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
-                    type="button"
-                    data-target="cat-{{ cat.id }}"
-                    aria-expanded="false"
-                    aria-controls="cat-{{ cat.id }}">
-              <i class="bi bi-caret-right-fill"></i>
-            </button>
-          {% else %}
-            <span style="width:38px;"></span>
-          {% endif %}
+- Dashboard pages -> dashboard action sidebar
+- Everything else -> storefront category sidebar
 
-          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
-            {{ cat.name }}
-          </a>
-        </div>
+We check `app_name` because `namespace` is often empty unless you explicitly pass a namespace in include().
+{% endcomment %}
 
-        {% if cat.children.all %}
-          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
-            {% for child in cat.children.all %}
-              {% if child.is_active %}
-                <li class="py-1">
-                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
-                    <i class="bi bi-dot"></i>{{ child.name }}
-                  </a>
-                </li>
-              {% endif %}
-            {% endfor %}
-          </ul>
-        {% endif %}
-      </li>
-    {% empty %}
-      <li class="text-secondary small">No model categories yet.</li>
-    {% endfor %}
-  </ul>
-
-  <div class="text-uppercase small text-secondary fw-semibold mb-2">
-    <i class="bi bi-file-earmark-zip me-1"></i>3D Files
-  </div>
-
-  <ul class="list-unstyled mb-0">
-    {% for cat in sidebar_file_categories %}
-      <li class="mb-1">
-        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
-          {% if cat.children.all %}
-            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
-                    type="button"
-                    data-target="cat-{{ cat.id }}"
-                    aria-expanded="false"
-                    aria-controls="cat-{{ cat.id }}">
-              <i class="bi bi-caret-right-fill"></i>
-            </button>
-          {% else %}
-            <span style="width:38px;"></span>
-          {% endif %}
-
-          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
-            {{ cat.name }}
-          </a>
-        </div>
-
-        {% if cat.children.all %}
-          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
-            {% for child in cat.children.all %}
-              {% if child.is_active %}
-                <li class="py-1">
-                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
-                    <i class="bi bi-dot"></i>{{ child.name }}
-                  </a>
-                </li>
-              {% endif %}
-            {% endfor %}
-          </ul>
-        {% endif %}
-      </li>
-    {% empty %}
-      <li class="text-secondary small">No file categories yet.</li>
-    {% endfor %}
-  </ul>
-</div>
+{% if request.resolver_match and request.resolver_match.app_name == "dashboards" %}
+  {% include "partials/sidebar_dashboard.html" %}
+{% else %}
+  {% include "partials/sidebar_store.html" %}
+{% endif %}

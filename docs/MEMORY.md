@@ -112,3 +112,250 @@ Purpose:
 Trending badge membership on browse needs a strict rule:
 - avoid marking *every* item as “Trending” when sort=trending
 - badge should represent a subset (top N or score threshold), not “everything in the list”
+
+# docs/MEMORY.md
+
+# Home Craft 3D — Project Memory (Authoritative Snapshot)
+
+Last updated: 2026-02-03
+
+This file is the “what exists right now” ledger. It should match the codebase.
+
+---
+
+## Current State Summary (Orders + Payments + Refunds)
+
+### Orders (app: `orders`)
+- Orders are **financially snapshotted** at creation time to preserve historical correctness.
+- Supports **registered buyers** and **guest checkout**.
+- Guest access is **tokenized** via `order.order_token` and `?t=<token>` query string for order/detail/download access and guest refund access.
+- Digital downloads for guests are emailed on payment (best-effort) and include tokenized links.
+
+**Key models**
+- `Order`
+  - Identity: UUID primary key.
+  - Parties:
+    - `buyer` nullable (registered user).
+    - `guest_email` used when buyer is null.
+    - Validation: order must have **buyer OR guest_email**; if buyer present, guest_email is cleared.
+  - Access:
+    - `order_token` UUID (db indexed), used for guest order access and guest downloads/refund access.
+  - Totals: `subtotal_cents`, `tax_cents`, `shipping_cents`, `total_cents`.
+  - Snapshots:
+    - `marketplace_sales_percent_snapshot` (Decimal % captured at creation).
+    - `platform_fee_cents_snapshot` retained for legacy compatibility but must remain **0** (not used).
+  - Stripe tracking:
+    - `stripe_session_id` (indexed)
+    - `stripe_payment_intent_id`
+    - `paid_at`
+  - Shipping snapshot fields stored on `Order` for physical shipping labels / fulfillment:
+    - name/phone/address fields.
+  - Helpers:
+    - `requires_shipping` uses `Order.items.requires_shipping`.
+    - `recompute_totals()` derives subtotal/total and sets `kind` (digital/physical/mixed).
+    - `mark_paid()` sets status/paid_at, captures stripe ids, records event, and emails guest downloads.
+
+- `OrderItem` (alias `LineItem`)
+  - Seller is **snapshotted** on the line: `seller` FK to user (PROTECT).
+  - Line flags:
+    - `is_digital`
+    - `requires_shipping`
+  - Ledger snapshot on each line:
+    - `marketplace_fee_cents`
+    - `seller_net_cents`
+
+- `OrderEvent`
+  - Order audit trail: created/session created/paid/canceled/refunded/transfer created/warning.
+
+- `StripeWebhookEvent`
+  - Stores processed `stripe_event_id` for strict webhook idempotency.
+
+---
+
+### Payments (app: `payments`)
+Payments owns Stripe Connect onboarding state + seller ledger models + seller payout/ledger UI + connect webhook syncing.
+
+**Key models**
+- `SellerStripeAccount`
+  - OneToOne: `user` with related name `stripe_connect`.
+  - Fields:
+    - `stripe_account_id` (indexed)
+    - `details_submitted`, `charges_enabled`, `payouts_enabled`
+    - `onboarding_started_at`, `onboarding_completed_at`
+  - `is_ready` property: account id present AND all three booleans true.
+  - Methods: mark onboarding started / mark completed if ready.
+
+- `SellerBalanceEntry`
+  - Append-only ledger of seller balance deltas.
+  - `amount_cents` signed:
+    - positive => platform owes seller
+    - negative => seller owes platform
+  - Links:
+    - optional `order` and `order_item` references.
+  - Reasons: payout/refund/chargeback/adjustment.
+
+**Views / flows**
+- Connect onboarding:
+  - `connect_status` shows current connect status and optionally refreshes status.
+  - `connect_start` creates Express account if needed then redirects to Stripe-hosted onboarding link.
+  - `connect_sync` is a manual refresh button for status.
+  - `connect_refresh` and `connect_return` handle Stripe redirect UX.
+- Payouts / ledger:
+  - `payouts_dashboard` shows signed balance + paginated ledger with filters.
+- Connect webhook:
+  - `stripe_connect_webhook` handles `account.updated` and updates local booleans.
+  - Uses **dedicated secret** `STRIPE_CONNECT_WEBHOOK_SECRET`.
+
+**Global template context**
+- `payments.context_processors.seller_stripe_status`
+  - `seller_stripe_ready`: True/False/None (None means not a seller)
+  - `has_connect_sync`: whether route exists
+  - `user_is_owner`, `user_is_seller`
+  - Avoids templates touching profile relations directly.
+
+**Decorator**
+- `payments.decorators.stripe_ready_required` gates seller publishing/modifying listings until Connect is ready (owner bypass).
+
+---
+
+### Refunds (app: `refunds`)
+Refunds is implemented and wired as a full feature.
+
+**Locked policy implemented**
+- Refund requests are **physical-only** and **full refund per physical line item**.
+- Digital products are **non-refundable** (v1).
+
+**Model**
+- `RefundRequest`
+  - One refund request per order line item:
+    - `order_item` is OneToOne with related name `refund_request`.
+  - Denormalized parties:
+    - `seller` snapshot (from order item)
+    - `buyer` nullable
+    - `requester_email` for guest
+  - Status flow:
+    - requested → approved/declined → refunded
+    - canceled exists for future UI, but not central in current flows.
+  - Snapshot amounts at creation (source of truth):
+    - line subtotal
+    - allocated tax
+    - allocated shipping (allocated across shippable lines)
+    - total refund
+  - Stripe tracking:
+    - `stripe_refund_id`, `refunded_at`
+  - Seller decision tracking:
+    - `seller_decided_at`, `seller_decision_note`
+
+**Services**
+- Allocation:
+  - Tax allocated across all lines proportionally by `line_total_cents`.
+  - Shipping allocated across **requires_shipping=True** lines proportionally by `line_total_cents`.
+- Creation:
+  - Only allowed on PAID orders and physical line items.
+  - Enforces one request per item.
+  - Writes `OrderEvent` WARNING for audit.
+- Decision:
+  - Seller/owner/staff can approve/decline.
+  - Writes `OrderEvent` WARNING for audit.
+- Trigger refund:
+  - Allowed only after approval and if not already refunded.
+  - Uses Stripe Refund API against `order.stripe_payment_intent_id`.
+  - Uses `rr.total_refund_cents_snapshot` as the source of truth.
+  - Writes `OrderEvent` REFUNDED for audit.
+
+**Views**
+- Buyer list (logged-in buyers).
+- Buyer detail supports:
+  - buyer
+  - staff
+  - guest access via valid underlying order token.
+- Buyer/guest create request:
+  - Guest must confirm checkout email matches `order.guest_email`.
+  - Token is preserved through redirects.
+- Seller queue/detail/actions:
+  - Seller sees their requests; owner/staff can see all.
+  - Approve/decline, then trigger Stripe refund.
+- Staff queue + refund trigger safety valve.
+
+**Admin**
+- `RefundRequestAdmin` provides:
+  - quick links to Order and OrderItem
+  - read-only snapshot display
+  - **dangerous** “admin_trigger_refund” action for APPROVED + not-yet-refunded requests
+
+---
+
+## Known Duplications / Cleanups Needed
+- `payments.permissions.py` duplicates the decorator already in `payments.decorators.py`.
+- `payments/services.py` appears duplicated twice in the pasted text (same content). In repo there should be **only one** file.
+
+(These aren’t “broken”, but they are maintenance hazards.)
+
+---
+
+## What’s “Done” for this slice
+- Orders: buyer/guest, token access model, snapshot accounting model, paid flow hooks, events, webhook idempotency table.
+- Payments: Connect onboarding + sync + webhook, seller ledger models + dashboard, global status context.
+- Refunds: full request/decision/refund flow with allocation + Stripe refund call + admin controls.
+
+---
+
+# Home Craft 3D – Project Memory
+
+## Snapshot (2026-02-03) — Orders + Payments + Refunds
+
+### Orders (source of truth: snapshots + ledger fields)
+- Orders are production-grade and designed for historical correctness.
+- `Order` snapshots:
+  - `marketplace_sales_percent_snapshot` captures percent-based marketplace fee at order creation.
+  - `platform_fee_cents_snapshot` is legacy/unused and must remain `0`.
+- `OrderItem` snapshots:
+  - `seller` FK snapshot (do not rely on product->seller later).
+  - Per-line ledger fields: `marketplace_fee_cents`, `seller_net_cents`.
+- Guest access:
+  - Guest orders have `guest_email` + `order_token` and can access order/download links via `?t=<token>`.
+  - Paid guest emails include tokenized order link and tokenized digital download links.
+- `Order.mark_paid()`:
+  - Sets paid status and `paid_at`, stores Stripe IDs once, emits `OrderEvent`.
+  - Sends guest paid email with downloads when applicable.
+
+### Payments (Stripe Connect + seller readiness + seller ledger)
+- Stripe Connect Express onboarding implemented:
+  - `SellerStripeAccount` (OneToOne to user) stores Connect account id and readiness flags:
+    - `details_submitted`, `charges_enabled`, `payouts_enabled`, plus onboarding timestamps.
+  - Ready state is `is_ready` property (do not query it as a DB field).
+- Seller gating:
+  - Canonical gate decorator: `payments.decorators.stripe_ready_required`
+  - Back-compat shim: `payments.permissions.stripe_ready_required` re-exports decorator.
+- Seller ledger:
+  - `SellerBalanceEntry` is append-only signed cents ledger.
+  - `payments.services.get_seller_balance_cents()` returns signed sum.
+  - `payments.views.payouts_dashboard` shows balance + ledger entries with filters.
+- Connect status UX:
+  - `connect_status` page shows readiness + continue CTA.
+  - `connect_start` creates Express account once and redirects to Stripe onboarding.
+  - `connect_sync` refreshes from Stripe manually.
+  - Connect webhook endpoint updates account readiness on `account.updated`.
+
+### Refunds (locked rules: physical-only, full refund per line item)
+- Refund requests are FULL refunds per PHYSICAL line item only.
+- Digital products are non-refundable in v1.
+- `RefundRequest` model:
+  - One refund request per `OrderItem` (OneToOne).
+  - Snapshots at creation:
+    - `line_subtotal_cents_snapshot`
+    - `tax_cents_allocated_snapshot`
+    - `shipping_cents_allocated_snapshot`
+    - `total_refund_cents_snapshot`
+  - Tracks Stripe refund id + timestamps, seller decision fields.
+- Allocation:
+  - Tax allocated across ALL items by line-total proportion.
+  - Shipping allocated across shippable items only by line-total proportion.
+- Flow:
+  - Buyer/guest creates request (guests confirm email matches checkout email).
+  - Seller approves/declines; after approval seller triggers Stripe refund.
+  - Staff safety-valve refund trigger exists (admin action + staff endpoint).
+
+## Code hygiene fixes applied (2026-02-03)
+- Removed duplicate `stripe_ready_required` logic by making `payments/permissions.py` a re-export.
+- Removed duplicated block in `payments/services.py` (function was defined twice).

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
-from django.contrib.auth.models import User
 
 from .models import Profile
 
 
+User = get_user_model()
+
+
 class UsernameAuthenticationForm(AuthenticationForm):
-    """
-    Standard username/password login form (Django default).
-    """
+    """Standard username/password login form (Django default)."""
+
     username = forms.CharField(
         max_length=150,
         widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "Username"}),
@@ -21,11 +23,15 @@ class UsernameAuthenticationForm(AuthenticationForm):
 
 
 class RegisterForm(UserCreationForm):
-    """
-    Registration form:
-      - username is required (public identity)
-      - user chooses consumer or seller
-      - profile stores email + contact info (optional at registration)
+    """Registration form.
+
+    - username is required (public identity)
+    - user chooses consumer or seller
+    - profile stores email + role flags (seeded at registration; rest optional)
+
+    Option A:
+    - Profile row is created via signal.
+    - This form seeds Profile fields after user creation.
     """
 
     email = forms.EmailField(required=False)
@@ -40,19 +46,30 @@ class RegisterForm(UserCreationForm):
         fields = ("username", "email", "password1", "password2")
 
     def clean_username(self):
-        username = self.cleaned_data["username"].strip()
+        username = (self.cleaned_data.get("username") or "").strip()
         if User.objects.filter(username__iexact=username).exists():
             raise forms.ValidationError("That username is already taken.")
         return username
 
     def save(self, commit: bool = True):
-        user = super().save(commit=commit)
-        # Profile is created via signal; update it with registration details.
+        # Create the user first
+        user = super().save(commit=False)
+
+        # Seed user.email too (useful for auth flows, Stripe, admin, etc.)
+        email = (self.cleaned_data.get("email") or "").strip()
+        if hasattr(user, "email"):
+            user.email = email
+
+        if commit:
+            user.save()
+
+        # Profile is created via signal; seed it with registration details.
         profile = getattr(user, "profile", None)
-        if profile:
-            profile.email = self.cleaned_data.get("email", "") or ""
+        if profile is not None:
+            profile.email = email
             profile.is_seller = bool(self.cleaned_data.get("register_as_seller", False))
             profile.save(update_fields=["email", "is_seller", "updated_at"])
+
         return user
 
 
@@ -71,7 +88,7 @@ class ProfileForm(forms.ModelForm):
             "state",
             "zip_code",
             "avatar",
-            "is_seller",  # allow user to opt-in; later we gate with Stripe onboarding
+            "is_seller",  # allow opt-in; Stripe gating happens elsewhere
         ]
         widgets = {
             "first_name": forms.TextInput(attrs={"placeholder": "First name"}),

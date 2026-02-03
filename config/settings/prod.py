@@ -1,10 +1,11 @@
+# config/settings/prod.py
 """
 Production settings.
 
 These settings are for the live environment.
 """
 
-from .base import *
+from .base import *  # noqa
 import os
 
 # ------------------------------------------------------------------------------
@@ -14,8 +15,13 @@ import os
 DEBUG = False
 
 ALLOWED_HOSTS = [
-    "homecraft3d.com",      # change to real domain
-    "www.homecraft3d.com",  # change to real domain
+    "homecraft3d.com",
+    "www.homecraft3d.com",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://homecraft3d.com",
+    "https://www.homecraft3d.com",
 ]
 
 # ------------------------------------------------------------------------------
@@ -23,14 +29,19 @@ ALLOWED_HOSTS = [
 # ------------------------------------------------------------------------------
 
 SECURE_SSL_REDIRECT = True
-
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-
 X_FRAME_OPTIONS = "DENY"
+
+# If you're behind a reverse proxy / load balancer:
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+# Throttling should trust proxy headers only when you control them.
+THROTTLE_TRUST_PROXY_HEADERS = True
 
 # ------------------------------------------------------------------------------
 # EMAIL (real backend required)

@@ -1,24 +1,48 @@
 {% extends "base.html" %}
-{% block title %}Checkout Success · Home Craft 3D{% endblock %}
+
+{% block title %}Payment successful · Home Craft 3D{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width: 900px;">
-  <div class="card">
-    <div class="card-body">
-      <h1 class="h4 mb-2"><i class="bi bi-check2-circle me-1"></i>Payment received</h1>
-      <p class="text-secondary mb-3">
-        Thanks! Your payment was submitted successfully. Your order may take a moment to update.
-      </p>
+<div class="container py-5" style="max-width: 900px;">
+  <div class="text-center">
+    <h1 class="h3 mb-2">Payment successful</h1>
+    <p class="text-muted mb-4">Thanks — your order is confirmed.</p>
 
-      {% if order %}
-        <a class="btn btn-dark" href="{% url 'orders:detail' order.id %}">
-          View Order #{{ order.id }}
-        </a>
-      {% else %}
-        <a class="btn btn-dark" href="{% url 'products:list' %}">
-          Continue Shopping
-        </a>
-      {% endif %}
+    {% if order %}
+      <div class="card shadow-sm mx-auto" style="max-width: 720px;">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <div class="text-muted small">Order</div>
+              <div class="fw-semibold">{{ order.id }}</div>
+            </div>
+            <div class="col-md-6">
+              <div class="text-muted small">Status</div>
+              <div class="fw-semibold">{{ order.get_status_display }}</div>
+            </div>
+          </div>
+
+          <hr>
+
+          <a class="btn btn-primary" href="{% url 'orders:detail' order_id=order.id %}">
+            View order
+          </a>
+
+          {% if user.is_authenticated %}
+            <a class="btn btn-outline-secondary ms-2" href="{% url 'orders:purchases' %}">
+              Go to purchases
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info mx-auto" style="max-width: 720px;">
+        Your payment completed. If your order doesn’t appear immediately, refresh in a moment.
+      </div>
+    {% endif %}
+
+    <div class="mt-4">
+      <a href="{% url 'products:list' %}" class="btn btn-outline-secondary">Continue shopping</a>
     </div>
   </div>
 </div>

@@ -1,175 +1,142 @@
+{# templates/orders/order_detail.html #}
 {% extends "base.html" %}
-{% block title %}Order #{{ order.id }} · Home Craft 3D{% endblock %}
+{% load money %}
+
+{% block title %}Order · Home Craft 3D{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width: 1100px;">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div>
-      <h1 class="h4 mb-1">Order #{{ order.id }}</h1>
-      <div class="text-secondary small">
-        Status:
-        {% if order.status == "PAID" %}
-          <span class="badge text-bg-success">{{ order.get_status_display }}</span>
-        {% elif order.status == "PENDING" %}
-          <span class="badge text-bg-secondary">{{ order.get_status_display }}</span>
-        {% else %}
-          <span class="badge text-bg-secondary">{{ order.get_status_display }}</span>
-        {% endif %}
-        · Created {{ order.created_at }}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">Order</h1>
+    <span class="badge text-bg-secondary">{{ order.get_status_display }}</span>
+  </div>
+
+  <div class="card shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="text-muted small">Order ID</div>
+          <div class="fw-semibold">{{ order.id }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small">Total</div>
+          <div class="fw-semibold">${{ order.total_cents|cents_to_dollars }}</div>
+        </div>
       </div>
 
       {% if order.is_guest %}
-        <div class="text-secondary small mt-1">
-          Guest order for: <strong>{{ order.guest_email }}</strong>
+        <div class="alert alert-info mt-3 mb-0">
+          <div class="small">
+            Guest order. Keep this link safe to access your order later.
+          </div>
         </div>
       {% endif %}
     </div>
-
-    <a class="btn btn-outline-dark" href="{% url 'products:list' %}">
-      <i class="bi bi-arrow-left me-1"></i>Back to shopping
-    </a>
   </div>
 
-  {% if messages %}
-    <div class="mb-3">
-      {% for message in messages %}
-        <div class="alert alert-info mb-2">{{ message }}</div>
-      {% endfor %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <div class="fw-semibold">Items</div>
     </div>
-  {% endif %}
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">Unit</th>
+              <th class="text-end">Line</th>
+              <th class="text-end">Downloads</th>
+              <th class="text-end">Refund</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in order.items.all %}
+              <tr>
+                <td>
+                  <div class="fw-semibold">{{ item.product }}</div>
+                  {% if item.is_digital %}
+                    <span class="badge text-bg-info">Digital</span>
+                  {% else %}
+                    <span class="badge text-bg-warning">Physical</span>
+                  {% endif %}
+                </td>
 
-  {% if order.ship_line1 or order.ship_city or order.ship_postal_code %}
-    <div class="card mb-3">
-      <div class="card-header bg-white fw-semibold">
-        <i class="bi bi-truck me-1"></i>Shipping Address
+                <td class="text-end">{{ item.quantity }}</td>
+                <td class="text-end">${{ item.unit_price_cents|cents_to_dollars }}</td>
+                <td class="text-end">${{ item.line_total_cents|cents_to_dollars }}</td>
+
+                <td class="text-end">
+                  {% if can_download and item.is_digital %}
+                    {% with assets=item.product.digital_assets.all %}
+                      {% if assets %}
+                        <div class="d-flex flex-column gap-1 align-items-end">
+                          {% for a in assets %}
+                            <a
+                              class="btn btn-sm btn-outline-primary"
+                              href="{% url 'orders:download_asset' order_id=order.id asset_id=a.id %}{% if order_token %}?t={{ order_token }}{% endif %}"
+                            >
+                              Download{% if a.original_filename %}: {{ a.original_filename }}{% endif %}
+                            </a>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <span class="text-muted small">No files.</span>
+                      {% endif %}
+                    {% endwith %}
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  {# Refunds: physical-only line items on PAID orders. One request per item (OneToOne). #}
+                  {% if order.status == order.Status.PAID and not item.is_digital and item.requires_shipping %}
+                    {% if item.refund_request %}
+                      <a
+                        class="btn btn-sm btn-outline-secondary"
+                        href="{% url 'refunds:buyer_detail' refund_id=item.refund_request.pk %}{% if order_token %}?t={{ order_token }}{% endif %}"
+                        title="View refund request"
+                      >
+                        View request
+                      </a>
+                    {% else %}
+                      <a
+                        class="btn btn-sm btn-outline-danger"
+                        href="{% url 'refunds:buyer_create' order_id=order.id item_id=item.id %}{% if order_token %}?t={{ order_token }}{% endif %}"
+                      >
+                        Request refund
+                      </a>
+                    {% endif %}
+                  {% else %}
+                    <span class="text-muted small">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">No items.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if order.requires_shipping %}
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <div class="fw-semibold">Shipping</div>
       </div>
       <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="text-secondary small mb-1">Recipient</div>
-            <div class="fw-semibold">{{ order.ship_name|default:"—" }}</div>
-            {% if order.ship_phone %}
-              <div class="text-secondary small">{{ order.ship_phone }}</div>
-            {% endif %}
-          </div>
-          <div class="col-md-6">
-            <div class="text-secondary small mb-1">Address</div>
-            <div>
-              {{ order.ship_line1 }}{% if order.ship_line2 %}<br>{{ order.ship_line2 }}{% endif %}
-              <br>{{ order.ship_city }}, {{ order.ship_state }} {{ order.ship_postal_code }}
-              {% if order.ship_country %}<br>{{ order.ship_country }}{% endif %}
-            </div>
-          </div>
-        </div>
+        <div class="small text-muted">Ship to</div>
+        <div class="fw-semibold">{{ order.shipping_name }}</div>
+        <div>{{ order.shipping_line1 }}{% if order.shipping_line2 %}, {{ order.shipping_line2 }}{% endif %}</div>
+        <div>{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</div>
       </div>
     </div>
   {% endif %}
-
-  <div class="card">
-    <div class="table-responsive">
-      <table class="table align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Item</th>
-            <th>Type</th>
-            <th>Qty</th>
-            <th class="text-end">Unit</th>
-            <th class="text-end">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in order.items.all %}
-            <tr>
-              <td>
-                <div class="fw-semibold">
-                  <a class="text-decoration-none" href="{{ item.product.get_absolute_url }}">{{ item.title }}</a>
-                </div>
-                <div class="text-secondary small">Seller: {{ item.seller.username }}</div>
-
-                {% if order.status == "PAID" and user.is_authenticated and order.buyer_id == user.id %}
-                  <div class="mt-2">
-                    {% if item.review %}
-                      <span class="badge text-bg-success">
-                        <i class="bi bi-check2-circle me-1"></i>Reviewed
-                      </span>
-                      <a class="btn btn-sm btn-outline-dark ms-2" href="{{ item.product.get_absolute_url }}">
-                        View product
-                      </a>
-                    {% else %}
-                      <a class="btn btn-sm btn-outline-dark"
-                         href="{% url 'reviews:create_for_item' item.id %}">
-                        <i class="bi bi-star me-1"></i>Leave a review
-                      </a>
-                    {% endif %}
-                  </div>
-                {% endif %}
-
-                {% if order.status == "PAID" and item.kind == "FILE" %}
-                  <div class="mt-2">
-                    <div class="small text-secondary mb-1">Downloads</div>
-
-                    {% if item.product.digital_assets.all %}
-                      <div class="d-flex flex-wrap gap-2">
-                        {% for asset in item.product.digital_assets.all %}
-                          {% if order_token %}
-                            <a class="btn btn-sm btn-outline-dark"
-                               href="{% url 'orders:download_asset' order.id asset.id %}?t={{ order_token }}">
-                              <i class="bi bi-download me-1"></i>
-                              {{ asset.original_filename|default:"Download file" }}
-                            </a>
-                          {% else %}
-                            <a class="btn btn-sm btn-outline-dark"
-                               href="{% url 'orders:download_asset' order.id asset.id %}">
-                              <i class="bi bi-download me-1"></i>
-                              {{ asset.original_filename|default:"Download file" }}
-                            </a>
-                          {% endif %}
-                        {% endfor %}
-                      </div>
-                    {% else %}
-                      <div class="small text-secondary">No files uploaded for this product.</div>
-                    {% endif %}
-                  </div>
-                {% endif %}
-              </td>
-
-              <td><span class="badge text-bg-secondary">{{ item.kind }}</span></td>
-              <td>{{ item.quantity }}</td>
-              <td class="text-end">${{ item.unit_price }}</td>
-              <td class="text-end"><strong>${{ item.line_total }}</strong></td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="5" class="text-center text-secondary py-4">No items.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-      <div class="text-secondary">Subtotal</div>
-      <div class="h5 mb-0">${{ order.subtotal }}</div>
-    </div>
-  </div>
-
-  <div class="mt-3 d-flex justify-content-end">
-    {% if order.status == "PENDING" %}
-      <form method="post" action="{% url 'orders:checkout_start' order.id %}">
-        {% csrf_token %}
-        <button class="btn btn-dark" type="submit">
-          <i class="bi bi-credit-card me-1"></i>Pay with Stripe
-        </button>
-      </form>
-    {% elif order.status == "PAID" %}
-      <button class="btn btn-success" type="button" disabled>
-        <i class="bi bi-check2-circle me-1"></i>Paid
-      </button>
-    {% else %}
-      <button class="btn btn-secondary" type="button" disabled>
-        Not payable
-      </button>
-    {% endif %}
-  </div>
 </div>
 {% endblock %}

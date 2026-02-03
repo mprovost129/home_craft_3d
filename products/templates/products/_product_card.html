@@ -1,8 +1,5 @@
 {# products/templates/products/_product_card.html #}
 {# Expects: p (Product) #}
-{# Optional: show_category (bool, default True) #}
-{# Optional: show_add_to_cart (bool, default False) #}
-{# Optional: image_height (string like "180px", default "180px") #}
 
 {% if show_category is None %}
   {% with True as show_category %}{% endwith %}
@@ -38,7 +35,7 @@
 
     <div class="d-flex justify-content-between align-items-center mt-1">
       <div class="text-secondary small">
-        by <strong>{{ p.seller.username }}</strong>
+        by <strong>{{ p.seller_public_name }}</strong>
         {% if show_category|default:True %}
           · {{ p.category.name }}
         {% endif %}
@@ -49,6 +46,16 @@
           ★ {{ p.avg_rating|floatformat:1 }}/5 ({{ p.review_count }})
         {% else %}
           No reviews
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-1">
+      <div class="small text-secondary" style="white-space:nowrap;">
+        {% if p.seller_review_count and p.seller_review_count > 0 %}
+          Seller ★ {{ p.seller_avg_rating|floatformat:1 }}/5 ({{ p.seller_review_count }})
+        {% else %}
+          Seller: no ratings
         {% endif %}
       </div>
     </div>

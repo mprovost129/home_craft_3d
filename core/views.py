@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from django.db.models import Avg, Count, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from orders.models import Order
@@ -100,50 +100,51 @@ def _annotate_trending(qs, *, since_days: int = TRENDING_WINDOW_DAYS):
     return qs
 
 
-def _seller_ready_qs():
-    """
-    Defines what "ready to accept payments" means for your SellerStripeAccount schema.
-    """
-    return SellerStripeAccount.objects.filter(
-        charges_enabled=True,
-        payouts_enabled=True,
-        details_submitted=True,
-    )
+def _seller_can_sell(product: Product) -> bool:
+    """Single source of truth for buy-gating on the home page."""
+    try:
+        if product.seller and is_owner_user(product.seller):
+            return True
+    except Exception:
+        pass
+
+    try:
+        acct = getattr(product.seller, "stripe_connect", None)
+        if acct is not None:
+            return bool(acct.is_ready)
+    except Exception:
+        pass
+
+    try:
+        if not product.seller_id:
+            return False
+        return SellerStripeAccount.objects.filter(
+            user_id=product.seller_id,
+            stripe_account_id__gt="",
+            details_submitted=True,
+            charges_enabled=True,
+            payouts_enabled=True,
+        ).exists()
+    except Exception:
+        return False
 
 
 def _apply_can_buy_flag(products: list[Product]) -> None:
-    """
-    Adds p.can_buy on product cards.
-    """
-    if not products:
-        return
-
-    seller_ids = {p.seller_id for p in products if p.seller_id}
-    ready_seller_ids = set(
-        _seller_ready_qs()
-        .filter(user_id__in=seller_ids)
-        .values_list("user_id", flat=True)
-    )
-
     for p in products:
-        try:
-            # owner bypass
-            p.can_buy = bool(p.seller_id in ready_seller_ids or is_owner_user(p.seller))
-        except Exception:
-            p.can_buy = bool(p.seller_id in ready_seller_ids)
+        p.can_buy = _seller_can_sell(p)
 
 
 def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int] | None = None) -> None:
-    """
-    Unifies the template rule:
-      - templates should ONLY check: p.trending_badge
-    """
     computed_ids = computed_ids or set()
     for p in products:
-        p.trending_badge = bool(getattr(p, "is_trending", False) or (p.pk in computed_ids))
+        p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
 
 
 def home(request):
+    # Logged-in users land on their smart dashboard hub.
+    if request.user.is_authenticated:
+        return redirect("dashboards:home")
+
     qs = _base_home_qs()
     qs = _annotate_rating(qs)
 
@@ -151,7 +152,7 @@ def home(request):
     new_items = list(qs.order_by("-created_at")[:HOME_BUCKET_SIZE])
 
     manual_trending = list(qs.filter(is_trending=True).order_by("-created_at")[:HOME_BUCKET_SIZE])
-    manual_ids = {p.pk for p in manual_trending}
+    manual_ids = {p.id for p in manual_trending}
 
     trending_needed = max(0, HOME_BUCKET_SIZE - len(manual_trending))
     computed_trending: list[Product] = []
@@ -164,12 +165,11 @@ def home(request):
             trending_qs.order_by("-trending_score", "-avg_rating", "-created_at")[:trending_needed]
         )
 
-        # Only badge computed trending if there's a real signal
-        computed_ids = {p.pk for p in computed_trending if getattr(p, "trending_score", 0) > 0}
+        computed_ids = {p.id for p in computed_trending if getattr(p, "trending_score", 0) > 0}
 
     trending = manual_trending + computed_trending
 
-    exclude_ids = {p.pk for p in featured} | {p.pk for p in new_items} | {p.pk for p in trending}
+    exclude_ids = {p.id for p in featured} | {p.id for p in new_items} | {p.id for p in trending}
     misc = list(qs.exclude(id__in=exclude_ids).order_by("-created_at")[:HOME_BUCKET_SIZE])
 
     all_cards = featured + new_items + trending + misc

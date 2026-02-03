@@ -11,13 +11,13 @@ urlpatterns = [
     path("models/", views.models_list, name="models"),
     path("files/", views.files_list, name="files"),
 
-    # Engagement redirect endpoint (cards)
+    # Engagement redirect (logs CLICK then redirects to detail)
     path("go/<int:pk>/<slug:slug>/", views.product_go, name="go"),
 
-    # Product detail (canonical)
+    # Canonical detail
     path("<int:pk>/<slug:slug>/", views.product_detail, name="detail"),
 
-    # Seller area (names kept stable for templates)
+    # Seller area
     path("seller/", views_seller.seller_product_list, name="seller_list"),
     path("seller/new/", views_seller.seller_product_create, name="seller_create"),
     path("seller/<int:pk>/edit/", views_seller.seller_product_edit, name="seller_edit"),

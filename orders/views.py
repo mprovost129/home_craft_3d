@@ -1,70 +1,170 @@
+# orders/views.py
 from __future__ import annotations
+
+import logging
 
 from django.conf import settings
 from django.contrib import messages
-from django.core.mail import send_mail
-from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, Http404
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.core.validators import validate_email
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from cart.cart import Cart
-from products.models import Product, DigitalAsset
+from core.throttle import ThrottleRule, throttle
+from core.recaptcha import require_recaptcha_v3
+from legal.services import check_legal_acceptance, record_acceptance
+from payments.utils import seller_is_stripe_ready
+from products.models import DigitalAsset, Product
+from products.permissions import is_owner_user, is_seller_user
+
 from .models import Order
 from .services import create_order_from_cart
-from .stripe_service import create_checkout_session_for_order, verify_and_parse_webhook
+from .stripe_service import create_checkout_session_for_order
+
+logger = logging.getLogger(__name__)
+
+CHECKOUT_PLACE_RULE = ThrottleRule(key_prefix="checkout_place_order", limit=6, window_seconds=60)
+CHECKOUT_START_RULE = ThrottleRule(key_prefix="checkout_start", limit=8, window_seconds=60)
 
 
 def _token_from_request(request) -> str:
     return (request.GET.get("t") or "").strip()
 
 
+def _normalize_guest_email(raw: str) -> str:
+    email = (raw or "").strip().lower()
+    if not email:
+        return ""
+    try:
+        validate_email(email)
+    except ValidationError:
+        return ""
+    return email
+
+
 def _user_can_access_order(request, order: Order) -> bool:
     if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
         return True
 
-    if order.buyer_id:
+    if getattr(order, "buyer_id", None):
         return request.user.is_authenticated and request.user.id == order.buyer_id
 
     t = _token_from_request(request)
-    return bool(t) and t == order.access_token
+    return bool(t) and str(t) == str(getattr(order, "order_token", ""))
+
+
+def _order_has_unready_sellers(order: Order) -> list[str]:
+    bad: list[str] = []
+    for item in order.items.select_related("seller").all():
+        seller = getattr(item, "seller", None)
+        if seller and not seller_is_stripe_ready(seller):
+            bad.append(getattr(seller, "username", str(getattr(seller, "pk", ""))))
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in bad:
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def _cart_has_unready_sellers(cart: Cart) -> list[str]:
+    bad: list[str] = []
+    for line in cart.lines():
+        product = getattr(line, "product", None)
+        seller = getattr(product, "seller", None)
+        if seller and not seller_is_stripe_ready(seller):
+            bad.append(getattr(seller, "username", str(getattr(seller, "pk", ""))))
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in bad:
+        if u in seen:
+            continue
+        seen.add(u)
+        out.append(u)
+    return out
+
+
+def _require_legal_acceptance_or_redirect(request, *, guest_email: str = "", next_url: str = ""):
+    status = check_legal_acceptance(request=request, user=request.user, guest_email=guest_email)
+    if status.ok:
+        return None
+
+    to = reverse("legal:terms")
+    if next_url:
+        to = f"{to}?next={next_url}"
+    return redirect(to)
 
 
 @require_POST
+@throttle(CHECKOUT_PLACE_RULE)
+@require_recaptcha_v3("checkout_place_order")
 def place_order(request):
     cart = Cart(request)
     if cart.count_items() == 0:
         messages.info(request, "Your cart is empty.")
         return redirect("cart:detail")
 
+    bad_sellers = _cart_has_unready_sellers(cart)
+    if bad_sellers:
+        messages.error(
+            request,
+            "One or more sellers in your cart haven’t completed payout setup yet: " + ", ".join(bad_sellers),
+        )
+        return redirect("cart:detail")
+
     guest_email = ""
     if not request.user.is_authenticated:
-        guest_email = (request.POST.get("guest_email") or "").strip()
+        guest_email = _normalize_guest_email(request.POST.get("guest_email") or "")
         if not guest_email:
-            messages.error(request, "Please enter your email to checkout as a guest.")
+            messages.error(request, "Please enter a valid email to checkout as a guest.")
             return redirect("cart:detail")
+
+    legal_redirect = _require_legal_acceptance_or_redirect(
+        request,
+        guest_email=guest_email,
+        next_url=reverse("cart:detail"),
+    )
+    if legal_redirect is not None:
+        return legal_redirect
+
+    if request.POST.get("accept_legal") == "1":
+        try:
+            record_acceptance(request=request, user=request.user, guest_email=guest_email)
+        except Exception:
+            pass
 
     try:
         order = create_order_from_cart(cart, buyer=request.user, guest_email=guest_email)
-    except ValueError:
-        messages.info(request, "Your cart is empty.")
+    except ValueError as e:
+        messages.error(request, str(e) or "Your cart can’t be checked out right now.")
         return redirect("cart:detail")
 
-    messages.success(request, f"Order #{order.pk} created (pending payment).")
+    cart.clear()
+    messages.success(request, "Order created (pending payment).")
+
     if order.is_guest:
-        return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.access_token}")
+        return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}")
+
     return redirect("orders:detail", order_id=order.pk)
 
 
-def order_detail(request, order_id: int):
+def order_detail(request, order_id):
     order = get_object_or_404(
         Order.objects.prefetch_related(
             "items",
+            "items__seller",
+            "items__refund_request",
             "items__product",
             "items__product__digital_assets",
-            # ✅ Reviews: reverse OneToOne from OrderItem -> Review (related_name="review")
-            "items__review",
         ),
         pk=order_id,
     )
@@ -74,25 +174,43 @@ def order_detail(request, order_id: int):
             return redirect("accounts:login")
         raise Http404("Not found")
 
+    can_download = bool(order.status == Order.Status.PAID and _user_can_access_order(request, order))
+
     return render(
         request,
         "orders/order_detail.html",
         {
             "order": order,
             "order_token": _token_from_request(request),
+            "can_download": can_download,
             "stripe_publishable_key": getattr(settings, "STRIPE_PUBLISHABLE_KEY", ""),
         },
     )
 
 
 @require_POST
-def checkout_start(request, order_id: int):
-    order = get_object_or_404(Order.objects.prefetch_related("items"), pk=order_id)
+@throttle(CHECKOUT_START_RULE)
+@require_recaptcha_v3("checkout_start")
+def checkout_start(request, order_id):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items", "items__seller", "items__product"),
+        pk=order_id,
+    )
 
     if not _user_can_access_order(request, order):
         if order.buyer_id and not request.user.is_authenticated:
             return redirect("accounts:login")
         raise Http404("Not found")
+
+    guest_email = getattr(order, "guest_email", "") or ""
+    legal_redirect = _require_legal_acceptance_or_redirect(
+        request,
+        guest_email=guest_email,
+        next_url=reverse("orders:detail", kwargs={"order_id": order.pk})
+        + (f"?t={order.order_token}" if order.is_guest else ""),
+    )
+    if legal_redirect is not None:
+        return legal_redirect
 
     if order.status != Order.Status.PENDING:
         messages.info(request, "This order is not payable.")
@@ -102,11 +220,22 @@ def checkout_start(request, order_id: int):
         messages.error(request, "Order has no items.")
         return redirect("orders:detail", order_id=order.pk)
 
+    bad_sellers = _order_has_unready_sellers(order)
+    if bad_sellers and not (request.user.is_authenticated and is_owner_user(request.user)):
+        messages.error(
+            request,
+            "One or more sellers in this order haven’t completed payout setup yet: " + ", ".join(bad_sellers),
+        )
+        return redirect("orders:detail", order_id=order.pk)
+
+    if int(order.total_cents or 0) <= 0:
+        order.mark_paid(payment_intent_id="FREE")
+        messages.success(request, "Your order is complete.")
+        if order.is_guest:
+            return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}")
+        return redirect("orders:detail", order_id=order.pk)
+
     session = create_checkout_session_for_order(request=request, order=order)
-
-    order.stripe_session_id = session.id
-    order.save(update_fields=["stripe_session_id", "updated_at"])
-
     return redirect(session.url)
 
 
@@ -117,10 +246,18 @@ def checkout_success(request):
         return redirect("home")
 
     order = Order.objects.filter(stripe_session_id=session_id).first()
-    return render(request, "orders/checkout_success.html", {"order": order})
+
+    order_detail_url = ""
+    if order:
+        if order.is_guest:
+            order_detail_url = f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}"
+        else:
+            order_detail_url = reverse("orders:detail", kwargs={"order_id": order.pk})
+
+    return render(request, "orders/checkout_success.html", {"order": order, "order_detail_url": order_detail_url})
 
 
-def checkout_cancel(request, order_id: int):
+def checkout_cancel(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
     messages.info(request, "Checkout canceled.")
     t = _token_from_request(request)
@@ -129,8 +266,11 @@ def checkout_cancel(request, order_id: int):
     return redirect("orders:detail", order_id=order.pk)
 
 
-def download_asset(request, order_id: int, asset_id: int):
-    order = get_object_or_404(Order.objects.prefetch_related("items", "items__product"), pk=order_id)
+def download_asset(request, order_id, asset_id):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items", "items__product"),
+        pk=order_id,
+    )
 
     if order.status != Order.Status.PAID:
         raise Http404("Not found")
@@ -154,97 +294,71 @@ def download_asset(request, order_id: int, asset_id: int):
     return FileResponse(file_handle, as_attachment=True, filename=filename)
 
 
-def _email_guest_magic_link(order: Order, request_base_url: str) -> None:
-    if not order.guest_email:
-        return
-    if not order.access_token:
-        order.ensure_access_token()
-
-    link = f"{request_base_url}{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.access_token}"
-
-    subject = f"Your Home Craft 3D order #{order.pk}"
-    body = (
-        "Thanks for your purchase!\n\n"
-        "Access your order and downloads here:\n"
-        f"{link}\n\n"
-        "If you didn’t make this purchase, ignore this email."
+@login_required
+def purchases(request):
+    qs = (
+        Order.objects.filter(buyer=request.user, status=Order.Status.PAID, paid_at__isnull=False)
+        .prefetch_related("items", "items__product", "items__product__digital_assets")
+        .order_by("-paid_at", "-created_at")
     )
 
-    try:
-        send_mail(subject, body, getattr(settings, "DEFAULT_FROM_EMAIL", None), [order.guest_email])
-    except Exception:
-        return
+    paginator = Paginator(qs, 20)
+    page = paginator.get_page(request.GET.get("page") or 1)
+
+    return render(request, "orders/purchases.html", {"page_obj": page, "orders": page.object_list})
 
 
-def _extract_shipping_from_session_obj(session_obj: dict) -> dict:
-    """
-    Stripe Checkout Session may include:
-      - shipping_details (preferred)
-      - customer_details (fallback)
-    """
-    shipping_details = session_obj.get("shipping_details") or {}
-    customer_details = session_obj.get("customer_details") or {}
-
-    name = shipping_details.get("name") or customer_details.get("name") or ""
-    phone = customer_details.get("phone") or ""
-    addr = shipping_details.get("address") or customer_details.get("address") or {}
-
-    return {
-        "name": name,
-        "phone": phone,
-        "line1": addr.get("line1") or "",
-        "line2": addr.get("line2") or "",
-        "city": addr.get("city") or "",
-        "state": addr.get("state") or "",
-        "postal_code": addr.get("postal_code") or "",
-        "country": addr.get("country") or "",
-    }
+@login_required
+def my_orders(request):
+    qs = (
+        Order.objects.filter(buyer=request.user)
+        .prefetch_related("items", "items__product")
+        .order_by("-created_at")
+    )
+    paginator = Paginator(qs, 20)
+    page = paginator.get_page(request.GET.get("page") or 1)
+    return render(request, "orders/my_orders.html", {"page_obj": page, "orders": page.object_list})
 
 
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.headers.get("Stripe-Signature", "")
+@login_required
+def seller_orders_list(request):
+    user = request.user
+    if not (is_seller_user(user) or is_owner_user(user)):
+        messages.info(request, "You don’t have access to seller orders.")
+        return redirect("dashboards:consumer")
 
-    if not sig_header:
-        return HttpResponseBadRequest("Missing signature")
+    qs = (
+        Order.objects.filter(status=Order.Status.PAID, paid_at__isnull=False)
+        .prefetch_related("items", "items__product", "items__seller")
+        .order_by("-paid_at", "-created_at")
+    )
 
-    try:
-        event = verify_and_parse_webhook(payload, sig_header)
-    except Exception:
-        return HttpResponseBadRequest("Invalid signature")
+    if not is_owner_user(user):
+        qs = qs.filter(items__seller=user).distinct()
 
-    event_type = event.get("type", "")
-    data_object = (event.get("data") or {}).get("object") or {}
+    paginator = Paginator(qs, 25)
+    page = paginator.get_page(request.GET.get("page") or 1)
+    return render(request, "orders/seller_orders_list.html", {"page_obj": page, "orders": page.object_list})
 
-    if event_type == "checkout.session.completed":
-        metadata = data_object.get("metadata") or {}
-        order_id = metadata.get("order_id") or data_object.get("client_reference_id")
 
-        session_id = data_object.get("id", "")
-        payment_intent_id = data_object.get("payment_intent", "") or ""
+@login_required
+def seller_order_detail(request, order_id):
+    user = request.user
+    if not (is_seller_user(user) or is_owner_user(user)):
+        messages.info(request, "You don’t have access to seller orders.")
+        return redirect("dashboards:consumer")
 
-        if order_id:
-            try:
-                order = Order.objects.select_for_update().get(pk=int(order_id))
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items", "items__product", "items__seller"),
+        pk=order_id,
+    )
 
-                if session_id and not order.stripe_session_id:
-                    order.stripe_session_id = session_id
-                    order.save(update_fields=["stripe_session_id", "updated_at"])
+    if not is_owner_user(user):
+        if not order.items.filter(seller=user).exists():
+            return redirect("orders:seller_orders_list")
 
-                order.mark_paid(payment_intent_id=payment_intent_id)
+    seller_items = order.items.select_related("product", "seller").all()
+    if not is_owner_user(user):
+        seller_items = seller_items.filter(seller=user)
 
-                # Save shipping details if present
-                ship = _extract_shipping_from_session_obj(data_object)
-                if any([ship["line1"], ship["city"], ship["postal_code"], ship["country"]]):
-                    order.set_shipping_from_stripe(**ship)
-
-                # Email guest magic link (best-effort)
-                base_url = getattr(settings, "SITE_BASE_URL", "").strip()
-                if base_url:
-                    _email_guest_magic_link(order, base_url)
-
-            except Order.DoesNotExist:
-                pass
-
-    return HttpResponse(status=200)
+    return render(request, "orders/seller_order_detail.html", {"order": order, "seller_items": seller_items})

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from django.apps import AppConfig
 
 
@@ -6,5 +8,5 @@ class AccountsConfig(AppConfig):
     name = "accounts"
 
     def ready(self) -> None:
-        # Ensure signal registration
+        # Signal registration
         from . import signals  # noqa: F401
