@@ -11,6 +11,7 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
+    "homecraft3d.onrender.com"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
