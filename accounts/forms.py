@@ -23,18 +23,30 @@ class UsernameAuthenticationForm(AuthenticationForm):
 
 
 class RegisterForm(UserCreationForm):
-    """Registration form.
+    """
+    Registration form.
 
     - username is required (public identity)
+    - optional first/last/email
     - user chooses consumer or seller
     - profile stores email + role flags (seeded at registration; rest optional)
-
-    Option A:
-    - Profile row is created via signal.
-    - This form seeds Profile fields after user creation.
     """
 
-    email = forms.EmailField(required=False)
+    first_name = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "First name"}),
+    )
+    last_name = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "Last name"}),
+    )
+    email = forms.EmailField(
+        required=False,
+        widget=forms.EmailInput(attrs={"placeholder": "Email"}),
+    )
+
     register_as_seller = forms.BooleanField(
         required=False,
         initial=False,
@@ -43,7 +55,7 @@ class RegisterForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "email", "password1", "password2")
+        fields = ("username", "first_name", "last_name", "email", "password1", "password2")
 
     def clean_username(self):
         username = (self.cleaned_data.get("username") or "").strip()
@@ -52,10 +64,12 @@ class RegisterForm(UserCreationForm):
         return username
 
     def save(self, commit: bool = True):
-        # Create the user first
         user = super().save(commit=False)
 
-        # Seed user.email too (useful for auth flows, Stripe, admin, etc.)
+        # Optional identity fields
+        user.first_name = (self.cleaned_data.get("first_name") or "").strip()
+        user.last_name = (self.cleaned_data.get("last_name") or "").strip()
+
         email = (self.cleaned_data.get("email") or "").strip()
         if hasattr(user, "email"):
             user.email = email
