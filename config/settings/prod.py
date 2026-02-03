@@ -14,17 +14,9 @@ import os
 
 DEBUG = False
 
-ALLOWED_HOSTS = [
-    "homecraft3d.com",
-    "www.homecraft3d.com",
-    "homecraft3d.onrender.com",
-]
+ALLOWED_HOSTS = ["homecraft3d.com", "www.homecraft3d.com", "homecraft3d.onrender.com"]
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://homecraft3d.com",
-    "https://www.homecraft3d.com",
-    "https://homecraft3d.onrender.com",
-]
+CSRF_TRUSTED_ORIGINS = ["https://homecraft3d.com", "https://www.homecraft3d.com", "https://homecraft3d.onrender.com"]
 
 # ------------------------------------------------------------------------------
 # SECURITY
