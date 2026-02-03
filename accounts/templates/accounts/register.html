@@ -12,49 +12,51 @@
         <div class="msg error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <div class="row">
-        <div>
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
           <label for="{{ form.username.id_for_label }}">Username (public)</label>
           {{ form.username }}
           {% for e in form.username.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
           <div class="help">Your username is visible across the marketplace.</div>
         </div>
 
-        <div>
+        <div class="col-12 col-md-6">
           <label for="{{ form.first_name.id_for_label }}">First name (optional)</label>
           {{ form.first_name }}
           {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div>
+        <div class="col-12 col-md-6">
           <label for="{{ form.last_name.id_for_label }}">Last name (optional)</label>
           {{ form.last_name }}
           {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div>
+        <div class="col-12 col-md-6">
           <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
           {{ form.email }}
           {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div>
+        <div class="col-12 col-md-6">
           <label for="{{ form.password1.id_for_label }}">Password</label>
           {{ form.password1 }}
           {% for e in form.password1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div>
+        <div class="col-12 col-md-6">
           <label for="{{ form.password2.id_for_label }}">Confirm password</label>
           {{ form.password2 }}
           {% for e in form.password2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
       </div>
 
-      <div style="margin-top:12px;">
+      <div class="mt-3">
         <label for="{{ form.register_as_seller.id_for_label }}">Register as seller</label>
-        {{ form.register_as_seller }}
-        <div class="help">{{ form.register_as_seller.help_text }}</div>
+        <div class="d-flex align-items-center gap-2">
+          {{ form.register_as_seller }}
+          <div class="help mb-0">{{ form.register_as_seller.help_text }}</div>
+        </div>
       </div>
 
       <div class="actions">
