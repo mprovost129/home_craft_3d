@@ -21,7 +21,7 @@ class SecurityHeadersMiddleware:
             settings,
             "SECURITY_CSP",
             "default-src 'self'; "
-            "img-src 'self' data: blob:; "
+            "img-src 'self' data: blob: https:; "
             "style-src 'self' 'unsafe-inline' https:; "
             "script-src 'self' 'unsafe-inline' https://js.stripe.com https:; "
             "font-src 'self' https: data:; "
