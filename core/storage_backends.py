@@ -1,8 +1,6 @@
 # core/storage_backends.py
 from __future__ import annotations
 
-import os
-
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
@@ -16,10 +14,24 @@ class MediaStorage(S3Boto3Storage):  # type: ignore[misc]
     """
     Media bucket storage (images, avatars, etc).
 
-    Bucket should be private for now; we can later make images public via CloudFront
-    if you want (optional).
+    Reads from Django settings to properly inherit AWS config.
     """
-    bucket_name = os.getenv("AWS_S3_MEDIA_BUCKET", "")
+    @property
+    def bucket_name(self):
+        return getattr(settings, "AWS_S3_MEDIA_BUCKET", "")
+    
+    @property
+    def access_key(self):
+        return getattr(settings, "AWS_ACCESS_KEY_ID", "")
+    
+    @property
+    def secret_key(self):
+        return getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+    
+    @property
+    def region_name(self):
+        return getattr(settings, "AWS_S3_REGION_NAME", "us-east-2")
+    
     default_acl = None
     file_overwrite = False
     location = "media"
@@ -31,7 +43,22 @@ class DownloadsStorage(S3Boto3Storage):  # type: ignore[misc]
 
     Always uses signed URLs.
     """
-    bucket_name = os.getenv("AWS_S3_DOWNLOADS_BUCKET", "")
+    @property
+    def bucket_name(self):
+        return getattr(settings, "AWS_S3_DOWNLOADS_BUCKET", "")
+    
+    @property
+    def access_key(self):
+        return getattr(settings, "AWS_ACCESS_KEY_ID", "")
+    
+    @property
+    def secret_key(self):
+        return getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+    
+    @property
+    def region_name(self):
+        return getattr(settings, "AWS_S3_REGION_NAME", "us-east-2")
+    
     default_acl = None
     file_overwrite = False
     location = "downloads"
