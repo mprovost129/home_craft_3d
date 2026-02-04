@@ -1,5 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ category.name }} · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ category.name }} · Home Craft 3D{% endblock %}
+{% block meta_description %}
+  {% if category.description %}
+    {{ category.description|striptags|truncatechars:160 }}
+  {% else %}
+    Explore {{ category.name }} on Home Craft 3D.
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

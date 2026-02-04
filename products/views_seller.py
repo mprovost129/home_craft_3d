@@ -9,13 +9,21 @@ from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
 from payments.decorators import stripe_ready_required
 from .forms import ProductForm, ProductImageUploadForm, DigitalAssetUploadForm
-from .models import Product, ProductImage, DigitalAsset
+from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
 
 
 SELLER_PRODUCT_MUTATE_RULE = ThrottleRule(key_prefix="seller_product_mutate", limit=20, window_seconds=60)
 SELLER_UPLOAD_RULE = ThrottleRule(key_prefix="seller_upload", limit=12, window_seconds=60)
 SELLER_DELETE_RULE = ThrottleRule(key_prefix="seller_delete", limit=20, window_seconds=60)
+
+
+def _file_type_options() -> list[str]:
+    preferred = ["stl", "3mf", "obj", "zip"]
+    allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+        t for t in ALLOWED_ASSET_EXTS if t not in preferred
+    )
+    return allowed
 
 
 def _can_edit_product(user, product: Product) -> bool:
@@ -39,13 +47,24 @@ def seller_product_list(request, *args, **kwargs):
 
     NOTE: This is NOT gated by Stripe readiness. Sellers can still view what they have.
     """
-    qs = Product.objects.select_related("category", "seller").prefetch_related("images").order_by("-created_at")
+    qs = (
+        Product.objects.select_related("category", "seller")
+        .prefetch_related("images", "digital_assets")
+        .order_by("-created_at")
+    )
     if not is_owner_user(request.user):
         qs = qs.filter(seller=request.user)
 
     q = (request.GET.get("q") or "").strip()
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(short_description__icontains=q) | Q(description__icontains=q))
+
+    file_type = (request.GET.get("file_type") or "").strip().lower().lstrip(".")
+    if file_type:
+        qs = qs.filter(
+            Q(digital_assets__file_type=file_type)
+            | Q(digital_assets__file__iendswith=f".{file_type}")
+        ).distinct()
 
     stripe_account = None
     stripe_ready = True
@@ -59,6 +78,8 @@ def seller_product_list(request, *args, **kwargs):
         {
             "products": qs,
             "q": q,
+            "file_type": file_type,
+            "file_type_options": _file_type_options(),
             "stripe_account": stripe_account,
             "stripe_ready": stripe_ready,
         },

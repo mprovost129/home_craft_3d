@@ -46,4 +46,16 @@
     </div>
   </div>
 </div>
+
+{% if ga_measurement_id and order %}
+  <script>
+    if (typeof gtag === 'function') {
+      gtag('event', 'purchase', {
+        transaction_id: '{{ order.id }}',
+        value: {{ order.total_cents|default:0|floatformat:2 }} / 100,
+        currency: '{{ order.currency|default:"usd"|upper }}'
+      });
+    }
+  </script>
+{% endif %}
 {% endblock %}

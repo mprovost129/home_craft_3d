@@ -1,7 +1,10 @@
 {# templates/partials/navbar.html #}
-<nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+{% load static %}
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom" style="min-height: 90px;">
   <div class="container-fluid">
-    <a class="navbar-brand fw-semibold" href="{% url 'core:home' %}">Home Craft 3D</a>
+    <a class="navbar-brand py-0" href="{% url 'core:home' %}">
+      <img src="{% static 'images/homecraft3d_navbar.svg' %}" alt="Home Craft 3D" style="height:70px !important;width:auto;max-height:70px;">
+    </a>
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
             aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -9,10 +12,22 @@
     </button>
 
     <div class="collapse navbar-collapse" id="mainNavbar">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
         <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Browse</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'products:models' %}">3D Models</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'products:files' %}">3D Files</a></li>
+
+        {% if user.is_authenticated %}
+          {% with user_is_seller=user_is_seller|default:False user_is_owner=user_is_owner|default:False %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'dashboards:home' %}">Dashboard</a></li>
+            {% if user_is_seller or user_is_owner %}
+              <li class="nav-item"><a class="nav-link" href="{% url 'products:seller_list' %}">My Listings</a></li>
+            {% endif %}
+            {% if user.is_staff or user.is_superuser %}
+              <li class="nav-item"><a class="nav-link" href="{% url 'dashboards:admin' %}">Admin</a></li>
+            {% endif %}
+          {% endwith %}
+        {% endif %}
 
         {% if user.is_authenticated %}
           {% with user_is_seller=user_is_seller|default:False user_is_owner=user_is_owner|default:False %}
@@ -68,30 +83,41 @@
         {% endif %}
       </ul>
 
-      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link" href="{% url 'cart:detail' %}">
-            <i class="bi bi-bag me-1"></i>Cart
-          </a>
-        </li>
+      <form class="d-flex me-lg-2 mb-2 mb-lg-0" method="get" action="{% url 'products:list' %}">
+        <input class="form-control form-control-sm me-2" type="search" name="q" placeholder="Search products" aria-label="Search">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Search</button>
+      </form>
 
-        {% if user.is_authenticated %}
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
-               data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+      <div class="d-flex align-items-center gap-2">
+        <button id="hcThemeToggle" class="btn btn-sm btn-outline-secondary" type="button" aria-pressed="false" title="Toggle theme">
+          <i class="bi bi-moon-stars"></i>
+        </button>
+
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'cart:detail' %}">
+              <i class="bi bi-bag me-1"></i>Cart
             </a>
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li><a class="dropdown-item" href="{% url 'dashboards:consumer' %}">Dashboard</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
-            </ul>
           </li>
-        {% else %}
-          <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}">Login</a></li>
-          <li class="nav-item"><a class="btn btn-dark btn-sm ms-lg-2" href="{% url 'accounts:register' %}">Sign up</a></li>
-        {% endif %}
-      </ul>
+
+          {% if user.is_authenticated %}
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                 data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                <li><a class="dropdown-item" href="{% url 'dashboards:consumer' %}">Dashboard</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
+              </ul>
+            </li>
+          {% else %}
+            <li class="nav-item"><a class="nav-link" href="{% url 'accounts:login' %}">Login</a></li>
+            <li class="nav-item"><a class="btn btn-primary btn-sm ms-lg-2" href="{% url 'accounts:register' %}">Sign up</a></li>
+          {% endif %}
+        </ul>
+      </div>
     </div>
   </div>
 </nav>

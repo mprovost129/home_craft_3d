@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.config import get_site_config
+from .forms import SiteConfigForm
 from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount, SellerBalanceEntry
 from products.models import Product
@@ -217,6 +218,34 @@ def admin_dashboard(request):
             "site_config_admin_url": site_config_admin_url,
             "marketplace_sales_percent": getattr(cfg, "marketplace_sales_percent", 0) or 0,
             "platform_fee_cents": int(getattr(cfg, "platform_fee_cents", 0) or 0),
+        },
+    )
+
+
+@login_required
+def admin_settings(request):
+    user = request.user
+
+    if not is_owner_user(user):
+        messages.info(request, "You don’t have access to admin settings.")
+        return redirect("dashboards:consumer")
+
+    cfg = get_site_config()
+
+    if request.method == "POST":
+        form = SiteConfigForm(request.POST, instance=cfg)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Settings updated.")
+            return redirect("dashboards:admin_settings")
+    else:
+        form = SiteConfigForm(instance=cfg)
+
+    return render(
+        request,
+        "dashboards/admin_settings.html",
+        {
+            "form": form,
         },
     )
 

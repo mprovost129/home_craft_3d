@@ -11,7 +11,7 @@ from django.utils import timezone
 from orders.models import Order
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
-from .models import Product, ProductEngagementEvent
+from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS
 
 
 MIN_REVIEWS_TOP_RATED = 3
@@ -23,11 +23,19 @@ CLICK_THROTTLE_MINUTES = 5
 TRENDING_BADGE_TOP_N = 12
 
 
+def _file_type_options() -> list[str]:
+    preferred = ["stl", "3mf", "obj", "zip"]
+    allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+        t for t in ALLOWED_ASSET_EXTS if t not in preferred
+    )
+    return allowed
+
+
 def _base_qs():
     return (
         Product.objects.filter(is_active=True)
         .select_related("category", "seller")
-        .prefetch_related("images")
+        .prefetch_related("images", "digital_assets")
     )
 
 
@@ -170,6 +178,13 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(short_description__icontains=q) | Q(description__icontains=q))
 
+    file_type = (request.GET.get("file_type") or "").strip().lower().lstrip(".")
+    if file_type:
+        qs = qs.filter(
+            Q(digital_assets__file_type=file_type)
+            | Q(digital_assets__file__iendswith=f".{file_type}")
+        ).distinct()
+
     sort = (request.GET.get("sort") or "new").strip().lower()
     qs = _annotate_rating(qs)
 
@@ -219,6 +234,8 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
             "kind": (kind or (request.GET.get("kind") or "")).strip().upper(),
             "page_title": page_title,
             "sort": sort,
+            "file_type": file_type,
+            "file_type_options": _file_type_options(),
             "min_reviews_top_rated": MIN_REVIEWS_TOP_RATED,
             "trending_fallback": trending_fallback,
             "top_fallback": top_fallback,
@@ -280,7 +297,7 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     product = get_object_or_404(
         Product.objects.filter(is_active=True)
         .select_related("category", "seller")
-        .prefetch_related("images"),
+        .prefetch_related("images", "digital_assets"),
         pk=pk,
         slug=slug,
     )

@@ -44,6 +44,104 @@ class SiteConfig(models.Model):
         help_text="List of allowed country codes for shipping (e.g. ['US']).",
     )
 
+    # -------------------------
+    # Theme / Branding (Palette A + Light/Dark)
+    # -------------------------
+    class ThemeMode(models.TextChoices):
+        LIGHT = "light", "Light"
+        DARK = "dark", "Dark"
+
+    theme_default_mode = models.CharField(
+        max_length=10,
+        choices=ThemeMode.choices,
+        default=ThemeMode.LIGHT,
+        help_text="Default mode for new visitors (users may toggle).",
+    )
+
+    # Brand tokens (Palette A)
+    theme_primary = models.CharField(
+        max_length=20,
+        default="#F97316",  # burnt orange
+        help_text="Primary action color (hex).",
+    )
+    theme_accent = models.CharField(
+        max_length=20,
+        default="#F97316",  # same as primary keeps it tight
+        help_text="Accent color (hex).",
+    )
+    theme_success = models.CharField(
+        max_length=20,
+        default="#16A34A",
+        help_text="Success color (hex).",
+    )
+    theme_danger = models.CharField(
+        max_length=20,
+        default="#DC2626",
+        help_text="Danger color (hex).",
+    )
+
+    # Light mode surfaces
+    theme_light_bg = models.CharField(
+        max_length=20,
+        default="#F9FAFB",
+        help_text="Light mode background (hex).",
+    )
+    theme_light_surface = models.CharField(
+        max_length=20,
+        default="#FFFFFF",
+        help_text="Light mode surface/card background (hex).",
+    )
+    theme_light_text = models.CharField(
+        max_length=20,
+        default="#111827",
+        help_text="Light mode text color (hex).",
+    )
+    theme_light_text_muted = models.CharField(
+        max_length=20,
+        default="#6B7280",
+        help_text="Light mode muted text (hex).",
+    )
+    theme_light_border = models.CharField(
+        max_length=20,
+        default="#E5E7EB",
+        help_text="Light mode border color (hex).",
+    )
+
+    # Dark mode surfaces
+    theme_dark_bg = models.CharField(
+        max_length=20,
+        default="#0B1220",
+        help_text="Dark mode background (hex).",
+    )
+    theme_dark_surface = models.CharField(
+        max_length=20,
+        default="#111B2E",
+        help_text="Dark mode surface/card background (hex).",
+    )
+    theme_dark_text = models.CharField(
+        max_length=20,
+        default="#EAF0FF",
+        help_text="Dark mode text color (hex).",
+    )
+    theme_dark_text_muted = models.CharField(
+        max_length=20,
+        default="#9FB0D0",
+        help_text="Dark mode muted text (hex).",
+    )
+    theme_dark_border = models.CharField(
+        max_length=20,
+        default="#22304D",
+        help_text="Dark mode border color (hex).",
+    )
+
+    # Social media links (optional)
+    facebook_url = models.URLField(blank=True, default="", help_text="Optional Facebook page URL for footer icon.")
+    instagram_url = models.URLField(blank=True, default="", help_text="Optional Instagram profile URL for footer icon.")
+    tiktok_url = models.URLField(blank=True, default="", help_text="Optional TikTok profile URL for footer icon.")
+    youtube_url = models.URLField(blank=True, default="", help_text="Optional YouTube channel URL for footer icon.")
+    x_url = models.URLField(blank=True, default="", help_text="Optional X (Twitter) profile URL for footer icon.")
+    linkedin_url = models.URLField(blank=True, default="", help_text="Optional LinkedIn page URL for footer icon.")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -75,7 +173,6 @@ class SiteConfig(models.Model):
                 cleaned = [str(x).strip().upper() for x in codes if str(x).strip()]
                 self.allowed_shipping_countries = cleaned or ["US"]
             else:
-                # If someone put a non-list in JSONField, reset safely
                 self.allowed_shipping_countries = ["US"]
         except Exception:
             self.allowed_shipping_countries = ["US"]
@@ -92,7 +189,6 @@ class SiteConfig(models.Model):
             self.marketplace_sales_percent = Decimal("100.00")
 
     def save(self, *args: Any, **kwargs: Any) -> None:
-        # Ensure normalization runs even when changed in admin.
         self.clean()
         super().save(*args, **kwargs)
 

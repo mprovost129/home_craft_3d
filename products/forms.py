@@ -123,12 +123,33 @@ class ProductImageUploadForm(forms.ModelForm):
 class DigitalAssetUploadForm(forms.ModelForm):
     class Meta:
         model = DigitalAsset
-        fields = ["file", "original_filename"]
+        fields = ["file", "file_type", "original_filename"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        preferred = ["stl", "3mf", "obj", "zip"]
+        allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+            t for t in ALLOWED_ASSET_EXTS if t not in preferred
+        )
+        if "file_type" in self.fields:
+            self.fields["file_type"].choices = [(t, f".{t}") for t in allowed]
+            self.fields["file_type"].required = True
 
     def clean_file(self):
         f = self.cleaned_data.get("file")
         _validate_upload(f, allowed_exts=ALLOWED_ASSET_EXTS, max_mb=MAX_ASSET_MB)
         return f
+
+    def clean(self):
+        cleaned = super().clean()
+        f = cleaned.get("file")
+        file_type = (cleaned.get("file_type") or "").lower().lstrip(".")
+        if f and file_type:
+            name = getattr(f, "name", "") or ""
+            ext = Path(name).suffix.lower().lstrip(".")
+            if ext and ext != file_type:
+                self.add_error("file_type", "Selected file type does not match file extension.")
+        return cleaned
 
     def save(self, commit=True):
         obj = super().save(commit=False)

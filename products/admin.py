@@ -60,7 +60,8 @@ class ProductImageAdmin(admin.ModelAdmin):
 
 @admin.register(DigitalAsset)
 class DigitalAssetAdmin(admin.ModelAdmin):
-    list_display = ("id", "product", "original_filename", "created_at")
+    list_display = ("id", "product", "original_filename", "file_type", "created_at")
+    list_filter = ("file_type",)
     search_fields = ("product__title", "original_filename")
 
 

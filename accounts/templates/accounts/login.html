@@ -1,9 +1,19 @@
 {% extends "accounts/base_accounts.html" %}
+{% load static %}
 {% block title %}Login · Home Craft 3D{% endblock %}
 
 {% block content %}
-  <div class="card">
-    <h2 style="margin-top:0;">Login</h2>
+  <div style="max-width: 540px; margin: 40px auto;">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="margin:0 auto 16px;">
+        <img src="{% static 'images/homecraft3d_icon.svg' %}" alt="Home Craft 3D" style="height:60px;width:auto;">
+      </div>
+      <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;color:#111827;">Welcome back</h1>
+      <p style="margin:0;color:#6b7280;font-size:15px;">Sign in to manage orders and your listings.</p>
+    </div>
+
+    <div class="card" style="padding:32px;">
+      <h2 style="margin-top:0;">Login</h2>
 
     <form method="post" novalidate>
       {% csrf_token %}
@@ -12,7 +22,7 @@
         <div class="msg error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <div class="row-1">
+      <div class="form-row-1">
         <div>
           <label for="{{ form.username.id_for_label }}">Username</label>
           {{ form.username }}
@@ -32,4 +42,11 @@
       </div>
     </form>
   </div>
+
+  <div style="text-align:center;margin-top:24px;">
+    <a href="{% url 'core:home' %}" style="color:#6b7280;font-size:14px;text-decoration:none;">
+      ← Back to store
+    </a>
+  </div>
+</div>
 {% endblock %}

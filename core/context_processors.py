@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.conf import settings
+
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user, is_seller_user
+from .config import get_site_config
 
 
 def sidebar_flags(request) -> dict[str, Any]:
@@ -39,4 +42,20 @@ def sidebar_flags(request) -> dict[str, Any]:
         "user_is_owner": owner,
         "user_is_seller": seller,
         "seller_stripe_ready": stripe_ready,
+    }
+
+
+def site_config(request) -> dict[str, Any]:
+    """
+    Provides the singleton SiteConfig to templates.
+    Used for footer social links and other global settings.
+    """
+    return {
+        "site_config": get_site_config(),
+    }
+
+
+def analytics(request) -> dict[str, Any]:
+    return {
+        "ga_measurement_id": (getattr(settings, "GA_MEASUREMENT_ID", "") or "").strip(),
     }

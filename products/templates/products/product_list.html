@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title }} · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ page_title }} · Home Craft 3D{% endblock %}
+{% block meta_description %}
+  {% if kind == "MODEL" %}
+    Browse 3D printed models shipped by sellers on Home Craft 3D.
+  {% elif kind == "FILE" %}
+    Download 3D files from sellers on Home Craft 3D.
+  {% else %}
+    Explore 3D models and files from sellers on Home Craft 3D.
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -47,6 +57,15 @@
           <option value="">All</option>
           <option value="MODEL" {% if request.GET.kind == "MODEL" %}selected{% endif %}>3D Models (Physical)</option>
           <option value="FILE" {% if request.GET.kind == "FILE" %}selected{% endif %}>3D Files (Digital)</option>
+        </select>
+      {% endif %}
+
+      {% if kind != "MODEL" %}
+        <select class="form-select" name="file_type" style="min-width:170px;">
+          <option value="">All file types</option>
+          {% for t in file_type_options %}
+            <option value="{{ t }}" {% if file_type == t %}selected{% endif %}>.{{ t }}</option>
+          {% endfor %}
         </select>
       {% endif %}
 

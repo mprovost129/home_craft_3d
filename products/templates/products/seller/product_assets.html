@@ -33,6 +33,11 @@
             {{ form.file }}
             {% if form.file.errors %}<div class="text-danger small">{{ form.file.errors }}</div>{% endif %}
           </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">File type</label>
+            {{ form.file_type }}
+            {% if form.file_type.errors %}<div class="text-danger small">{{ form.file_type.errors }}</div>{% endif %}
+          </div>
           <div class="col-12">
             <label class="form-label">Original filename (optional)</label>
             {{ form.original_filename }}
@@ -55,6 +60,8 @@
             <tr>
               <th>ID</th>
               <th>Filename</th>
+              <th>Type</th>
+              <th>Contents</th>
               <th>Stored Path</th>
               <th class="text-end">Action</th>
             </tr>
@@ -64,6 +71,21 @@
               <tr>
                 <td>{{ a.id }}</td>
                 <td>{{ a.original_filename|default:"(not set)" }}</td>
+                <td>{% if a.file_type %}.{{ a.file_type }}{% else %}—{% endif %}</td>
+                <td class="small text-secondary">
+                  {% if a.file_type == "zip" and a.zip_contents %}
+                    <ul class="mb-0">
+                      {% for item in a.zip_contents|slice:":8" %}
+                        <li>{{ item }}</li>
+                      {% endfor %}
+                      {% if a.zip_contents|length > 8 %}
+                        <li>+ {{ a.zip_contents|length|add:"-8" }} more…</li>
+                      {% endif %}
+                    </ul>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
                 <td class="text-secondary small">{{ a.file.name }}</td>
                 <td class="text-end">
                   <form method="post" action="{% url 'products:seller_asset_delete' product.pk a.pk %}">

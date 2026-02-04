@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from pathlib import Path
+import zipfile
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -53,6 +54,37 @@ def _validate_uploaded_file(*, f, allowed_exts: set[str], max_mb: int, field_lab
         limit_bytes = int(max_mb) * 1024 * 1024
         if int(size) > limit_bytes:
             raise ValidationError({field_label: f"File too large. Max {max_mb} MB."})
+
+
+def _extract_zip_contents(file_obj, *, limit: int = 200) -> list[str]:
+    if not file_obj:
+        return []
+
+    fh = None
+    try:
+        fh = file_obj.open("rb")
+    except Exception:
+        try:
+            fh = file_obj
+        except Exception:
+            return []
+
+    try:
+        with zipfile.ZipFile(fh) as zf:
+            names = [
+                n
+                for n in zf.namelist()
+                if n and not n.endswith("/") and not n.startswith("__MACOSX/")
+            ]
+            return names[:limit]
+    except Exception:
+        return []
+    finally:
+        try:
+            if fh is not file_obj:
+                fh.close()
+        except Exception:
+            pass
 
 
 class Product(models.Model):
@@ -153,6 +185,26 @@ class Product(models.Model):
                 pass
         return getattr(self.seller, "username", "Seller")
 
+    def file_types(self) -> list[str]:
+        types: set[str] = set()
+        for asset in self.digital_assets.all():
+            if asset.file_type:
+                types.add(str(asset.file_type).lower().lstrip("."))
+            else:
+                name = getattr(asset.file, "name", "") or ""
+                ext = Path(name).suffix.lower().lstrip(".")
+                if ext:
+                    types.add(ext)
+
+        preferred = ["stl", "3mf", "obj", "zip"]
+        ordered = [t for t in preferred if t in types] + sorted(t for t in types if t not in preferred)
+        return [f".{t}" for t in ordered]
+
+    @property
+    def file_types_display(self) -> str:
+        types = self.file_types()
+        return ", ".join(types)
+
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
@@ -195,9 +247,17 @@ class DigitalAsset(models.Model):
     """
     Individual downloadable asset (STL/OBJ/3MF/ZIP).
     """
+    class FileType(models.TextChoices):
+        STL = "stl", ".stl"
+        THREE_MF = "3mf", ".3mf"
+        OBJ = "obj", ".obj"
+        ZIP = "zip", ".zip"
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="digital_assets")
     file = models.FileField(upload_to="digital_assets/")
     original_filename = models.CharField(max_length=255, blank=True)
+    file_type = models.CharField(max_length=10, choices=FileType.choices, blank=True, null=True)
+    zip_contents = models.JSONField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -215,6 +275,17 @@ class DigitalAsset(models.Model):
             max_mb=MAX_ASSET_MB,
             field_label="file",
         )
+        name = getattr(self.file, "name", "") or ""
+        ext = Path(name).suffix.lower().lstrip(".")
+        if not self.file_type and ext:
+            self.file_type = ext
+        if self.file_type and ext and self.file_type.lower() != ext:
+            raise ValidationError({"file_type": "Selected file type does not match file extension."})
+        is_zip = (self.file_type or ext) == "zip"
+        if is_zip:
+            self.zip_contents = _extract_zip_contents(self.file)
+        else:
+            self.zip_contents = None
 
 
 class ProductPhysical(models.Model):

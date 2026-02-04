@@ -1,6 +1,14 @@
 {# templates/legal/_legal_base.html #}
 {% extends "base.html" %}
 {% block title %}{{ doc.title }} · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ doc.title }} · Home Craft 3D{% endblock %}
+{% block meta_description %}
+  {% if doc.summary %}
+    {{ doc.summary|striptags|truncatechars:160 }}
+  {% else %}
+    {{ doc.title }} for Home Craft 3D.
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid" style="max-width: 980px;">

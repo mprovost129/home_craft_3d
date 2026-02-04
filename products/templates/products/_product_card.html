@@ -60,6 +60,10 @@
       </div>
     </div>
 
+    {% if p.kind == "FILE" and p.file_types_display %}
+      <div class="small text-secondary mt-1">Files: {{ p.file_types_display }}</div>
+    {% endif %}
+
     {% if p.short_description %}
       <div class="text-secondary small mt-2">{{ p.short_description }}</div>
     {% endif %}

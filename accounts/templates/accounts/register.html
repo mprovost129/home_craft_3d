@@ -1,13 +1,12 @@
 {% extends "accounts/base_accounts.html" %}
+{% load static %}
 {% block title %}Register · Home Craft 3D{% endblock %}
 
 {% block content %}
   <div style="max-width: 540px; margin: 40px auto;">
     <div style="text-align: center; margin-bottom: 32px;">
-      <div style="width:56px;height:56px;background:#111827;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
-          <path d="M20 7h-9M14 17H5M15 13L9 7 3 13"/>
-        </svg>
+      <div style="margin:0 auto 16px;">
+        <img src="{% static 'images/homecraft3d_icon.svg' %}" alt="Home Craft 3D" style="height:60px;width:auto;">
       </div>
       <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;color:#111827;">Create account</h1>
       <p style="margin:0;color:#6b7280;font-size:15px;">

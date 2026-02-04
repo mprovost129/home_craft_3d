@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block meta_description %}
+  {% if product.short_description %}
+    {{ product.short_description }}
+  {% elif product.description %}
+    {{ product.description|striptags|truncatechars:160 }}
+  {% else %}
+    Explore this product on Home Craft 3D.
+  {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -109,6 +119,36 @@
           {% if product.description %}
             <hr>
             <div style="white-space: pre-wrap;">{{ product.description }}</div>
+          {% endif %}
+
+          {% if product.kind == "FILE" %}
+            <hr>
+            <div class="fw-semibold mb-1">Files included</div>
+            {% if product.digital_assets.all %}
+              <ul class="small text-secondary mb-0">
+                {% for a in product.digital_assets.all %}
+                  <li>
+                    {{ a.original_filename|default:a.file.name }}
+                    {% if a.file_type %}<span class="text-muted">(.{{ a.file_type }})</span>{% endif %}
+                    {% if a.file_type == "zip" and a.zip_contents %}
+                      <div class="mt-1">
+                        <div class="text-muted">Includes:</div>
+                        <ul class="mb-2">
+                          {% for item in a.zip_contents|slice:":12" %}
+                            <li>{{ item }}</li>
+                          {% endfor %}
+                          {% if a.zip_contents|length > 12 %}
+                            <li>+ {{ a.zip_contents|length|add:"-12" }} more…</li>
+                          {% endif %}
+                        </ul>
+                      </div>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-secondary small">No files uploaded yet.</div>
+            {% endif %}
           {% endif %}
 
           <hr>

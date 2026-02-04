@@ -7,6 +7,9 @@
 __pycache__/
 db.sqlite3
 db.sqlite3-journal
+db.sqlite3-wal
+db.sqlite3-shm
+*.sqlite3
 
 # ================================
 # Python / Virtual Environments
@@ -19,6 +22,14 @@ ENV/
 env/
 pip-wheel-metadata/
 *.egg-info/
+.Python
+*.py,cover
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.nox/
+.tox/
 
 # ================================
 # Django static & media
@@ -39,6 +50,7 @@ media/
 .idea/
 *.swp
 *.swo
+.ipynb_checkpoints/
 
 # ================================
 # OS files
@@ -58,8 +70,10 @@ yarn-error.log*
 # Testing / Coverage
 # ================================
 .coverage
+.coverage.*
 htmlcov/
 .pytest_cache/
+coverage.xml
 
 # ================================
 # Celery / Redis (future)

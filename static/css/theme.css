@@ -1,0 +1,52 @@
+/* static/css/theme.css */
+
+/* Light */
+:root[data-bs-theme="light"]{
+  --bs-body-bg: var(--hc-light-bg);
+  --bs-body-color: var(--hc-light-text);
+  --bs-border-color: var(--hc-light-border);
+  --bs-secondary-color: var(--hc-light-text-muted);
+  --bs-tertiary-bg: var(--hc-light-surface);
+
+  --bs-link-color: var(--hc-primary);
+  --bs-link-hover-color: var(--hc-accent);
+}
+
+/* Dark */
+:root[data-bs-theme="dark"]{
+  --bs-body-bg: var(--hc-dark-bg);
+  --bs-body-color: var(--hc-dark-text);
+  --bs-border-color: var(--hc-dark-border);
+  --bs-secondary-color: var(--hc-dark-text-muted);
+  --bs-tertiary-bg: var(--hc-dark-surface);
+
+  --bs-link-color: var(--hc-primary);
+  --bs-link-hover-color: var(--hc-accent);
+}
+
+/* Buttons */
+.btn-primary{
+  --bs-btn-bg: var(--hc-primary);
+  --bs-btn-border-color: var(--hc-primary);
+  --bs-btn-hover-bg: var(--hc-accent);
+  --bs-btn-hover-border-color: var(--hc-accent);
+  --bs-btn-active-bg: var(--hc-accent);
+  --bs-btn-active-border-color: var(--hc-accent);
+}
+
+.btn-outline-primary{
+  --bs-btn-color: var(--hc-primary);
+  --bs-btn-border-color: var(--hc-primary);
+  --bs-btn-hover-bg: var(--hc-primary);
+  --bs-btn-hover-border-color: var(--hc-primary);
+}
+
+/* Your tree rows */
+.hc3-tree-row:hover{
+  background: color-mix(in srgb, var(--hc-primary) 10%, transparent);
+}
+
+/* Keep your existing "text-secondary" tone consistent */
+.text-secondary{
+  color: var(--bs-secondary-color) !important;
+}
