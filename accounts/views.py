@@ -71,6 +71,12 @@ def _register_post(request):
         user = form.save()
         login(request, user)
         messages.success(request, "Account created.")
+        
+        # If user registered as seller, redirect to Stripe onboarding
+        if form.cleaned_data.get("register_as_seller"):
+            messages.info(request, "Let's set up your seller account with Stripe.")
+            return redirect("payments:connect_start")
+        
         return redirect("accounts:profile")
 
     messages.error(request, "Please correct the form.")
@@ -83,10 +89,20 @@ def profile_view(request):
     profile = request.user.profile
 
     if request.method == "POST":
+        # Track if they're enabling seller mode for the first time
+        was_seller = profile.is_seller
+        
         form = ProfileForm(request.POST, request.FILES, instance=profile, user=request.user)
         if form.is_valid():
             form.save()
             messages.success(request, "Profile updated.")
+            
+            # If they just enabled seller mode, redirect to Stripe onboarding
+            is_now_seller = form.cleaned_data.get("is_seller", False)
+            if is_now_seller and not was_seller:
+                messages.info(request, "Let's set up your seller account with Stripe.")
+                return redirect("payments:connect_start")
+            
             return redirect("accounts:profile")
     else:
         form = ProfileForm(instance=profile, user=request.user)

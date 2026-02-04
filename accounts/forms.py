@@ -57,6 +57,17 @@ class RegisterForm(UserCreationForm):
         model = User
         fields = ("username", "first_name", "last_name", "email", "password1", "password2")
 
+    def clean(self):
+        cleaned_data = super().clean()
+        register_as_seller = cleaned_data.get("register_as_seller")
+        email = (cleaned_data.get("email") or "").strip()
+        
+        # Require email if registering as seller
+        if register_as_seller and not email:
+            raise forms.ValidationError("Email is required when registering as a seller.")
+        
+        return cleaned_data
+
     def clean_username(self):
         username = (self.cleaned_data.get("username") or "").strip()
         if User.objects.filter(username__iexact=username).exists():

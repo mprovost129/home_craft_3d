@@ -75,7 +75,6 @@ def connect_status(request):
 
 
 @seller_required
-@require_POST
 def connect_start(request):
     """Create Stripe Express account if needed, then redirect to onboarding link."""
     obj, _ = SellerStripeAccount.objects.get_or_create(user=request.user)

@@ -2,30 +2,20 @@
 {% block title %}Register · Home Craft 3D{% endblock %}
 
 {% block content %}
-  <div class="card" style="max-width: 760px; margin: 0 auto;">
-    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2" style="margin-bottom: 10px;">
-      <div class="d-flex align-items-center gap-2">
-        <div class="rounded-circle d-flex align-items-center justify-content-center"
-             style="width:38px;height:38px;background:#111827;color:#fff;">
-          <i class="bi bi-box-seam"></i>
-        </div>
-        <div>
-          <div class="fw-semibold" style="font-size: 1.05rem; line-height: 1.1;">Home Craft 3D</div>
-          <div class="help" style="margin:0;">Marketplace for makers — physical prints & digital files.</div>
-        </div>
+  <div style="max-width: 540px; margin: 40px auto;">
+    <div style="text-align: center; margin-bottom: 32px;">
+      <div style="width:56px;height:56px;background:#111827;border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+          <path d="M20 7h-9M14 17H5M15 13L9 7 3 13"/>
+        </svg>
       </div>
-
-      <a class="btn secondary" href="{% url 'core:home' %}" style="text-decoration:none;">
-        <i class="bi bi-arrow-left me-1"></i>Back to store
-      </a>
+      <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;color:#111827;">Create account</h1>
+      <p style="margin:0;color:#6b7280;font-size:15px;">
+        Join to purchase downloads, track orders, and sell your models
+      </p>
     </div>
 
-    <hr class="my-3">
-
-    <h2 style="margin-top:0; margin-bottom: 6px;">Create account</h2>
-    <div class="help" style="margin-top:0;">
-      Join to purchase downloads, track orders, and (optionally) sell your models.
-    </div>
+    <div class="card" style="padding:32px;">
 
     <form method="post" novalidate style="margin-top: 14px;">
       {% csrf_token %}
@@ -34,77 +24,83 @@
         <div class="msg error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <div class="row g-3">
-        <div class="col-12">
-          <label for="{{ form.username.id_for_label }}">Username (public)</label>
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div>
+          <label for="{{ form.username.id_for_label }}">Username</label>
           {{ form.username }}
-          {% for e in form.username.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-          <div class="help">Your username is visible across the marketplace.</div>
+          {% for e in form.username.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="col-12">
-          <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
+        <div>
+          <label for="{{ form.email.id_for_label }}">Email</label>
           {{ form.email }}
-          {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-          <div class="help">Used for receipts, order updates, and account recovery.</div>
+          {% for e in form.email.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="col-12 col-sm-6">
-          <label for="{{ form.first_name.id_for_label }}">First name (optional)</label>
-          {{ form.first_name }}
-          {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label for="{{ form.first_name.id_for_label }}">First name <span style="color:#9ca3af;">(optional)</span></label>
+            {{ form.first_name }}
+            {% for e in form.first_name.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div>
+            <label for="{{ form.last_name.id_for_label }}">Last name <span style="color:#9ca3af;">(optional)</span></label>
+            {{ form.last_name }}
+            {% for e in form.last_name.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
+          </div>
         </div>
 
-        <div class="col-12 col-sm-6">
-          <label for="{{ form.last_name.id_for_label }}">Last name (optional)</label>
-          {{ form.last_name }}
-          {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-        </div>
-
-        <div class="col-12">
+        <div>
           <label for="{{ form.password1.id_for_label }}">Password</label>
           {{ form.password1 }}
-          {% for e in form.password1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
-          <div class="help">Use at least 12 characters if possible.</div>
+          {% for e in form.password1.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
         </div>
 
-        <div class="col-12">
+        <div>
           <label for="{{ form.password2.id_for_label }}">Confirm password</label>
           {{ form.password2 }}
-          {% for e in form.password2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+          {% for e in form.password2.errors %}<div class="help" style="color:#dc2626;margin-top:4px;">{{ e }}</div>{% endfor %}
         </div>
       </div>
 
-      <hr class="my-3">
-
-      <div class="rounded p-3" style="background:#f8fafc; border: 1px solid #e5e7eb;">
-        <div class="form-check">
-          {{ form.register_as_seller }}
-          <label class="form-check-label" for="{{ form.register_as_seller.id_for_label }}">
-            <strong>{{ form.register_as_seller.label }}</strong>
-          </label>
-        </div>
-        {% if form.register_as_seller.help_text %}
-          <div class="help mt-2 mb-0">{{ form.register_as_seller.help_text }}</div>
-        {% else %}
-          <div class="help mt-2 mb-0">You can switch this on later in your profile.</div>
-        {% endif %}
+      <div style="margin-top:24px;padding:20px;background:#fefce8;border:1px solid #fde047;border-radius:8px;">
+        <label style="display:flex;align-items:start;gap:12px;cursor:pointer;margin:0;">
+          <div style="flex-shrink:0;margin-top:2px;">
+            {{ form.register_as_seller }}
+          </div>
+          <div style="flex:1;">
+            <div style="font-weight:600;color:#854d0e;margin-bottom:4px;font-size:14px;">
+              💼 Register as seller
+            </div>
+            <div style="font-size:13px;color:#a16207;line-height:1.5;">
+              Enable selling to upload 3D models and physical prints to the marketplace. You'll complete Stripe onboarding after registration.
+            </div>
+          </div>
+        </label>
       </div>
 
-      <div class="actions" style="margin-top: 14px;">
-        <button class="btn" type="submit">
-          <i class="bi bi-person-plus me-1"></i>Create account
-        </button>
-        <a class="btn secondary" href="{% url 'accounts:login' %}">
-          Already have an account?
-        </a>
+      <button class="btn" type="submit" style="width:100%;margin-top:24px;font-weight:500;">
+        Create account
+      </button>
+
+      <div style="text-align:center;margin-top:20px;">
+        <span style="color:#6b7280;font-size:14px;">Already have an account?</span>
+        <a href="{% url 'accounts:login' %}" style="color:#111827;font-weight:500;margin-left:6px;">Sign in</a>
       </div>
 
-      <div class="help" style="margin-top: 10px;">
+      <div style="text-align:center;margin-top:20px;font-size:13px;color:#9ca3af;">
         By creating an account, you agree to our
-        <a href="{% url 'legal:terms' %}">Terms</a> and
-        <a href="{% url 'legal:privacy' %}">Privacy Policy</a>.
+        <a href="{% url 'legal:terms' %}" style="color:#6b7280;">Terms</a> and
+        <a href="{% url 'legal:privacy' %}" style="color:#6b7280;">Privacy Policy</a>.
       </div>
     </form>
   </div>
+
+  <div style="text-align:center;margin-top:24px;">
+    <a href="{% url 'core:home' %}" style="color:#6b7280;font-size:14px;text-decoration:none;">
+      ← Back to store
+    </a>
+  </div>
+</div>
 {% endblock %}

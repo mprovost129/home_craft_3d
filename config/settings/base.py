@@ -6,6 +6,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 import os
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # ...
@@ -208,7 +212,6 @@ SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").strip().rstrip("/")
 # Stripe secrets remain env-based (NOT DB settings)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
-STRIPE_PUBLISHABLE_KEY = STRIPE_PUBLIC_KEY
 
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 STRIPE_CONNECT_WEBHOOK_SECRET = os.getenv("STRIPE_CONNECT_WEBHOOK_SECRET")
