@@ -2,10 +2,32 @@
 {% block title %}Register · Home Craft 3D{% endblock %}
 
 {% block content %}
-  <div class="card">
-    <h2 style="margin-top:0;">Create account</h2>
+  <div class="card" style="max-width: 760px; margin: 0 auto;">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2" style="margin-bottom: 10px;">
+      <div class="d-flex align-items-center gap-2">
+        <div class="rounded-circle d-flex align-items-center justify-content-center"
+             style="width:38px;height:38px;background:#111827;color:#fff;">
+          <i class="bi bi-box-seam"></i>
+        </div>
+        <div>
+          <div class="fw-semibold" style="font-size: 1.05rem; line-height: 1.1;">Home Craft 3D</div>
+          <div class="help" style="margin:0;">Marketplace for makers — physical prints & digital files.</div>
+        </div>
+      </div>
 
-    <form method="post" novalidate>
+      <a class="btn secondary" href="{% url 'core:home' %}" style="text-decoration:none;">
+        <i class="bi bi-arrow-left me-1"></i>Back to store
+      </a>
+    </div>
+
+    <hr class="my-3">
+
+    <h2 style="margin-top:0; margin-bottom: 6px;">Create account</h2>
+    <div class="help" style="margin-top:0;">
+      Join to purchase downloads, track orders, and (optionally) sell your models.
+    </div>
+
+    <form method="post" novalidate style="margin-top: 14px;">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
@@ -24,6 +46,7 @@
           <label for="{{ form.email.id_for_label }}">Email (for notifications)</label>
           {{ form.email }}
           {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+          <div class="help">Used for receipts, order updates, and account recovery.</div>
         </div>
 
         <div class="col-12 col-sm-6">
@@ -42,6 +65,7 @@
           <label for="{{ form.password1.id_for_label }}">Password</label>
           {{ form.password1 }}
           {% for e in form.password1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+          <div class="help">Use at least 12 characters if possible.</div>
         </div>
 
         <div class="col-12">
@@ -52,20 +76,34 @@
       </div>
 
       <hr class="my-3">
-      
-      <div class="form-check">
-        {{ form.register_as_seller }}
-        <label class="form-check-label" for="{{ form.register_as_seller.id_for_label }}">
-          {{ form.register_as_seller.label }}
-        </label>
-      </div>
-      {% if form.register_as_seller.help_text %}
-        <div class="help mt-2 mb-3">{{ form.register_as_seller.help_text }}</div>
-      {% endif %}
 
-      <div class="actions">
-        <button class="btn" type="submit">Create account</button>
-        <a class="btn secondary" href="{% url 'accounts:login' %}">Already have an account?</a>
+      <div class="rounded p-3" style="background:#f8fafc; border: 1px solid #e5e7eb;">
+        <div class="form-check">
+          {{ form.register_as_seller }}
+          <label class="form-check-label" for="{{ form.register_as_seller.id_for_label }}">
+            <strong>{{ form.register_as_seller.label }}</strong>
+          </label>
+        </div>
+        {% if form.register_as_seller.help_text %}
+          <div class="help mt-2 mb-0">{{ form.register_as_seller.help_text }}</div>
+        {% else %}
+          <div class="help mt-2 mb-0">You can switch this on later in your profile.</div>
+        {% endif %}
+      </div>
+
+      <div class="actions" style="margin-top: 14px;">
+        <button class="btn" type="submit">
+          <i class="bi bi-person-plus me-1"></i>Create account
+        </button>
+        <a class="btn secondary" href="{% url 'accounts:login' %}">
+          Already have an account?
+        </a>
+      </div>
+
+      <div class="help" style="margin-top: 10px;">
+        By creating an account, you agree to our
+        <a href="{% url 'legal:terms' %}">Terms</a> and
+        <a href="{% url 'legal:privacy' %}">Privacy Policy</a>.
       </div>
     </form>
   </div>
