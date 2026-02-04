@@ -13,7 +13,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
-# ...
 
 def _db_from_database_url(url: str) -> dict:
     parsed = urlparse(url)
@@ -26,6 +25,7 @@ def _db_from_database_url(url: str) -> dict:
         "PORT": str(parsed.port or "5432"),
         "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
     }
+
 
 DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
 
@@ -196,7 +196,6 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-
 # -------- Cache (used by throttling) --------
 CACHES = {
     "default": {
@@ -206,21 +205,17 @@ CACHES = {
     }
 }
 
-
 # -------- reCAPTCHA v3 --------
 RECAPTCHA_ENABLED = (os.getenv("RECAPTCHA_ENABLED", "1").strip().lower() not in ("0", "false", "off", "no"))
 RECAPTCHA_V3_SITE_KEY = os.getenv("RECAPTCHA_V3_SITE_KEY", "").strip()
 RECAPTCHA_V3_SECRET_KEY = os.getenv("RECAPTCHA_V3_SECRET_KEY", "").strip()
 RECAPTCHA_V3_MIN_SCORE = float(os.getenv("RECAPTCHA_V3_MIN_SCORE", "0.5"))
 
-
 # -------- Site base URL --------
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").strip().rstrip("/")
 
-
 # -------- Analytics --------
 GA_MEASUREMENT_ID = os.getenv("GA_MEASUREMENT_ID", "").strip()
-
 
 # Stripe secrets remain env-based (NOT DB settings)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
@@ -261,6 +256,11 @@ if USE_S3:
     AWS_S3_MEDIA_BUCKET = (os.getenv("AWS_S3_MEDIA_BUCKET") or "").strip()
     AWS_S3_DOWNLOADS_BUCKET = (os.getenv("AWS_S3_DOWNLOADS_BUCKET") or "").strip()
 
+    if not AWS_S3_MEDIA_BUCKET:
+        raise RuntimeError("USE_S3=True but AWS_S3_MEDIA_BUCKET is not set.")
+    if not AWS_S3_DOWNLOADS_BUCKET:
+        raise RuntimeError("USE_S3=True but AWS_S3_DOWNLOADS_BUCKET is not set.")
+
     AWS_S3_SIGNATURE_VERSION = "s3v4"
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
@@ -269,5 +269,8 @@ if USE_S3:
     AWS_QUERYSTRING_AUTH = True
     AWS_QUERYSTRING_EXPIRE = int(os.getenv("AWS_S3_DOWNLOADS_QUERYSTRING_EXPIRE", "3600"))
 
-    # Default storage goes to media bucket
-    DEFAULT_FILE_STORAGE = "core.storage_backends.MediaStorage"
+    # Prefer modern Django storage config
+    STORAGES = {
+        "default": {"BACKEND": "core.storage_backends.MediaStorage"},
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+    }
