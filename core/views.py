@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from urllib.parse import urljoin
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Avg, Count, F, FloatField, Q, Value
+from django.http import HttpResponse
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
+from catalog.models import Category
 from orders.models import Order
 from payments.models import SellerStripeAccount
 from products.models import Product, ProductEngagementEvent
@@ -202,3 +207,60 @@ def error_404(request, exception=None):
 
 def error_500(request):
     return render(request, "errors/500.html", status=500)
+
+
+def robots_txt(request):
+    cache_key = "robots_txt_v1"
+    cached = cache.get(cache_key)
+    if cached:
+        return HttpResponse(cached, content_type="text/plain")
+
+    base_url = (getattr(settings, "SITE_BASE_URL", "") or "").rstrip("/")
+    if not base_url:
+        base_url = request.build_absolute_uri("/").rstrip("/")
+
+    content = "\n".join(
+        [
+            "User-agent: *",
+            "Disallow:",
+            f"Sitemap: {base_url}/sitemap.xml",
+        ]
+    )
+    cache.set(cache_key, content, getattr(settings, "SITEMAP_CACHE_SECONDS", 3600))
+    return HttpResponse(content, content_type="text/plain")
+
+
+def sitemap_xml(request):
+    cache_key = "sitemap_xml_v1"
+    cached = cache.get(cache_key)
+    if cached:
+        return HttpResponse(cached, content_type="application/xml")
+
+    base_url = (getattr(settings, "SITE_BASE_URL", "") or "").rstrip("/")
+    if not base_url:
+        base_url = request.build_absolute_uri("/").rstrip("/")
+
+    urls: list[str] = [
+        urljoin(base_url + "/", ""),
+        urljoin(base_url + "/", "products/"),
+        urljoin(base_url + "/", "catalog/"),
+    ]
+
+    # Categories
+    for cat_id in Category.objects.filter(is_active=True).values_list("id", flat=True):
+        urls.append(urljoin(base_url + "/", f"catalog/{cat_id}/"))
+
+    # Products (active only)
+    for product_id, slug in Product.objects.filter(is_active=True).values_list("id", "slug"):
+        urls.append(urljoin(base_url + "/", f"products/{product_id}/{slug}/"))
+
+    xml_lines = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">",
+    ]
+    xml_lines.extend([f"  <url><loc>{url}</loc></url>" for url in urls])
+    xml_lines.append("</urlset>")
+
+    content = "\n".join(xml_lines)
+    cache.set(cache_key, content, getattr(settings, "SITEMAP_CACHE_SECONDS", 3600))
+    return HttpResponse(content, content_type="application/xml")

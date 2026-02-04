@@ -7,7 +7,15 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from core import views as core_views
+
 urlpatterns = [
+    path("robots.txt", core_views.robots_txt),
+    path("sitemap.xml", core_views.sitemap_xml),
+    path("sitemap_index.xml", core_views.sitemap_xml),
+    path("wp-sitemap.xml", core_views.sitemap_xml),
+    path("sitemap.txt", core_views.sitemap_xml),
+    path("sitemap.xml.gz", core_views.sitemap_xml),
     path("admin/", admin.site.urls),
     path("", include("core.urls")),
     path("accounts/", include("accounts.urls")),
