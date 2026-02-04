@@ -19,92 +19,142 @@
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-          <div class="alert alert-danger">
+          <div class="alert alert-danger mb-3">
             {{ form.non_field_errors }}
           </div>
         {% endif %}
 
-        <div class="row g-3">
+        <!-- Basic Information -->
+        <h5 class="border-bottom pb-2 mb-3">Basic Information</h5>
+        <div class="row g-3 mb-4">
           <div class="col-12 col-md-6">
-            <label class="form-label">Kind</label>
+            <label class="form-label fw-semibold">Kind <span class="text-danger">*</span></label>
             {{ form.kind }}
-            {% if form.kind.errors %}<div class="text-danger small">{{ form.kind.errors }}</div>{% endif %}
+            {% if form.kind.errors %}<div class="text-danger small mt-1">{{ form.kind.errors }}</div>{% endif %}
+            <div class="form-text">What type of product is this?</div>
           </div>
 
           <div class="col-12 col-md-6">
-            <label class="form-label">Category</label>
+            <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
             {{ form.category }}
-            {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
-            <div class="form-text">Categories are filtered by kind where possible.</div>
+            {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
+            <div class="form-text">Categories are filtered by kind.</div>
           </div>
 
           <div class="col-12">
-            <label class="form-label">Title</label>
+            <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
             {{ form.title }}
-            {% if form.title.errors %}<div class="text-danger small">{{ form.title.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Slug (optional)</label>
-            {{ form.slug }}
-            {% if form.slug.errors %}<div class="text-danger small">{{ form.slug.errors }}</div>{% endif %}
-            <div class="form-text">Leave blank to auto-generate from title.</div>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Short description</label>
-            {{ form.short_description }}
-            {% if form.short_description.errors %}<div class="text-danger small">{{ form.short_description.errors }}</div>{% endif %}
+            {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+            <div class="form-text">Give your listing a clear, descriptive title.</div>
           </div>
 
           <div class="col-12">
-            <label class="form-label">Full description</label>
+            <label class="form-label fw-semibold">Short Description</label>
+            {{ form.short_description }}
+            {% if form.short_description.errors %}<div class="text-danger small mt-1">{{ form.short_description.errors }}</div>{% endif %}
+            <div class="form-text">A brief summary shown in search results and cards.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Full Description</label>
             {{ form.description }}
-            {% if form.description.errors %}<div class="text-danger small">{{ form.description.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-check mt-4">
-              {{ form.is_free }}
-              <label class="form-check-label" for="{{ form.is_free.id_for_label }}">Free item</label>
-            </div>
-            {% if form.is_free.errors %}<div class="text-danger small">{{ form.is_free.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-4">
-            <label class="form-label">Price</label>
-            {{ form.price }}
-            {% if form.price.errors %}<div class="text-danger small">{{ form.price.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-check mt-4">
-              {{ form.is_active }}
-              <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Active (visible)</label>
-            </div>
-            {% if form.is_active.errors %}<div class="text-danger small">{{ form.is_active.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-6">
-            <div class="form-check">
-              {{ form.is_featured }}
-              <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">Featured</label>
-            </div>
-            {% if form.is_featured.errors %}<div class="text-danger small">{{ form.is_featured.errors }}</div>{% endif %}
-          </div>
-
-          <div class="col-12 col-md-6">
-            <div class="form-check">
-              {{ form.is_trending }}
-              <label class="form-check-label" for="{{ form.is_trending.id_for_label }}">Trending</label>
-            </div>
-            {% if form.is_trending.errors %}<div class="text-danger small">{{ form.is_trending.errors }}</div>{% endif %}
+            {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
+            <div class="form-text">Detailed information about your product.</div>
           </div>
         </div>
 
-        <div class="mt-4 d-flex gap-2">
-          <button class="btn btn-dark" type="submit">
-            <i class="bi bi-save me-1"></i>Save
+        <!-- Pricing -->
+        <h5 class="border-bottom pb-2 mb-3">Pricing</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              {{ form.price }}
+            </div>
+            {% if form.price.errors %}<div class="text-danger small mt-1">{{ form.price.errors }}</div>{% endif %}
+            <div class="form-text">Set to $0.00 if offering for free.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-check mt-4">
+              {{ form.is_free }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_free.id_for_label }}">
+                <i class="bi bi-gift me-1"></i>Free item
+              </label>
+            </div>
+            {% if form.is_free.errors %}<div class="text-danger small mt-1">{{ form.is_free.errors }}</div>{% endif %}
+            <div class="form-text ms-4">Check this if offering your product for free.</div>
+          </div>
+        </div>
+
+        <!-- Visibility Settings -->
+        <h5 class="border-bottom pb-2 mb-3">Visibility & Settings</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-4">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
+                <i class="bi bi-eye me-1"></i>Active (visible)
+              </label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors }}</div>{% endif %}
+            <div class="form-text">Make this listing visible to buyers.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-check">
+              {{ form.is_featured }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_featured.id_for_label }}">
+                <i class="bi bi-star me-1"></i>Featured
+              </label>
+            </div>
+            {% if form.is_featured.errors %}<div class="text-danger small mt-1">{{ form.is_featured.errors }}</div>{% endif %}
+            <div class="form-text">Highlight this product on the homepage.</div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-check">
+              {{ form.is_trending }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_trending.id_for_label }}">
+                <i class="bi bi-graph-up me-1"></i>Trending
+              </label>
+            </div>
+            {% if form.is_trending.errors %}<div class="text-danger small mt-1">{{ form.is_trending.errors }}</div>{% endif %}
+            <div class="form-text">Mark as a trending item.</div>
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="accordion mb-3" id="advancedSettings">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdvanced">
+                <i class="bi bi-gear me-2"></i>Advanced Settings (Optional)
+              </button>
+            </h2>
+            <div id="collapseAdvanced" class="accordion-collapse collapse" data-bs-parent="#advancedSettings">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold">URL Slug</label>
+                    {{ form.slug }}
+                    {% if form.slug.errors %}<div class="text-danger small mt-1">{{ form.slug.errors }}</div>{% endif %}
+                    <div class="form-text">
+                      <i class="bi bi-info-circle me-1"></i>
+                      <strong>For advanced users:</strong> Customize the URL for this product. Leave blank to auto-generate from the title.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 pt-3 border-top">
+          <button class="btn btn-dark btn-lg" type="submit">
+            <i class="bi bi-save me-1"></i>Save Listing
           </button>
 
           {% if mode == "edit" %}
@@ -117,6 +167,10 @@
               </a>
             {% endif %}
           {% endif %}
+          
+          <a class="btn btn-outline-secondary ms-auto" href="{% url 'products:seller_list' %}">
+            Cancel
+          </a>
         </div>
       </form>
     </div>

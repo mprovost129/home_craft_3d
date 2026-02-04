@@ -216,6 +216,8 @@ RECAPTCHA_V3_MIN_SCORE = float(os.getenv("RECAPTCHA_V3_MIN_SCORE", "0.5"))
 
 # -------- Site base URL --------
 SITE_BASE_URL = os.getenv("SITE_BASE_URL", "").strip().rstrip("/")
+CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "").strip().rstrip("/").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").strip().rstrip("/").split(",")
 
 
 # -------- Analytics --------

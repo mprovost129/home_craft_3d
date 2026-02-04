@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
@@ -95,6 +96,9 @@ def seller_product_create(request, *args, **kwargs):
         if form.is_valid():
             product = form.save(commit=False)
             product.seller = request.user
+            # Generate slug before validation if not provided
+            if not product.slug:
+                product.slug = slugify(product.title)[:180]
             product.full_clean()
             product.save()
             messages.success(request, "Product created. Next: add images (and digital assets if applicable).")
