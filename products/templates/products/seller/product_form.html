@@ -91,7 +91,7 @@
         <!-- Visibility Settings -->
         <h5 class="border-bottom pb-2 mb-3">Visibility & Settings</h5>
         <div class="row g-3 mb-4">
-          <div class="col-12 col-md-4">
+          <div class="col-12">
             <div class="form-check">
               {{ form.is_active }}
               <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
@@ -100,28 +100,6 @@
             </div>
             {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors }}</div>{% endif %}
             <div class="form-text">Make this listing visible to buyers.</div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-check">
-              {{ form.is_featured }}
-              <label class="form-check-label fw-semibold" for="{{ form.is_featured.id_for_label }}">
-                <i class="bi bi-star me-1"></i>Featured
-              </label>
-            </div>
-            {% if form.is_featured.errors %}<div class="text-danger small mt-1">{{ form.is_featured.errors }}</div>{% endif %}
-            <div class="form-text">Highlight this product on the homepage.</div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-check">
-              {{ form.is_trending }}
-              <label class="form-check-label fw-semibold" for="{{ form.is_trending.id_for_label }}">
-                <i class="bi bi-graph-up me-1"></i>Trending
-              </label>
-            </div>
-            {% if form.is_trending.errors %}<div class="text-danger small mt-1">{{ form.is_trending.errors }}</div>{% endif %}
-            <div class="form-text">Mark as a trending item.</div>
           </div>
         </div>
 
