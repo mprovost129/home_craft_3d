@@ -173,7 +173,16 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-MEDIA_URL = "/media/"
+# Media: local in dev, S3 in prod (via STORAGES backend)
+# MEDIA_URL should match storage backend to avoid hardcoding URLs
+if _bool_env("USE_S3", "False"):
+    # In production with S3, MEDIA_URL isn't used (storage.url() handles it)
+    # But set it for consistency and any manual URL building
+    MEDIA_URL = f"https://{(os.getenv('AWS_S3_MEDIA_BUCKET') or '').strip()}.s3.{(os.getenv('AWS_S3_REGION_NAME') or 'us-east-2').strip()}.amazonaws.com/media/"
+else:
+    # Local development: serve from /media/
+    MEDIA_URL = "/media/"
+
 MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
