@@ -27,14 +27,14 @@
         <!-- Basic Information -->
         <h5 class="border-bottom pb-2 mb-3">Basic Information</h5>
         <div class="row g-3 mb-4">
-          <div class="col-12 col-md-6">
+          <div class="col-12">
             <label class="form-label fw-semibold">Kind <span class="text-danger">*</span></label>
             {{ form.kind }}
             {% if form.kind.errors %}<div class="text-danger small mt-1">{{ form.kind.errors }}</div>{% endif %}
             <div class="form-text">What type of product is this?</div>
           </div>
 
-          <div class="col-12 col-md-6">
+          <div class="col-12">
             <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
             {{ form.category }}
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
