@@ -18,71 +18,110 @@
     </div>
   </div>
 
-  <div class="card mb-3">
+  <!-- Upload Section -->
+  <div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-light border-bottom">
+      <h2 class="h5 mb-0">
+        <i class="bi bi-image me-2"></i>Upload New Image
+      </h2>
+    </div>
     <div class="card-body">
-      <h2 class="h6">Upload Image</h2>
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label">Image</label>
+            <label class="form-label fw-semibold">Image File <span class="text-danger">*</span></label>
             {{ form.image }}
-            {% if form.image.errors %}<div class="text-danger small">{{ form.image.errors }}</div>{% endif %}
+            {% if form.image.errors %}<div class="text-danger small mt-1">{{ form.image.errors }}</div>{% endif %}
+            <div class="form-text">JPG, PNG, or WebP (up to 10MB recommended)</div>
           </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label">Alt text</label>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Alt Text (Accessibility)</label>
             {{ form.alt_text }}
+            {% if form.alt_text.errors %}<div class="text-danger small mt-1">{{ form.alt_text.errors }}</div>{% endif %}
+            <div class="form-text">Describe what the image shows. Helps with SEO and accessibility.</div>
           </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label">Sort order</label>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Display Order</label>
             {{ form.sort_order }}
+            {% if form.sort_order.errors %}<div class="text-danger small mt-1">{{ form.sort_order.errors }}</div>{% endif %}
+            <div class="form-text">0 = first image, 1 = second, etc.</div>
           </div>
-          <div class="col-12 col-md-3">
+
+          <div class="col-12 col-md-6">
             <div class="form-check mt-4">
               {{ form.is_primary }}
-              <label class="form-check-label" for="{{ form.is_primary.id_for_label }}">Primary</label>
+              <label class="form-check-label fw-semibold" for="{{ form.is_primary.id_for_label }}">
+                <i class="bi bi-star-fill text-warning me-1"></i>Set as primary image
+              </label>
             </div>
+            <div class="form-text">This will be the thumbnail shown in listings.</div>
           </div>
         </div>
-        <button class="btn btn-dark mt-3" type="submit">
-          <i class="bi bi-upload me-1"></i>Upload
-        </button>
+
+        <div class="mt-4 pt-3 border-top">
+          <button class="btn btn-dark btn-lg" type="submit">
+            <i class="bi bi-cloud-upload me-2"></i>Upload Image
+          </button>
+        </div>
       </form>
     </div>
   </div>
 
-  <div class="card">
+  <!-- Current Images Section -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-light border-bottom">
+      <h2 class="h5 mb-0">
+        <i class="bi bi-images me-2"></i>Current Images
+      </h2>
+    </div>
     <div class="card-body">
-      <h2 class="h6 mb-3">Current Images</h2>
 
       <div class="row g-3">
         {% for img in images %}
           <div class="col-12 col-md-6">
-            <div class="border rounded p-2 bg-white">
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div class="small text-secondary">
-                  {% if img.is_primary %}
-                    <span class="badge text-bg-success">Primary</span>
-                  {% endif %}
-                  <span class="ms-2">Sort: {{ img.sort_order }}</span>
+            <div class="card h-100 border-0 shadow-sm overflow-hidden">
+              {% if img.is_primary %}
+                <div class="position-absolute top-0 end-0 m-2">
+                  <span class="badge bg-warning text-dark">
+                    <i class="bi bi-star-fill me-1"></i>Primary
+                  </span>
                 </div>
-                <form method="post" action="{% url 'products:seller_image_delete' product.pk img.pk %}">
-                  {% csrf_token %}
-                  <button class="btn btn-sm btn-outline-danger" type="submit">
-                    <i class="bi bi-trash me-1"></i>Delete
-                  </button>
-                </form>
-              </div>
-
-              <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.title }}" class="img-fluid rounded">
-              {% if img.alt_text %}
-                <div class="small text-secondary mt-2">{{ img.alt_text }}</div>
               {% endif %}
+              
+              <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.title }}" class="card-img-top" style="height: 200px; object-fit: cover;">
+              
+              <div class="card-body d-flex flex-column">
+                {% if img.alt_text %}
+                  <p class="card-text text-secondary small mb-2">{{ img.alt_text }}</p>
+                {% else %}
+                  <p class="card-text text-secondary small text-muted mb-2"><em>No alt text</em></p>
+                {% endif %}
+                
+                <div class="mt-auto">
+                  <div class="text-secondary small mb-3">
+                    <i class="bi bi-arrow-down me-1"></i>Order: <strong>{{ img.sort_order }}</strong>
+                  </div>
+                  
+                  <form method="post" action="{% url 'products:seller_image_delete' product.pk img.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-outline-danger w-100" type="submit">
+                      <i class="bi bi-trash me-1"></i>Delete Image
+                    </button>
+                  </form>
+                </div>
+              </div>
             </div>
           </div>
         {% empty %}
           <div class="col-12">
-            <div class="text-secondary">No images uploaded yet.</div>
+            <div class="alert alert-light border border-secondary text-secondary py-4 text-center">
+              <i class="bi bi-image" style="font-size: 2.5rem; opacity: 0.5;"></i>
+              <p class="mt-3 mb-0">No images uploaded yet.</p>
+              <small class="text-muted">Upload images above to get started.</small>
+            </div>
           </div>
         {% endfor %}
       </div>

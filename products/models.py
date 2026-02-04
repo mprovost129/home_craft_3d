@@ -12,7 +12,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
 
-from core.storage_backends import get_downloads_storage
+from core.storage_backends import get_downloads_storage, get_media_storage
 
 
 def _get_setting_int(name: str, default: int) -> int:
@@ -211,7 +211,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="product_images/")
+    image = models.ImageField(upload_to="product_images/", storage=get_media_storage)
     alt_text = models.CharField(max_length=160, blank=True)
     is_primary = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
