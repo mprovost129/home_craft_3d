@@ -97,6 +97,7 @@ THIRD_PARTY_APPS: list[str] = [
     "django_otp",
     "django_otp.plugins.otp_totp",
     "django_otp.plugins.otp_static",
+    "storages",
 ]
 
 LOCAL_APPS = [
@@ -246,3 +247,27 @@ if SENTRY_DSN:
         profiles_sample_rate=SENTRY_PROFILES_SAMPLE_RATE,
         send_default_pii=True,
     )
+
+# ------------------------------------------------------------------------------
+# AWS S3 (optional)
+# ------------------------------------------------------------------------------
+USE_S3 = _bool_env("USE_S3", "False")
+
+if USE_S3:
+    AWS_ACCESS_KEY_ID = (os.getenv("AWS_ACCESS_KEY_ID") or "").strip()
+    AWS_SECRET_ACCESS_KEY = (os.getenv("AWS_SECRET_ACCESS_KEY") or "").strip()
+    AWS_S3_REGION_NAME = (os.getenv("AWS_S3_REGION_NAME") or "us-east-2").strip()
+
+    AWS_S3_MEDIA_BUCKET = (os.getenv("AWS_S3_MEDIA_BUCKET") or "").strip()
+    AWS_S3_DOWNLOADS_BUCKET = (os.getenv("AWS_S3_DOWNLOADS_BUCKET") or "").strip()
+
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+
+    # Signed URL defaults (downloads bucket uses signed URLs always)
+    AWS_QUERYSTRING_AUTH = True
+    AWS_QUERYSTRING_EXPIRE = int(os.getenv("AWS_S3_DOWNLOADS_QUERYSTRING_EXPIRE", "3600"))
+
+    # Default storage goes to media bucket
+    DEFAULT_FILE_STORAGE = "core.storage_backends.MediaStorage"

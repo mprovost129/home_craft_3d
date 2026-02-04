@@ -1,3 +1,4 @@
+# products/models.py
 from __future__ import annotations
 
 from decimal import Decimal
@@ -10,6 +11,8 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
+
+from core.storage_backends import get_downloads_storage
 
 
 def _get_setting_int(name: str, default: int) -> int:
@@ -246,7 +249,9 @@ class ProductDigital(models.Model):
 class DigitalAsset(models.Model):
     """
     Individual downloadable asset (STL/OBJ/3MF/ZIP).
+    Routed to the downloads bucket when USE_S3=True.
     """
+
     class FileType(models.TextChoices):
         STL = "stl", ".stl"
         THREE_MF = "3mf", ".3mf"
@@ -254,7 +259,10 @@ class DigitalAsset(models.Model):
         ZIP = "zip", ".zip"
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="digital_assets")
-    file = models.FileField(upload_to="digital_assets/")
+
+    # IMPORTANT: downloads storage (S3 downloads bucket when USE_S3=True)
+    file = models.FileField(upload_to="digital_assets/", storage=get_downloads_storage())
+
     original_filename = models.CharField(max_length=255, blank=True)
     file_type = models.CharField(max_length=10, choices=FileType.choices, blank=True, null=True)
     zip_contents = models.JSONField(blank=True, null=True)
