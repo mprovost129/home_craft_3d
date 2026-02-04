@@ -1,188 +1,159 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Sequence
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.utils.text import slugify
 
 from catalog.models import Category
 
 
-@dataclass(frozen=True)
-class SeedNode:
-    name: str
-    children: Sequence["SeedNode"] = ()
-
-
-def ensure_category(*, type_value: str, name: str, parent: Category | None) -> Category:
-    """
-    Idempotent upsert for your schema:
-      unique_together = (type, parent, slug)
-    """
-    slug = slugify(name)[:140]
-
-    obj, _created = Category.objects.get_or_create(
-        type=type_value,
-        parent=parent,
-        slug=slug,
-        defaults={
-            "name": name,
-            "is_active": True,
-            "sort_order": 0,
-        },
-    )
-
-    # Keep name/active synced (safe if renamed)
-    obj.name = name
-    obj.is_active = True
-    if not obj.slug:
-        obj.slug = slug
-    obj.save()
-    return obj
-
-
-def seed_tree(*, type_value: str, nodes: Sequence[SeedNode], parent: Category | None = None) -> None:
-    for node in nodes:
-        cat = ensure_category(type_value=type_value, name=node.name, parent=parent)
-        if node.children:
-            seed_tree(type_value=type_value, nodes=node.children, parent=cat)
-
-
-def get_seed_data():
-    model_tree = [
-        SeedNode("Miniatures", children=(
-            SeedNode("Fantasy"),
-            SeedNode("Sci-Fi"),
-            SeedNode("Animals"),
-            SeedNode("Military"),
-            SeedNode("Vehicles"),
-        )),
-        SeedNode("Figurines", children=(
-            SeedNode("Characters"),
-            SeedNode("Busts"),
-            SeedNode("Chibi"),
-        )),
-        SeedNode("Props & Cosplay", children=(
-            SeedNode("Helmets"),
-            SeedNode("Weapons"),
-            SeedNode("Armor Parts"),
-            SeedNode("Accessories"),
-        )),
-        SeedNode("Home & Decor", children=(
-            SeedNode("Vases"),
-            SeedNode("Wall Art"),
-            SeedNode("Planters"),
-            SeedNode("Lighting"),
-        )),
-        SeedNode("Tools & Fixtures", children=(
-            SeedNode("Jigs"),
-            SeedNode("Clamps"),
-            SeedNode("Workshop"),
-            SeedNode("Mounts & Brackets"),
-        )),
-        SeedNode("Games & Toys", children=(
-            SeedNode("Board Games"),
-            SeedNode("Tabletop"),
-            SeedNode("Puzzle Toys"),
-            SeedNode("Kids"),
-        )),
-        SeedNode("Automotive", children=(
-            SeedNode("Interior"),
-            SeedNode("Exterior"),
-            SeedNode("Holders & Clips"),
-        )),
-        SeedNode("Organizers", children=(
-            SeedNode("Desk"),
-            SeedNode("Kitchen"),
-            SeedNode("Garage"),
-            SeedNode("Cable Management"),
-        )),
-        SeedNode("Educational", children=(
-            SeedNode("STEM"),
-            SeedNode("Models"),
-            SeedNode("Architecture"),
-        )),
-        SeedNode("Terrain & Diorama", children=(
-            SeedNode("Buildings"),
-            SeedNode("Scatter"),
-            SeedNode("Bases"),
-        )),
-    ]
-
-    file_tree = [
-        SeedNode("Bundles", children=(
-            SeedNode("Collections"),
-            SeedNode("Mega Packs"),
-        )),
-        SeedNode("Miniatures (Files)", children=(
-            SeedNode("Fantasy"),
-            SeedNode("Sci-Fi"),
-            SeedNode("Animals"),
-        )),
-        SeedNode("Cosplay (Files)", children=(
-            SeedNode("Helmets"),
-            SeedNode("Armor"),
-            SeedNode("Props"),
-        )),
-        SeedNode("Functional Parts (Files)", children=(
-            SeedNode("Replacement Parts"),
-            SeedNode("Adapters"),
-            SeedNode("Mounts & Brackets"),
-        )),
-        SeedNode("Household (Files)", children=(
-            SeedNode("Kitchen"),
-            SeedNode("Bathroom"),
-            SeedNode("Laundry"),
-        )),
-        SeedNode("Organizers (Files)", children=(
-            SeedNode("Desk"),
-            SeedNode("Toolbox"),
-            SeedNode("Cable Management"),
-        )),
-        SeedNode("Terrain (Files)", children=(
-            SeedNode("Buildings"),
-            SeedNode("Scatter"),
-            SeedNode("Bases"),
-        )),
-        SeedNode("Art & Sculptures (Files)", children=(
-            SeedNode("Abstract"),
-            SeedNode("Statues"),
-            SeedNode("Wall / Relief"),
-        )),
-        SeedNode("Seasonal (Files)", children=(
-            SeedNode("Halloween"),
-            SeedNode("Christmas"),
-            SeedNode("Easter"),
-        )),
-    ]
-
-    return model_tree, file_tree
+CATEGORY_TREE = [
+    {
+        "name": "Automotive",
+        "children": [
+            "Interior",
+            "Exterior",
+            "Tools",
+            "Accessories",
+        ],
+    },
+    {
+        "name": "Educational",
+        "children": [
+            "STEM",
+            "Learning Aids",
+            "Models",
+        ],
+    },
+    {
+        "name": "Figurines",
+        "children": [
+            "Fantasy",
+            "Sci-Fi",
+            "Animals",
+            "People",
+        ],
+    },
+    {
+        "name": "Games & Toys",
+        "children": [
+            "Board Games",
+            "Tabletop",
+            "Puzzles",
+            "Toys",
+        ],
+    },
+    {
+        "name": "Home & Decor",
+        "children": [
+            "Wall Art",
+            "Lighting",
+            "Furniture",
+            "Kitchen",
+        ],
+    },
+    {
+        "name": "Miniatures",
+        "children": [
+            "Scale Models",
+            "Architecture",
+            "Vehicles",
+        ],
+    },
+    {
+        "name": "Organizers",
+        "children": [
+            "Office",
+            "Garage",
+            "Workshop",
+            "Storage",
+        ],
+    },
+    {
+        "name": "Props & Cosplay",
+        "children": [
+            "Armor",
+            "Weapons",
+            "Accessories",
+        ],
+    },
+    {
+        "name": "Terrain & Diorama",
+        "children": [
+            "Buildings",
+            "Landscape",
+            "Scatter",
+        ],
+    },
+    {
+        "name": "Tools & Fixtures",
+        "children": [
+            "Jigs",
+            "Holders",
+            "Calibration",
+        ],
+    },
+    {
+        "name": "Art & Sculptures",
+        "children": [
+            "Abstract",
+            "Busts",
+            "Relief",
+        ],
+    },
+    {
+        "name": "Bundles",
+        "children": [],
+    },
+]
 
 
 class Command(BaseCommand):
-    help = "Seed default MODEL and FILE categories/subcategories (idempotent). Use --clear to wipe first."
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--clear",
-            action="store_true",
-            help="Delete all categories before seeding (ONLY if no products are linked yet).",
-        )
+    help = "Seed symmetric category trees for MODEL and FILE products."
 
     @transaction.atomic
     def handle(self, *args, **options):
-        if options.get("clear"):
-            self.stdout.write(self.style.WARNING("Clearing ALL categories..."))
-            Category.objects.all().delete()
+        self.stdout.write("Seeding categories…")
 
-        model_tree, file_tree = get_seed_data()
+        for category_type, label in [
+            (Category.CategoryType.MODEL, "3D Models"),
+            (Category.CategoryType.FILE, "3D Files"),
+        ]:
+            self.stdout.write(f"  → {label}")
 
-        self.stdout.write("Seeding 3D Models category tree...")
-        seed_tree(type_value=Category.CategoryType.MODEL, nodes=model_tree)
+            for sort_index, root_def in enumerate(CATEGORY_TREE):
+                root, root_created = Category.objects.get_or_create(
+                    type=category_type,
+                    parent=None,
+                    slug=root_def["name"].lower().replace(" ", "-"),
+                    defaults={
+                        "name": root_def["name"],
+                        "sort_order": sort_index,
+                        "is_active": True,
+                    },
+                )
 
-        self.stdout.write("Seeding 3D Files category tree...")
-        seed_tree(type_value=Category.CategoryType.FILE, nodes=file_tree)
+                if not root_created:
+                    root.name = root_def["name"]
+                    root.sort_order = sort_index
+                    root.is_active = True
+                    root.save(update_fields=["name", "sort_order", "is_active"])
 
-        self.stdout.write(self.style.SUCCESS("Done seeding categories."))
+                for child_index, child_name in enumerate(root_def.get("children", [])):
+                    child, child_created = Category.objects.get_or_create(
+                        type=category_type,
+                        parent=root,
+                        slug=child_name.lower().replace(" ", "-"),
+                        defaults={
+                            "name": child_name,
+                            "sort_order": child_index,
+                            "is_active": True,
+                        },
+                    )
+
+                    if not child_created:
+                        child.name = child_name
+                        child.sort_order = child_index
+                        child.is_active = True
+                        child.save(update_fields=["name", "sort_order", "is_active"])
+
+        self.stdout.write(self.style.SUCCESS("✔ Categories seeded successfully"))
