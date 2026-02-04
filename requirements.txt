@@ -17,4 +17,6 @@ python-dotenv>=1.0,<2
 sentry-sdk>=2.52.0,<3
 django-otp>=1.7.0,<2
 qrcode[pil]>=8.2,<9
+django-storages>=1.14.6,<2
+boto3>=1.28,<2
 
