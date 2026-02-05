@@ -121,7 +121,7 @@ class ProductImageUploadForm(forms.ModelForm):
 class ProductImageBulkUploadForm(forms.Form):
     """Handle multiple image uploads at once."""
     images = forms.FileField(
-        widget=forms.ClearableFileInput(attrs={
+        widget=forms.FileInput(attrs={
             "multiple": True,
             "accept": "image/*",
             "class": "form-control",
