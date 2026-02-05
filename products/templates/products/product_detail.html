@@ -13,6 +13,13 @@
 
 {% block content %}
 <div class="container-fluid">
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
   <div class="row g-3">
     <div class="col-12 col-lg-7">
       <div class="card">
@@ -113,6 +120,7 @@
               <form method="post" action="{% url 'cart:add' %}">
                 {% csrf_token %}
                 <input type="hidden" name="product_id" value="{{ product.pk }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
                 {% if product.kind == "MODEL" %}
                   <div class="d-flex gap-2">

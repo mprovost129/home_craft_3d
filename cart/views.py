@@ -207,7 +207,12 @@ def cart_add(request):
     next_url = (request.POST.get("next") or "").strip()
     if next_url:
         return redirect(next_url)
-    return redirect("cart:detail")
+
+    referer = (request.META.get("HTTP_REFERER") or "").strip()
+    if referer:
+        return redirect(referer)
+
+    return redirect(product.get_absolute_url())
 
 
 @require_POST

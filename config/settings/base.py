@@ -144,6 +144,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "cart.context_processors.cart_summary",
                 "catalog.context_processors.sidebar_categories",
                 "payments.context_processors.seller_stripe_status",
                 "core.context_processors.sidebar_flags",
