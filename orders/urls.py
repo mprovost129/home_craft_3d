@@ -16,7 +16,7 @@ urlpatterns = [
     path("<uuid:order_id>/checkout/start/", views.checkout_start, name="checkout_start"),
     path("checkout/success/", views.checkout_success, name="checkout_success"),
     path("<uuid:order_id>/checkout/cancel/", views.checkout_cancel, name="checkout_cancel"),
-    path("<uuid:order_id>/download/<uuid:asset_id>/", views.download_asset, name="download_asset"),
+    path("<uuid:order_id>/download/<int:asset_id>/", views.download_asset, name="download_asset"),
 
     # Buyer: Purchases (paid-only downloads live here)
     path("purchases/", views.purchases, name="purchases"),
