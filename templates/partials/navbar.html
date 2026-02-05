@@ -121,7 +121,12 @@
             <div class="nav-item dropdown">
               <a class="nav-link dropdown-toggle px-0 px-lg-2" href="#" id="userDropdown" role="button"
                  data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                {% if user.profile.avatar %}
+                  <img src="{{ user.profile.avatar.url }}" alt="{{ user.username }}" class="rounded-circle me-1" style="width: 32px; height: 32px; object-fit: cover;">
+                {% else %}
+                  <i class="bi bi-person-circle me-1"></i>
+                {% endif %}
+                {{ user.username }}
               </a>
               <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                 <li>
