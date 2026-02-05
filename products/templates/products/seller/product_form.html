@@ -139,6 +139,9 @@
             <a class="btn btn-outline-dark" href="{% url 'products:seller_images' product.pk %}">
               <i class="bi bi-images me-1"></i>Manage Images
             </a>
+            <a class="btn btn-outline-dark" href="{% url 'products:seller_specs' product.pk %}">
+              <i class="bi bi-rulers me-1"></i>Manage Specs
+            </a>
             {% if product.kind == "FILE" %}
               <a class="btn btn-outline-dark" href="{% url 'products:seller_assets' product.pk %}">
                 <i class="bi bi-paperclip me-1"></i>Manage Assets
