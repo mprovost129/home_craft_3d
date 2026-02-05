@@ -161,10 +161,6 @@ def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int
 
 
 def home(request):
-    # Logged-in users land on their smart dashboard hub.
-    if request.user.is_authenticated:
-        return redirect("dashboards:home")
-
     qs = _base_home_qs()
     qs = _annotate_rating(qs)
 
