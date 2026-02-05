@@ -157,13 +157,11 @@
               class="btn btn-sm btn-outline-primary"
               href="{% url 'reviews:seller_review_new' order.id seller_group.grouper.id %}"
             >
-              {% with existing=order.seller_reviews.select_related seller_group.grouper.id %}
               {% if order.seller_reviews|length > 0 %}
                 View rating
               {% else %}
                 Rate seller
               {% endif %}
-              {% endwith %}
             </a>
           </div>
         {% endfor %}
