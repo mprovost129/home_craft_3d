@@ -42,11 +42,13 @@ def verify_recaptcha_v3(*, request: HttpRequest, token: str, expected_action: st
     if not enabled:
         return RecaptchaResult(ok=True, score=1.0, action=expected_action, error="disabled")
 
+    site_key = (getattr(settings, "RECAPTCHA_V3_SITE_KEY", "") or "").strip()
     secret = (getattr(settings, "RECAPTCHA_V3_SECRET_KEY", "") or "").strip()
-    if not secret:
-        # Fail closed in prod, but don’t hard crash dev.
-        logger.warning("RECAPTCHA_V3_SECRET_KEY missing; treating as failure.")
-        return RecaptchaResult(ok=False, score=0.0, action="", error="recaptcha_not_configured")
+
+    # If keys aren't configured, don't block checkout.
+    if not site_key or not secret:
+        logger.warning("reCAPTCHA keys missing; bypassing verification.")
+        return RecaptchaResult(ok=True, score=1.0, action=expected_action, error="recaptcha_not_configured")
 
     token = (token or "").strip()
     if not token:
