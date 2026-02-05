@@ -230,9 +230,9 @@ GA_MEASUREMENT_ID = os.getenv("GA_MEASUREMENT_ID", "").strip()
 
 # Stripe secrets remain env-based (NOT DB settings)
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY")
-
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+STRIPE_CONNECT_WEBHOOK_SECRET = os.getenv("STRIPE_CONNECT_WEBHOOK_SECRET")
 
 # -------- Error reporting (Sentry) --------
 SENTRY_DSN = os.getenv("SENTRY_DSN", "").strip()
