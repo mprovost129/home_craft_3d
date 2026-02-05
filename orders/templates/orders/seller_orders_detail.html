@@ -11,6 +11,23 @@
     <a class="btn btn-outline-dark" href="{% url 'orders:seller_orders_list' %}">Back</a>
   </div>
 
+  <!-- Shipping Address -->
+  {% if order.shipping_name %}
+  <div class="card mb-3">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Shipping Address</h5>
+    </div>
+    <div class="card-body">
+      <p class="mb-1"><strong>{{ order.shipping_name }}</strong></p>
+      <p class="mb-1">{{ order.shipping_line1 }}{% if order.shipping_line2 %}<br>{{ order.shipping_line2 }}{% endif %}</p>
+      <p class="mb-1">{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p>
+      <p class="mb-0">{{ order.shipping_country }}</p>
+      {% if order.shipping_phone %}<p class="mb-0 small text-secondary">{{ order.shipping_phone }}</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Items Table -->
   <div class="card">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
@@ -21,6 +38,8 @@
             <th class="text-end">Unit</th>
             <th class="text-end">Marketplace fee</th>
             <th class="text-end">Seller net</th>
+            <th>Status</th>
+            <th>Tracking</th>
           </tr>
         </thead>
         <tbody>
@@ -28,13 +47,38 @@
             <tr>
               <td class="fw-semibold">{{ it.product.title }}</td>
               <td class="text-end">{{ it.quantity }}</td>
-              <td class="text-end">{{ it.unit_price_cents }}</td>
-              <td class="text-end">{{ it.marketplace_fee_cents }}</td>
-              <td class="text-end fw-semibold">{{ it.seller_net_cents }}</td>
+              <td class="text-end">${{ it.unit_price_cents|add:0 }}</td>
+              <td class="text-end">${{ it.marketplace_fee_cents|add:0 }}</td>
+              <td class="text-end fw-semibold">${{ it.seller_net_cents|add:0 }}</td>
+              <td>
+                {% if it.requires_shipping %}
+                  <span class="badge {% if it.fulfillment_status == 'shipped' %}bg-success{% elif it.fulfillment_status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                    {{ it.get_fulfillment_status_display }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-info">Digital</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if it.requires_shipping %}
+                  {% if it.fulfillment_status == 'pending' %}
+                    <!-- Show form to mark as shipped -->
+                    <form method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}" class="d-flex gap-2">
+                      {% csrf_token %}
+                      <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 140px;">
+                      <button type="submit" class="btn btn-sm btn-primary">Ship</button>
+                    </form>
+                  {% elif it.tracking_number %}
+                    <small class="text-monospace">{{ it.tracking_number }}</small>
+                  {% else %}
+                    <small class="text-secondary">—</small>
+                  {% endif %}
+                {% endif %}
+              </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="5" class="text-center text-secondary py-4">No items for this seller.</td>
+              <td colspan="7" class="text-center text-secondary py-4">No items for this seller.</td>
             </tr>
           {% endfor %}
         </tbody>

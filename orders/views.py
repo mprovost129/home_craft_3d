@@ -443,3 +443,46 @@ def seller_order_detail(request, order_id):
         seller_items = seller_items.filter(seller=user)
 
     return render(request, "orders/seller_order_detail.html", {"order": order, "seller_items": seller_items})
+
+@login_required
+@require_POST
+def mark_item_shipped(request, order_id, item_id):
+    """Mark an OrderItem as shipped and send buyer notification."""
+    user = request.user
+    if not (is_seller_user(user) or is_owner_user(user)):
+        messages.error(request, "You don't have permission to update orders.")
+        return redirect("dashboards:consumer")
+
+    order = get_object_or_404(Order, pk=order_id)
+    
+    # Get the item and verify seller owns it
+    item = get_object_or_404(
+        order.items.select_related("seller"),
+        pk=item_id,
+    )
+    
+    # Check permission: must be the seller of this item or an admin
+    if not is_owner_user(user) and item.seller != user:
+        messages.error(request, "You can only update your own items.")
+        return redirect("orders:seller_orders_list")
+    
+    # Get tracking number from POST data
+    tracking_number = (request.POST.get("tracking_number") or "").strip()
+    
+    # Only mark shipped if it requires shipping (physical items)
+    if not item.requires_shipping:
+        messages.warning(request, "This item doesn't require shipping.")
+        return redirect("orders:seller_order_detail", order_id=order_id)
+    
+    # Mark item as shipped
+    success = item.mark_shipped(tracking_number)
+    
+    if success:
+        msg = "Item marked as shipped."
+        if tracking_number:
+            msg += f" Tracking number: {tracking_number}"
+        messages.success(request, msg)
+    else:
+        messages.info(request, "This item has already been marked as shipped.")
+    
+    return redirect("orders:seller_order_detail", order_id=order_id)

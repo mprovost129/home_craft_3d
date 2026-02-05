@@ -118,6 +118,121 @@ def _send_paid_order_email(order: "Order") -> None:
         pass
 
 
+def _send_seller_new_order_email(order: "Order") -> None:
+    """
+    Send notification to sellers when they receive paid orders with physical items.
+    """
+    # Get all unique sellers with physical items in this order
+    sellers_with_physical = {}
+    for item in order.items.filter(requires_shipping=True).select_related("seller"):
+        seller = item.seller
+        if seller and seller.email:
+            if seller.id not in sellers_with_physical:
+                sellers_with_physical[seller.id] = {
+                    "seller": seller,
+                    "items": [],
+                }
+            sellers_with_physical[seller.id]["items"].append(item)
+
+    if not sellers_with_physical:
+        return
+
+    base = _site_base_url()
+    fulfillment_link = f"{base}{reverse('orders:seller_order_detail', kwargs={'order_id': order.pk})}"
+
+    for seller_info in sellers_with_physical.values():
+        seller = seller_info["seller"]
+        items = seller_info["items"]
+
+        lines: list[str] = []
+        lines.append(f"New order received! Order #{order.pk}")
+        lines.append("")
+        lines.append("View and fulfill this order:")
+        lines.append(fulfillment_link)
+        lines.append("")
+        lines.append("Items to ship:")
+        for item in items:
+            lines.append(f"- {item.quantity}x {item.product.title} (${item.line_total_cents / 100:.2f})")
+        lines.append("")
+        
+        if order.requires_shipping:
+            lines.append("Shipping address:")
+            lines.append(f"{order.shipping_name}")
+            if order.shipping_line1:
+                lines.append(f"{order.shipping_line1}")
+                if order.shipping_line2:
+                    lines.append(f"{order.shipping_line2}")
+            if order.shipping_city:
+                lines.append(f"{order.shipping_city}, {order.shipping_state} {order.shipping_postal_code}")
+            if order.shipping_country:
+                lines.append(f"{order.shipping_country}")
+            lines.append("")
+
+        lines.append("Mark items as shipped with tracking info in the fulfillment dashboard.")
+
+        subject = f"New order received - #{order.pk}"
+        body = "\n".join(lines)
+
+        try:
+            send_mail(
+                subject,
+                body,
+                getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                [seller.email],
+            )
+        except Exception:
+            pass
+
+
+def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
+    """
+    Send notification to buyer when seller ships item with tracking info.
+    """
+    # Only send to buyer if they have an email
+    recipient_email = ""
+    if order.buyer and order.buyer.email:
+        recipient_email = order.buyer.email
+    elif order.guest_email:
+        recipient_email = order.guest_email
+    
+    if not recipient_email:
+        return
+
+    base = _site_base_url()
+    order_link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}"
+    if order.is_guest:
+        order_link += f"?t={order.order_token}"
+
+    lines: list[str] = []
+    lines.append(f"Your order #{order.pk} has been shipped!")
+    lines.append("")
+    lines.append(f"Item: {item.product.title}")
+    lines.append(f"Quantity: {item.quantity}")
+    lines.append("")
+    
+    if item.tracking_number:
+        lines.append(f"Tracking number: {item.tracking_number}")
+        lines.append("")
+    
+    lines.append("View your order:")
+    lines.append(order_link)
+    lines.append("")
+    lines.append("Thanks for shopping at Home Craft 3D!")
+
+    subject = f"Your order #{order.pk} has shipped"
+    body = "\n".join(lines)
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient_email],
+        )
+    except Exception:
+        pass
+
+
 def _send_guest_paid_email_with_downloads(order: "Order") -> None:
     """
     Send guest email containing:
@@ -399,11 +514,19 @@ class Order(models.Model):
 
             # Send confirmation email to buyer (guest or authenticated)
             _send_paid_order_email(self)
+            
+            # Send notification to sellers with physical items
+            _send_seller_new_order_email(self)
 
         return changed
 
 
 class OrderItem(models.Model):
+    class FulfillmentStatus(models.TextChoices):
+        PENDING = "pending", "Pending fulfillment"
+        SHIPPED = "shipped", "Shipped"
+        DELIVERED = "delivered", "Delivered"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
@@ -436,7 +559,18 @@ class OrderItem(models.Model):
         help_text="Seller net on this line (gross - marketplace_fee).",
     )
 
+    # Fulfillment tracking
+    fulfillment_status = models.CharField(
+        max_length=24,
+        choices=FulfillmentStatus.choices,
+        default=FulfillmentStatus.PENDING,
+    )
+    tracking_number = models.CharField(max_length=255, blank=True, default="")
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    buyer_notified_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         indexes = [
@@ -451,6 +585,22 @@ class OrderItem(models.Model):
     @property
     def line_total_cents(self) -> int:
         return int(self.quantity) * int(self.unit_price_cents)
+
+    def mark_shipped(self, tracking_number: str = "") -> bool:
+        """Mark item as shipped and notify buyer."""
+        if self.fulfillment_status == self.FulfillmentStatus.SHIPPED:
+            return False
+        
+        self.fulfillment_status = self.FulfillmentStatus.SHIPPED
+        self.tracking_number = (tracking_number or "").strip()
+        self.shipped_at = timezone.now()
+        self.buyer_notified_at = timezone.now()
+        self.save(update_fields=["fulfillment_status", "tracking_number", "shipped_at", "buyer_notified_at", "updated_at"])
+        
+        # Send buyer notification email
+        _send_buyer_shipped_email(self.order, self)
+        
+        return True
 
 
 LineItem = OrderItem
