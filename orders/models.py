@@ -25,6 +25,99 @@ def _site_base_url() -> str:
     return "http://localhost:8000"
 
 
+def _send_paid_order_email(order: "Order") -> None:
+    """
+    Send order confirmation email to buyer (authenticated or guest).
+    For guests: includes tokenized links for order access and downloads.
+    For authenticated: includes direct links to purchases page.
+    """
+    # Determine recipient email
+    recipient_email = ""
+    if order.buyer and order.buyer.email:
+        recipient_email = order.buyer.email
+    elif order.guest_email:
+        recipient_email = order.guest_email
+    
+    if not recipient_email:
+        return
+
+    base = _site_base_url()
+    
+    # Build order link
+    if order.is_guest:
+        order_link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}"
+    else:
+        order_link = f"{base}{reverse('orders:purchases')}"
+
+    # Get digital assets
+    product_ids = list(order.items.values_list("product_id", flat=True))
+    if not product_ids:
+        assets = []
+    else:
+        from products.models import DigitalAsset  # noqa
+
+        assets = list(
+            DigitalAsset.objects.filter(product_id__in=product_ids)
+            .select_related("product")
+            .order_by("product_id", "id")
+        )
+
+    lines: list[str] = []
+    lines.append("Thanks for your purchase at Home Craft 3D!")
+    lines.append("")
+    
+    if order.is_guest:
+        lines.append("Access your order here:")
+    else:
+        lines.append("View your order in your purchases:")
+    lines.append(order_link)
+    lines.append("")
+
+    if assets:
+        if order.is_guest:
+            lines.append("Your digital downloads (links are tied to your order):")
+        else:
+            lines.append("Your digital downloads:")
+        for a in assets:
+            try:
+                if a.product.kind != a.product.Kind.FILE:
+                    continue
+            except Exception:
+                continue
+
+            fn = a.original_filename or (a.file.name.rsplit("/", 1)[-1] if a.file else "download")
+            
+            if order.is_guest:
+                dl = (
+                    f"{base}"
+                    f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+                    f"?t={order.order_token}"
+                )
+            else:
+                dl = (
+                    f"{base}"
+                    f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+                )
+            lines.append(f"- {fn}: {dl}")
+        lines.append("")
+
+    if order.is_guest:
+        lines.append("If you didn't make this purchase, you can ignore this email.")
+
+    subject = f"Your Home Craft 3D order #{order.pk}"
+    body = "\n".join(lines)
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient_email],
+        )
+    except Exception:
+        pass
+
+
 def _send_guest_paid_email_with_downloads(order: "Order") -> None:
     """
     Send guest email containing:
@@ -304,8 +397,8 @@ class Order(models.Model):
                 msg = msg or "Marked paid via FREE checkout"
             self._add_event(OrderEvent.Type.PAID, msg)
 
-            if self.is_guest and (self.guest_email or "").strip():
-                _send_guest_paid_email_with_downloads(self)
+            # Send confirmation email to buyer (guest or authenticated)
+            _send_paid_order_email(self)
 
         return changed
 
