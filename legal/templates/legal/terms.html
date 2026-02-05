@@ -1,2 +1,40 @@
 {# templates/legal/terms.html #}
 {% extends "legal/_legal_base.html" %}
+
+{% block doc_content %}
+<h2>1. Marketplace Role</h2>
+<p>Home Craft 3D is a marketplace that connects buyers and independent sellers. Sellers are responsible for their listings, fulfillment, and compliance with laws.</p>
+<p>Home Craft 3D provides the platform only and does not manufacture, inspect, or quality‑control items sold by sellers. Any guarantees, product quality, safety, or regulatory compliance are the sole responsibility of the seller.</p>
+
+<h2>2. Accounts</h2>
+<p>You're responsible for your account activity, keeping your credentials secure, and providing accurate information.</p>
+
+<h2>3. Listings & Purchases</h2>
+<p>Sellers set prices, descriptions, and file contents. Buyers should review listing details before purchase. Digital files are delivered electronically; physical items are shipped by sellers.</p>
+
+<h2>4. Payments</h2>
+<p>Payments are processed at checkout. Order status is "pending payment" until payment is confirmed.</p>
+
+<h2>5. Digital Items</h2>
+<p>Digital downloads are intended for personal use unless the listing specifies otherwise. Sharing, reselling, or redistributing files without permission is prohibited.</p>
+
+<h2>6. Shipping (Physical Items)</h2>
+<p>Shipping timelines and handling are set by sellers. Delays may occur due to carrier issues or production time.</p>
+
+<h2>7. Prohibited Content</h2>
+<p>Listings and user content must comply with our <a href="{% url 'legal:content' %}">Content & Safety Policy</a>.</p>
+
+<h2>8. Refunds</h2>
+<p>Refund eligibility is described in the <a href="{% url 'legal:refund' %}">Refund Policy</a>.</p>
+
+<h2>9. Intellectual Property</h2>
+<p>Sellers must own or have rights to sell their content. Buyers must respect seller IP rights.</p>
+
+<h2>10. Limitation of Liability</h2>
+<p>Home Craft 3D is not liable for indirect damages, lost profits, or issues arising from seller listings or fulfillment. To the maximum extent permitted by law, Home Craft 3D and its staff disclaim liability for product quality, defects, or seller performance.</p>
+
+<h2>11. Changes</h2>
+<p>We may update these Terms. Continued use of the site means you accept the updated Terms.</p>
+
+<p><strong>Contact:</strong> <a href="mailto:homecraft3dstore@gmail.com">homecraft3dstore@gmail.com</a></p>
+{% endblock %}
