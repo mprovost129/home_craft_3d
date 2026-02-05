@@ -1,3 +1,5 @@
+# orders/views.py
+
 from __future__ import annotations
 
 import logging
@@ -118,7 +120,6 @@ def _cart_inactive_titles(cart: Cart) -> list[str]:
             continue
         if not getattr(p, "is_active", True):
             bad.append(getattr(p, "title", str(getattr(p, "pk", ""))))
-    # de-dupe
     seen = set()
     out: list[str] = []
     for t in bad:
@@ -138,7 +139,6 @@ def _order_inactive_titles(order: Order) -> list[str]:
             continue
         if not getattr(p, "is_active", True):
             bad.append(getattr(p, "title", str(getattr(p, "pk", ""))))
-    # de-dupe
     seen = set()
     out: list[str] = []
     for t in bad:
@@ -157,6 +157,14 @@ def _require_legal_acceptance_or_redirect(request, *, guest_email: str = "", nex
 @throttle(CHECKOUT_PLACE_RULE)
 @require_recaptcha_v3("checkout_place_order")
 def place_order(request):
+    """
+    Create an Order from the cart and immediately launch Stripe Checkout.
+
+    Important: "Pending" is a *transient* state while we redirect to Stripe.
+    If Checkout cannot be created, we keep the order pending and show an error
+    (so we don't lose the record), but we do NOT clear the cart until we have
+    a Stripe session URL.
+    """
     cart = Cart(request)
     if cart.count_items() == 0:
         messages.info(request, "Your cart is empty.")
@@ -191,13 +199,34 @@ def place_order(request):
         messages.error(request, str(e) or "Your cart can’t be checked out right now.")
         return redirect("cart:detail")
 
+    # If this is a free order, complete immediately (no Stripe)
+    if int(order.total_cents or 0) <= 0:
+        order.mark_paid(payment_intent_id="FREE")
+        cart.clear()
+        messages.success(request, "Your order is complete.")
+        if order.is_guest:
+            return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}")
+        return redirect("orders:detail", order_id=order.pk)
+
+    # Create Stripe Checkout session immediately
+    try:
+        session = create_checkout_session_for_order(request=request, order=order)
+    except Exception:
+        logger.exception("Failed to create Stripe Checkout session for order=%s", order.pk)
+        messages.error(
+            request,
+            "We couldn’t start Stripe Checkout. Please try again in a moment. "
+            "If this keeps happening, contact support."
+        )
+        # Keep cart intact since payment didn't start; allow retry from order detail.
+        if order.is_guest:
+            return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}")
+        return redirect("orders:detail", order_id=order.pk)
+
+    # Only clear cart after Stripe session exists
     cart.clear()
-    messages.success(request, "Order created (pending payment).")
-
-    if order.is_guest:
-        return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}")
-
-    return redirect("orders:detail", order_id=order.pk)
+    messages.info(request, "Redirecting to secure checkout…")
+    return redirect(session.url)
 
 
 def order_detail(request, order_id):

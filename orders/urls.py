@@ -1,4 +1,5 @@
 # orders/urls.py
+
 from __future__ import annotations
 
 from django.urls import include, path
@@ -23,13 +24,13 @@ urlpatterns = [
     # Buyer order history (legacy/all)
     path("mine/", views.my_orders, name="my_orders"),
 
-    # Seller fulfillment (current implementation is in orders/views.py)
+    # Seller fulfillment
     path("seller/orders/", views.seller_orders_list, name="seller_orders_list"),
     path("seller/orders/<uuid:order_id>/", views.seller_order_detail, name="seller_order_detail"),
 
     # Refunds (mounted under Orders)
     path("refunds/", include(("refunds.urls", "refunds"), namespace="refunds")),
 
-    # Stripe webhook endpoint (cleanly separated)
+    # Stripe webhook endpoint
     path("webhooks/stripe/", webhooks.stripe_webhook, name="stripe_webhook"),
 ]
