@@ -122,13 +122,16 @@ class ProductImageBulkUploadForm(forms.Form):
     """Handle multiple image uploads at once."""
     images = forms.FileField(
         widget=forms.FileInput(attrs={
-            "multiple": True,
             "accept": "image/*",
             "class": "form-control",
         }),
         required=True,
         help_text="Select one or more images. Supported: JPG, PNG, WebP (up to 10MB each)"
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['images'].widget.attrs['multiple'] = True
     
     def clean_images(self):
         files = self.files.getlist('images')
