@@ -15,7 +15,7 @@ from django.utils.text import slugify
 
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
-from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm, ProductPhysicalForm
+from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm, ProductPhysicalForm, ProductDigitalForm
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
 
@@ -211,33 +211,52 @@ def seller_product_edit(request, pk: int):
 @seller_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_specs(request, pk: int):
-    """Edit physical product specifications (for MODEL kind only)."""
+    """Edit product specifications (different forms for MODEL vs FILE)."""
     product = _get_owned_product_or_404(request, pk)
     
-    if product.kind != Product.Kind.MODEL:
-        messages.warning(request, "Specifications are only available for 3D Models.")
-        return redirect("products:seller_list")
-    
-    # Get or create ProductPhysical
-    physical, created = product.physical_spec if hasattr(product, 'physical_spec') else None, False
-    if not physical:
+    if product.kind == Product.Kind.MODEL:
+        # Get or create ProductPhysical
         from .models import ProductPhysical
         physical, created = ProductPhysical.objects.get_or_create(product=product)
+        
+        if request.method == "POST":
+            form = ProductPhysicalForm(request.POST, instance=physical)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Physical specifications updated.")
+                return redirect("products:seller_list")
+        else:
+            form = ProductPhysicalForm(instance=physical)
+        
+        return render(
+            request,
+            "products/seller/product_specs_form.html",
+            {"form": form, "product": product, "kind": "MODEL"},
+        )
     
-    if request.method == "POST":
-        form = ProductPhysicalForm(request.POST, instance=physical)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Specifications updated.")
-            return redirect("products:seller_list")
+    elif product.kind == Product.Kind.FILE:
+        # Get or create ProductDigital
+        from .models import ProductDigital
+        digital, created = ProductDigital.objects.get_or_create(product=product)
+        
+        if request.method == "POST":
+            form = ProductDigitalForm(request.POST, instance=digital)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Digital specifications updated.")
+                return redirect("products:seller_list")
+        else:
+            form = ProductDigitalForm(instance=digital)
+        
+        return render(
+            request,
+            "products/seller/product_specs_form.html",
+            {"form": form, "product": product, "kind": "FILE"},
+        )
+    
     else:
-        form = ProductPhysicalForm(instance=physical)
-    
-    return render(
-        request,
-        "products/seller/product_specs_form.html",
-        {"form": form, "product": product},
-    )
+        messages.warning(request, "Product kind not recognized.")
+        return redirect("products:seller_list")
 
 
 @seller_required

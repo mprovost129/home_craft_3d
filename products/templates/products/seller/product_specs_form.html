@@ -16,7 +16,13 @@
       <div class="card">
         <div class="card-header bg-light">
           <h5 class="mb-0">{{ product.title }}</h5>
-          <small class="text-secondary">Physical Model Specifications</small>
+          <small class="text-secondary">
+            {% if kind == "MODEL" %}
+              Physical Model Specifications
+            {% else %}
+              Digital File Specifications
+            {% endif %}
+          </small>
         </div>
         <div class="card-body">
           <form method="post" novalidate>
@@ -26,78 +32,115 @@
               <div class="alert alert-danger">{{ form.non_field_errors }}</div>
             {% endif %}
 
-            <!-- Material & Color -->
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label for="{{ form.material.id_for_label }}" class="form-label">Material</label>
-                {{ form.material }}
-                {% if form.material.errors %}<div class="small text-danger mt-1">{{ form.material.errors.0 }}</div>{% endif %}
-                <small class="form-text text-muted d-block mt-1">E.g., PLA, ABS, Resin, Metal, Wood</small>
+            {% if kind == "MODEL" %}
+              <!-- Physical Product Specs -->
+              <!-- Material & Color -->
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="{{ form.material.id_for_label }}" class="form-label">Material</label>
+                  {{ form.material }}
+                  {% if form.material.errors %}<div class="small text-danger mt-1">{{ form.material.errors.0 }}</div>{% endif %}
+                  <small class="form-text text-muted d-block mt-1">E.g., PLA, ABS, Resin, Metal, Wood</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                  <label for="{{ form.color.id_for_label }}" class="form-label">Color</label>
+                  {{ form.color }}
+                  {% if form.color.errors %}<div class="small text-danger mt-1">{{ form.color.errors.0 }}</div>{% endif %}
+                  <small class="form-text text-muted d-block mt-1">E.g., White, Multi-color, Black</small>
+                </div>
               </div>
 
-              <div class="col-md-6 mb-3">
-                <label for="{{ form.color.id_for_label }}" class="form-label">Color</label>
-                {{ form.color }}
-                {% if form.color.errors %}<div class="small text-danger mt-1">{{ form.color.errors.0 }}</div>{% endif %}
-                <small class="form-text text-muted d-block mt-1">E.g., White, Multi-color, Black</small>
-              </div>
-            </div>
-
-            <!-- Number of Colors -->
-            <div class="mb-3">
-              <label for="{{ form.num_colors.id_for_label }}" class="form-label">Number of Colors</label>
-              {{ form.num_colors }}
-              {% if form.num_colors.errors %}<div class="small text-danger mt-1">{{ form.num_colors.errors.0 }}</div>{% endif %}
-              <small class="form-text text-muted d-block mt-1">How many different colors are in this print?</small>
-            </div>
-
-            <!-- Dimensions -->
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <label for="{{ form.width_mm.id_for_label }}" class="form-label">Width (mm)</label>
-                {{ form.width_mm }}
-                {% if form.width_mm.errors %}<div class="small text-danger mt-1">{{ form.width_mm.errors.0 }}</div>{% endif %}
+              <!-- Number of Colors -->
+              <div class="mb-3">
+                <label for="{{ form.num_colors.id_for_label }}" class="form-label">Number of Colors</label>
+                {{ form.num_colors }}
+                {% if form.num_colors.errors %}<div class="small text-danger mt-1">{{ form.num_colors.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">How many different colors are in this print?</small>
               </div>
 
-              <div class="col-md-4 mb-3">
-                <label for="{{ form.height_mm.id_for_label }}" class="form-label">Height (mm)</label>
-                {{ form.height_mm }}
-                {% if form.height_mm.errors %}<div class="small text-danger mt-1">{{ form.height_mm.errors.0 }}</div>{% endif %}
+              <!-- Dimensions -->
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="{{ form.width_mm.id_for_label }}" class="form-label">Width (mm)</label>
+                  {{ form.width_mm }}
+                  {% if form.width_mm.errors %}<div class="small text-danger mt-1">{{ form.width_mm.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="col-md-4 mb-3">
+                  <label for="{{ form.height_mm.id_for_label }}" class="form-label">Height (mm)</label>
+                  {{ form.height_mm }}
+                  {% if form.height_mm.errors %}<div class="small text-danger mt-1">{{ form.height_mm.errors.0 }}</div>{% endif %}
+                </div>
+
+                <div class="col-md-4 mb-3">
+                  <label for="{{ form.depth_mm.id_for_label }}" class="form-label">Depth (mm)</label>
+                  {{ form.depth_mm }}
+                  {% if form.depth_mm.errors %}<div class="small text-danger mt-1">{{ form.depth_mm.errors.0 }}</div>{% endif %}
+                </div>
               </div>
 
-              <div class="col-md-4 mb-3">
-                <label for="{{ form.depth_mm.id_for_label }}" class="form-label">Depth (mm)</label>
-                {{ form.depth_mm }}
-                {% if form.depth_mm.errors %}<div class="small text-danger mt-1">{{ form.depth_mm.errors.0 }}</div>{% endif %}
+              <!-- Weight -->
+              <div class="mb-3">
+                <label for="{{ form.weight_grams.id_for_label }}" class="form-label">Weight (grams)</label>
+                {{ form.weight_grams }}
+                {% if form.weight_grams.errors %}<div class="small text-danger mt-1">{{ form.weight_grams.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">Estimated weight of the printed model</small>
               </div>
-            </div>
 
-            <!-- Weight -->
-            <div class="mb-3">
-              <label for="{{ form.weight_grams.id_for_label }}" class="form-label">Weight (grams)</label>
-              {{ form.weight_grams }}
-              {% if form.weight_grams.errors %}<div class="small text-danger mt-1">{{ form.weight_grams.errors.0 }}</div>{% endif %}
-              <small class="form-text text-muted d-block mt-1">Estimated weight of the printed model</small>
-            </div>
-
-            <!-- Support Required -->
-            <div class="mb-3">
-              <div class="form-check">
-                {{ form.support_required }}
-                <label class="form-check-label" for="{{ form.support_required.id_for_label }}">
-                  Requires support structures for printing
-                </label>
+              <!-- Support Required -->
+              <div class="mb-3">
+                <div class="form-check">
+                  {{ form.support_required }}
+                  <label class="form-check-label" for="{{ form.support_required.id_for_label }}">
+                    Requires support structures for printing
+                  </label>
+                </div>
+                <small class="form-text text-muted d-block mt-1">Check this if the model needs supports when 3D printing</small>
               </div>
-              <small class="form-text text-muted d-block mt-1">Check this if the model needs supports when 3D printing</small>
-            </div>
 
-            <!-- Additional Specifications -->
-            <div class="mb-3">
-              <label for="{{ form.specifications.id_for_label }}" class="form-label">Additional Specifications</label>
-              {{ form.specifications }}
-              {% if form.specifications.errors %}<div class="small text-danger mt-1">{{ form.specifications.errors.0 }}</div>{% endif %}
-              <small class="form-text text-muted d-block mt-1">Assembly instructions, scale info, special notes, etc.</small>
-            </div>
+              <!-- Additional Specifications -->
+              <div class="mb-3">
+                <label for="{{ form.specifications.id_for_label }}" class="form-label">Additional Specifications</label>
+                {{ form.specifications }}
+                {% if form.specifications.errors %}<div class="small text-danger mt-1">{{ form.specifications.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">Assembly instructions, scale info, special notes, etc.</small>
+              </div>
+
+            {% else %}
+              <!-- Digital File Specs -->
+              <!-- Software Requirements -->
+              <div class="mb-3">
+                <label for="{{ form.software_requirements.id_for_label }}" class="form-label">Software Required</label>
+                {{ form.software_requirements }}
+                {% if form.software_requirements.errors %}<div class="small text-danger mt-1">{{ form.software_requirements.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">E.g., Fusion 360, FreeCAD, Blender, Meshmixer</small>
+              </div>
+
+              <!-- Compatible Platforms -->
+              <div class="mb-3">
+                <label for="{{ form.compatible_software.id_for_label }}" class="form-label">Compatible Platforms</label>
+                {{ form.compatible_software }}
+                {% if form.compatible_software.errors %}<div class="small text-danger mt-1">{{ form.compatible_software.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">E.g., Windows, macOS, Linux, All Platforms</small>
+              </div>
+
+              <!-- License Type -->
+              <div class="mb-3">
+                <label for="{{ form.license_type.id_for_label }}" class="form-label">License Type</label>
+                {{ form.license_type }}
+                {% if form.license_type.errors %}<div class="small text-danger mt-1">{{ form.license_type.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">What buyers can use this file for</small>
+              </div>
+
+              <!-- Requirements & Notes -->
+              <div class="mb-3">
+                <label for="{{ form.requirements.id_for_label }}" class="form-label">System Requirements & Notes</label>
+                {{ form.requirements }}
+                {% if form.requirements.errors %}<div class="small text-danger mt-1">{{ form.requirements.errors.0 }}</div>{% endif %}
+                <small class="form-text text-muted d-block mt-1">Installation steps, dependencies, system specs, technical notes</small>
+              </div>
+            {% endif %}
 
             <!-- Actions -->
             <div class="d-flex gap-2">
@@ -115,12 +158,21 @@
       <div class="card bg-light">
         <div class="card-body">
           <h6 class="card-title mb-3">Tips</h6>
-          <ul class="small">
-            <li>Accurate dimensions help buyers understand scale</li>
-            <li>Material info is important for buyers' printing setup</li>
-            <li>Note if supports are needed to save buyers time</li>
-            <li>Use the specifications field for assembly instructions or other details</li>
-          </ul>
+          {% if kind == "MODEL" %}
+            <ul class="small">
+              <li>Accurate dimensions help buyers understand scale</li>
+              <li>Material info is important for buyers' printing setup</li>
+              <li>Note if supports are needed to save buyers time</li>
+              <li>Use the specifications field for assembly instructions or other details</li>
+            </ul>
+          {% else %}
+            <ul class="small">
+              <li>Be clear about software requirements</li>
+              <li>Specify which operating systems work with your file</li>
+              <li>License type helps buyers know their usage rights</li>
+              <li>Include any special installation or compatibility notes</li>
+            </ul>
+          {% endif %}
         </div>
       </div>
     </div>

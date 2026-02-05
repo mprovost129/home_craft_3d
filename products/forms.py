@@ -8,7 +8,7 @@ from django import forms
 from django.conf import settings
 
 from catalog.models import Category
-from .models import Product, ProductImage, DigitalAsset, ProductPhysical
+from .models import Product, ProductImage, DigitalAsset, ProductPhysical, ProductDigital
 
 
 def _get_setting_int(name: str, default: int) -> int:
@@ -333,4 +333,23 @@ class ProductPhysicalForm(forms.ModelForm):
             "weight_grams": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Weight in grams"}),
             "support_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "specifications": forms.Textarea(attrs={"class": "form-control", "rows": 4, "placeholder": "Additional specs, assembly instructions, etc."}),
+        }
+
+
+class ProductDigitalForm(forms.ModelForm):
+    """Form for editing ProductDigital specifications."""
+    
+    class Meta:
+        model = ProductDigital
+        fields = [
+            "software_requirements",
+            "compatible_software",
+            "license_type",
+            "requirements",
+        ]
+        widgets = {
+            "software_requirements": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., Fusion 360, FreeCAD, Blender"}),
+            "compatible_software": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., Windows, macOS, Linux"}),
+            "license_type": forms.Select(attrs={"class": "form-select"}),
+            "requirements": forms.Textarea(attrs={"class": "form-control", "rows": 4, "placeholder": "System requirements, dependencies, additional info"}),
         }

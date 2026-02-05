@@ -110,11 +110,9 @@
                     <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_images' p.pk %}">
                       <i class="bi bi-images me-1"></i>Images
                     </a>
-                    {% if p.kind == "MODEL" %}
-                      <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_specs' p.pk %}">
-                        <i class="bi bi-rulers me-1"></i>Specs
-                      </a>
-                    {% endif %}
+                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_specs' p.pk %}">
+                      <i class="bi bi-rulers me-1"></i>Specs
+                    </a>
                     {% if p.kind == "FILE" %}
                       <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_assets' p.pk %}">
                         <i class="bi bi-paperclip me-1"></i>Assets

@@ -251,6 +251,41 @@
             {% endif %}
           {% endif %}
 
+          {% if product.kind == "FILE" and product.digital %}
+            <hr>
+            <div class="fw-semibold mb-3">File Specifications</div>
+            <div class="row g-3 text-secondary small">
+              {% if product.digital.software_requirements %}
+              <div class="col-12">
+                <div class="text-muted">Software Required</div>
+                <div class="fw-semibold text-dark">{{ product.digital.software_requirements }}</div>
+              </div>
+              {% endif %}
+              
+              {% if product.digital.compatible_software %}
+              <div class="col-12">
+                <div class="text-muted">Compatible With</div>
+                <div class="fw-semibold text-dark">{{ product.digital.compatible_software }}</div>
+              </div>
+              {% endif %}
+              
+              {% if product.digital.license_type %}
+              <div class="col-6">
+                <div class="text-muted">License Type</div>
+                <div class="fw-semibold text-dark">
+                  <span class="badge text-bg-info">{{ product.digital.get_license_type_display }}</span>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            
+            {% if product.digital.requirements %}
+            <hr>
+            <div class="fw-semibold mb-2">Requirements & Details</div>
+            <div style="white-space: pre-wrap;" class="text-secondary small">{{ product.digital.requirements }}</div>
+            {% endif %}
+          {% endif %}
+
           <hr>
 
           <!-- Tabs: Q&A + Reviews -->

@@ -162,4 +162,51 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const kindSelect = document.querySelector('[name="kind"]');
+  const formContainer = kindSelect.closest('form');
+  
+  // Info alert for kind selection
+  let kindAlert = null;
+  
+  function updateKindInfo() {
+    // Remove existing alert if present
+    if (kindAlert) {
+      kindAlert.remove();
+    }
+    
+    const selectedKind = kindSelect.value;
+    
+    if (selectedKind === 'MODEL') {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = 'alert alert-info mt-3 mb-3';
+      alertDiv.innerHTML = `
+        <i class="bi bi-lightbulb me-2"></i>
+        <strong>3D Model Specifications:</strong> After creating this listing, you'll be able to add material, color, dimensions, weight, and support requirements in the Specs section.
+      `;
+      kindSelect.closest('.row').after(alertDiv);
+      kindAlert = alertDiv;
+    } else if (selectedKind === 'FILE') {
+      const alertDiv = document.createElement('div');
+      alertDiv.className = 'alert alert-info mt-3 mb-3';
+      alertDiv.innerHTML = `
+        <i class="bi bi-lightbulb me-2"></i>
+        <strong>Digital File Specifications:</strong> After creating this listing, you'll be able to add software requirements, compatible platforms, license type, and additional requirements in the Specs section.
+      `;
+      kindSelect.closest('.row').after(alertDiv);
+      kindAlert = alertDiv;
+    }
+  }
+  
+  // Update on change
+  kindSelect.addEventListener('change', updateKindInfo);
+  
+  // Update on page load if kind is pre-selected
+  if (kindSelect.value) {
+    updateKindInfo();
+  }
+});
+</script>
 {% endblock %}

@@ -256,9 +256,21 @@ class ProductImage(models.Model):
 
 
 class ProductDigital(models.Model):
+    class LicenseType(models.TextChoices):
+        PERSONAL = "personal", "Personal Use Only"
+        COMMERCIAL = "commercial", "Commercial Use Allowed"
+        EDUCATIONAL = "educational", "Educational Use"
+        OPEN_SOURCE = "open_source", "Open Source / CC License"
+    
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="digital")
     license_text = models.TextField(blank=True)
     file_count = models.PositiveIntegerField(default=0)
+    
+    # Digital specs
+    software_requirements = models.CharField(max_length=255, blank=True, help_text="e.g., Fusion 360, FreeCAD, Blender")
+    compatible_software = models.CharField(max_length=255, blank=True, help_text="e.g., Windows, macOS, Linux")
+    license_type = models.CharField(max_length=20, choices=LicenseType.choices, blank=True, help_text="Usage rights for this file")
+    requirements = models.TextField(blank=True, help_text="System requirements, dependencies, installation notes, etc.")
 
     def __str__(self) -> str:
         return f"Digital<{self.product_id}>"
