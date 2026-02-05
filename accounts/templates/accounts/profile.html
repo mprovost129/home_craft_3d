@@ -76,7 +76,21 @@
 
         <div>
           <label for="{{ form.avatar.id_for_label }}">Profile picture</label>
-          {{ form.avatar }}
+          {% if form.avatar.value %}
+            <div class="help" style="margin-bottom: 8px;">
+              Currently: <a href="{{ form.avatar.value.url }}" target="_blank">{{ form.avatar.value.name }}</a>
+            </div>
+            <div style="margin-bottom: 8px;">
+              <label style="display: inline-flex; align-items: center; gap: 6px;">
+                {{ form.avatar.clear_checkbox_input }}
+                <span>Clear</span>
+              </label>
+            </div>
+          {% endif %}
+          <div style="margin-bottom: 8px;">
+            <div class="help" style="margin-bottom: 4px;">Change:</div>
+            {{ form.avatar }}
+          </div>
           {% for e in form.avatar.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
       </div>
