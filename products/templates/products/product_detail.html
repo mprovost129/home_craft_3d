@@ -191,6 +191,66 @@
             {% endif %}
           {% endif %}
 
+          {% if product.kind == "MODEL" and product.physical %}
+            <hr>
+            <div class="fw-semibold mb-3">Specifications</div>
+            <div class="row g-3 text-secondary small">
+              {% if product.physical.material %}
+              <div class="col-6">
+                <div class="text-muted">Material</div>
+                <div class="fw-semibold text-dark">{{ product.physical.material }}</div>
+              </div>
+              {% endif %}
+              
+              {% if product.physical.color %}
+              <div class="col-6">
+                <div class="text-muted">Color</div>
+                <div class="fw-semibold text-dark">{{ product.physical.color }}</div>
+              </div>
+              {% endif %}
+              
+              {% if product.physical.num_colors %}
+              <div class="col-6">
+                <div class="text-muted">Number of Colors</div>
+                <div class="fw-semibold text-dark">{{ product.physical.num_colors }}</div>
+              </div>
+              {% endif %}
+              
+              {% if product.physical.width_mm or product.physical.height_mm or product.physical.depth_mm %}
+              <div class="col-6">
+                <div class="text-muted">Dimensions (mm)</div>
+                <div class="fw-semibold text-dark">
+                  {% if product.physical.width_mm %}W:{{ product.physical.width_mm }}{% endif %}
+                  {% if product.physical.height_mm %}{% if product.physical.width_mm %} × {% endif %}H:{{ product.physical.height_mm }}{% endif %}
+                  {% if product.physical.depth_mm %}{% if product.physical.width_mm or product.physical.height_mm %} × {% endif %}D:{{ product.physical.depth_mm }}{% endif %}
+                </div>
+              </div>
+              {% endif %}
+              
+              {% if product.physical.weight_grams %}
+              <div class="col-6">
+                <div class="text-muted">Estimated Weight</div>
+                <div class="fw-semibold text-dark">{{ product.physical.weight_grams }}g</div>
+              </div>
+              {% endif %}
+              
+              {% if product.physical.support_required %}
+              <div class="col-6">
+                <div class="text-muted">Support Structures</div>
+                <div class="fw-semibold text-dark">
+                  <span class="badge text-bg-warning">Required</span>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            
+            {% if product.physical.specifications %}
+            <hr>
+            <div class="fw-semibold mb-2">Additional Details</div>
+            <div style="white-space: pre-wrap;" class="text-secondary small">{{ product.physical.specifications }}</div>
+            {% endif %}
+          {% endif %}
+
           <hr>
 
           <!-- Tabs: Q&A + Reviews -->
