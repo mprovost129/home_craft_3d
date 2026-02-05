@@ -213,53 +213,92 @@ def seller_product_edit(request, pk: int):
 def seller_product_images(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
+    def _next_sort_order() -> int:
+        last = product.images.order_by("-sort_order", "-id").first()
+        if not last:
+            return 0
+        try:
+            return int(last.sort_order) + 1
+        except Exception:
+            return product.images.count()
+
     if request.method == "POST":
-        # Bulk upload if multiple files
-        if "images" in request.FILES and len(request.FILES.getlist("images")) > 1:
+        # Prefer explicit submit routing (template uses named submit buttons).
+        is_bulk = "bulk_upload" in request.POST
+        is_single = "single_upload" in request.POST
+
+        # Backward-compatible fallback if template isn't updated:
+        # - bulk form posts files under "images"
+        # - single form posts file under "image"
+        if not (is_bulk or is_single):
+            if request.FILES.getlist("images"):
+                is_bulk = True
+            elif "image" in request.FILES:
+                is_single = True
+
+        if is_bulk:
             bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
-            form = ProductImageUploadForm()  # keep available in template context
+            form = ProductImageUploadForm()  # unbound for template
+
             if bulk_form.is_valid():
-                files = bulk_form.cleaned_data.get("images")
-                sort_order = product.images.count()
+                files = bulk_form.cleaned_data["images"]  # list of files (can be 1+)
+                start_order = _next_sort_order()
 
-                for idx, f in enumerate(files):
-                    img = ProductImage(
-                        product=product,
-                        image=f,
-                        sort_order=sort_order + idx,
-                    )
-                    img.full_clean()
-                    img.save()
+                with transaction.atomic():
+                    created_ids: list[int] = []
+                    for idx, f in enumerate(files):
+                        img = ProductImage(
+                            product=product,
+                            image=f,
+                            sort_order=start_order + idx,
+                        )
+                        img.full_clean()
+                        img.save()
+                        created_ids.append(img.pk)
 
-                # Ensure there's a primary image
-                if not product.images.filter(is_primary=True).exists():
-                    first = product.images.order_by("sort_order", "id").first()
-                    if first:
-                        first.is_primary = True
-                        first.save(update_fields=["is_primary"])
+                    # Ensure exactly one primary exists if none yet
+                    if not product.images.filter(is_primary=True).exists():
+                        first_new = ProductImage.objects.filter(pk__in=created_ids).order_by("sort_order", "id").first()
+                        if first_new:
+                            first_new.is_primary = True
+                            first_new.save(update_fields=["is_primary"])
 
                 messages.success(request, f"Successfully uploaded {len(files)} image(s).")
                 return redirect("products:seller_images", pk=product.pk)
-        else:
-            # Single upload
+
+        elif is_single:
             form = ProductImageUploadForm(request.POST, request.FILES)
-            bulk_form = ProductImageBulkUploadForm()
+            bulk_form = ProductImageBulkUploadForm()  # unbound for template
+
             if form.is_valid():
-                img: ProductImage = form.save(commit=False)
-                img.product = product
-                img.full_clean()
-                img.save()
+                with transaction.atomic():
+                    img: ProductImage = form.save(commit=False)
+                    img.product = product
 
-                if img.is_primary:
-                    ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+                    # Default sort_order if user left it blank
+                    if img.sort_order is None:
+                        img.sort_order = _next_sort_order()
 
-                # If no primary exists, make the first one primary
-                if not ProductImage.objects.filter(product=product, is_primary=True).exists():
-                    img.is_primary = True
-                    img.save(update_fields=["is_primary"])
+                    img.full_clean()
+                    img.save()
+
+                    if img.is_primary:
+                        ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+
+                    # If no primary exists, make this one primary
+                    if not ProductImage.objects.filter(product=product, is_primary=True).exists():
+                        img.is_primary = True
+                        img.save(update_fields=["is_primary"])
 
                 messages.success(request, "Image uploaded.")
                 return redirect("products:seller_images", pk=product.pk)
+
+        else:
+            # Neither form detected; show both with a clear error.
+            form = ProductImageUploadForm(request.POST, request.FILES)
+            bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
+            messages.error(request, "Please use either Bulk upload or Single upload and try again.")
+
     else:
         form = ProductImageUploadForm()
         bulk_form = ProductImageBulkUploadForm()
