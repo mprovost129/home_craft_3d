@@ -54,10 +54,11 @@ def _validate_upload(file_obj, *, allowed_exts: set[str], max_mb: int) -> None:
             raise forms.ValidationError(f"File too large. Max {max_mb} MB.")
 
 
-class MultiFileInput(forms.ClearableFileInput):
+class MultiFileInput(forms.FileInput):
     """
     Correct Django-supported way to enable <input type="file" multiple>.
     Do NOT pass `multiple=True` to the widget; Django will raise ValueError.
+    Must use FileInput (not ClearableFileInput) as base class.
     """
     allow_multiple_selected = True
 
