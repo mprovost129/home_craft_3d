@@ -1,8 +1,10 @@
 # legal/views.py
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from django.contrib import messages
-from django.http import Http404, HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -11,15 +13,39 @@ from .models import LegalDocument
 from .services import get_latest_published_docs, record_acceptance
 
 
-def _get_latest_or_404(doc_type: str) -> LegalDocument:
+@dataclass(frozen=True)
+class LegalDocFallback:
+    title: str
+    summary: str
+    body: str
+    version: int = 0
+
+
+def _get_latest_or_fallback(doc_type: str):
     doc = (
         LegalDocument.objects.filter(doc_type=doc_type, is_published=True)
         .order_by("-version")
         .first()
     )
-    if not doc:
-        raise Http404("Legal document not published yet.")
-    return doc
+    if doc:
+        return doc
+
+    title_map = {
+        LegalDocument.DocType.TERMS: "Terms of Service",
+        LegalDocument.DocType.PRIVACY: "Privacy Policy",
+        LegalDocument.DocType.REFUND: "Refund Policy",
+        LegalDocument.DocType.CONTENT: "Content & Safety Policy",
+    }
+    title = title_map.get(doc_type, "Legal Policy")
+    return LegalDocFallback(
+        title=title,
+        summary="Legal document not published yet.",
+        body=(
+            "This legal document has not been published yet. "
+            "Please contact support or check back soon."
+        ),
+        version=0,
+    )
 
 
 def _ctx_for(doc: LegalDocument) -> dict:
@@ -32,22 +58,22 @@ def _ctx_for(doc: LegalDocument) -> dict:
 
 
 def terms(request: HttpRequest) -> HttpResponse:
-    doc = _get_latest_or_404(LegalDocument.DocType.TERMS)
+    doc = _get_latest_or_fallback(LegalDocument.DocType.TERMS)
     return render(request, "legal/terms.html", _ctx_for(doc))
 
 
 def privacy(request: HttpRequest) -> HttpResponse:
-    doc = _get_latest_or_404(LegalDocument.DocType.PRIVACY)
+    doc = _get_latest_or_fallback(LegalDocument.DocType.PRIVACY)
     return render(request, "legal/privacy.html", _ctx_for(doc))
 
 
 def refund(request: HttpRequest) -> HttpResponse:
-    doc = _get_latest_or_404(LegalDocument.DocType.REFUND)
+    doc = _get_latest_or_fallback(LegalDocument.DocType.REFUND)
     return render(request, "legal/refund.html", _ctx_for(doc))
 
 
 def content(request: HttpRequest) -> HttpResponse:
-    doc = _get_latest_or_404(LegalDocument.DocType.CONTENT)
+    doc = _get_latest_or_fallback(LegalDocument.DocType.CONTENT)
     return render(request, "legal/content.html", _ctx_for(doc))
 
 

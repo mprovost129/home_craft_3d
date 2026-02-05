@@ -152,6 +152,8 @@ def _order_inactive_titles(order: Order) -> list[str]:
 
 def _require_legal_acceptance_or_redirect(request, *, guest_email: str = "", next_url: str = ""):
     status = check_legal_acceptance(request=request, user=request.user, guest_email=guest_email)
+    if any(doc is None for doc in status.latest_docs.values()):
+        return None
     if status.ok:
         return None
 
