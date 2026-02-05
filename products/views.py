@@ -35,7 +35,7 @@ def _file_type_options() -> list[str]:
 def _base_qs():
     return (
         Product.objects.filter(is_active=True)
-        .select_related("category", "seller")
+        .select_related("category", "category__parent", "seller")
         .prefetch_related("images", "digital_assets")
     )
 
@@ -320,7 +320,7 @@ def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
 def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     product = get_object_or_404(
         Product.objects.filter(is_active=True)
-        .select_related("category", "seller")
+        .select_related("category", "category__parent", "seller", "physical", "digital")
         .prefetch_related("images", "digital_assets"),
         pk=pk,
         slug=slug,

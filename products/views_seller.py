@@ -104,7 +104,7 @@ def seller_product_list(request, *args, **kwargs):
     NOTE: This is NOT gated by Stripe readiness. Sellers can still create drafts pre-onboarding.
     """
     qs = (
-        Product.objects.select_related("category", "seller")
+        Product.objects.select_related("category", "category__parent", "seller")
         .prefetch_related("images", "digital_assets")
         .order_by("-created_at")
     )
