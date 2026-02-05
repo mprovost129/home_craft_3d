@@ -375,6 +375,7 @@ def download_asset(request, order_id, asset_id):
 
 
 @login_required
+@login_required
 def purchases(request):
     qs = (
         Order.objects.filter(buyer=request.user, status=Order.Status.PAID, paid_at__isnull=False)
