@@ -15,6 +15,7 @@ CART_SESSION_KEY = "hc3_cart_v1"
 class CartLine:
     product: Product
     quantity: int
+    buyer_notes: str = ""
 
     @property
     def unit_price(self) -> Decimal:
@@ -54,7 +55,7 @@ class Cart:
         self.data = {}
         self._save()
 
-    def add(self, product: Product, quantity: int = 1) -> None:
+    def add(self, product: Product, quantity: int = 1, buyer_notes: str = "") -> None:
         if not product.is_active:
             return
 
@@ -65,14 +66,20 @@ class Cart:
             quantity = 1
 
         quantity = max(int(quantity), 1)
+        buyer_notes = (buyer_notes or "").strip()
 
         if pid in self.data:
             if product.kind == Product.Kind.FILE:
                 self.data[pid]["qty"] = 1
             else:
                 self.data[pid]["qty"] = max(1, int(self.data[pid]["qty"]) + quantity)
+            # Update notes if provided (or keep existing)
+            if buyer_notes:
+                self.data[pid]["notes"] = buyer_notes
         else:
             self.data[pid] = {"qty": quantity}
+            if buyer_notes:
+                self.data[pid]["notes"] = buyer_notes
 
         self._save()
 
@@ -137,13 +144,14 @@ class Cart:
                 continue
 
             qty = int(payload.get("qty", 1))
+            notes = str(payload.get("notes", "") or "")
 
             if product.kind == Product.Kind.FILE:
                 qty = 1
             else:
                 qty = max(1, qty)
 
-            result.append(CartLine(product=product, quantity=qty))
+            result.append(CartLine(product=product, quantity=qty, buyer_notes=notes))
 
         if dirty:
             self._save()

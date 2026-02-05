@@ -176,6 +176,7 @@ def cart_add(request):
 
     product_id = (request.POST.get("product_id") or "").strip()
     qty_raw = (request.POST.get("quantity") or "1").strip()
+    buyer_notes = (request.POST.get("buyer_notes") or "").strip()[:1000]  # Limit to 1000 chars
 
     try:
         quantity = int(qty_raw)
@@ -199,7 +200,7 @@ def cart_add(request):
         quantity = forced
         messages.info(request, "Digital items are limited to 1 per cart.")
 
-    cart.add(product, quantity=quantity)
+    cart.add(product, quantity=quantity, buyer_notes=buyer_notes)
     _log_add_to_cart_throttled(request, product=product)
 
     messages.success(request, "Added to cart.")

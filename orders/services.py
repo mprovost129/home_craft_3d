@@ -137,6 +137,9 @@ def create_order_from_cart(
         marketplace_fee_cents = _compute_marketplace_fee_cents(gross_cents=gross_cents, sales_rate=sales_rate)
         seller_net_cents = max(0, gross_cents - marketplace_fee_cents)
 
+        # Extract buyer notes if present
+        buyer_notes = str(getattr(item, "buyer_notes", "") or "")
+
         line_items.append(
             LineItem(
                 order=order,
@@ -148,6 +151,7 @@ def create_order_from_cart(
                 requires_shipping=requires_shipping,
                 marketplace_fee_cents=marketplace_fee_cents,
                 seller_net_cents=seller_net_cents,
+                buyer_notes=buyer_notes,
             )
         )
 

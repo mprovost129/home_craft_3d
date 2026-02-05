@@ -550,6 +550,12 @@ class OrderItem(models.Model):
     is_digital = models.BooleanField(default=False)
     requires_shipping = models.BooleanField(default=True)
 
+    buyer_notes = models.TextField(
+        blank=True,
+        default="",
+        help_text="Special instructions or notes from the buyer for this item.",
+    )
+
     marketplace_fee_cents = models.PositiveIntegerField(
         default=0,
         help_text="Marketplace fee on this line (percent-based).",
