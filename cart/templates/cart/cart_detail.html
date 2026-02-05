@@ -3,6 +3,13 @@
 
 {% block content %}
 <div class="container-fluid" style="max-width: 1100px;">
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h1 class="h4 mb-1">Cart</h1>
@@ -122,8 +129,9 @@
   </div>
 
   <div class="mt-3 d-flex justify-content-end">
-    <form method="post" action="{% url 'orders:place' %}" style="min-width: 420px;">
+    <form id="place-order-form" method="post" action="{% url 'orders:place' %}" style="min-width: 420px;">
       {% csrf_token %}
+      <input type="hidden" name="recaptcha_token" value="">
 
       {% if not user.is_authenticated %}
         <div class="mb-2">
@@ -154,5 +162,34 @@
       {% endif %}
     </form>
   </div>
+
+  {% if recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+    <script>
+      (function () {
+        var form = document.getElementById('place-order-form');
+        if (!form) return;
+        var tokenField = form.querySelector('input[name="recaptcha_token"]');
+
+        form.addEventListener('submit', function (e) {
+          if (!tokenField) return;
+          if (tokenField.value) return;
+
+          e.preventDefault();
+          if (!window.grecaptcha || !grecaptcha.ready) {
+            form.submit();
+            return;
+          }
+
+          grecaptcha.ready(function () {
+            grecaptcha.execute('{{ recaptcha_site_key }}', { action: 'checkout_place_order' }).then(function (token) {
+              tokenField.value = token;
+              form.submit();
+            });
+          });
+        });
+      })();
+    </script>
+  {% endif %}
 </div>
 {% endblock %}

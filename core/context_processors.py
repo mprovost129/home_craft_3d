@@ -58,4 +58,5 @@ def site_config(request) -> dict[str, Any]:
 def analytics(request) -> dict[str, Any]:
     return {
         "ga_measurement_id": (getattr(settings, "GA_MEASUREMENT_ID", "") or "").strip(),
+        "recaptcha_site_key": (getattr(settings, "RECAPTCHA_V3_SITE_KEY", "") or "").strip(),
     }
