@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Consumer Dashboard · Home Craft 3D{% endblock %}
 
 {% block content %}
@@ -104,7 +105,7 @@
               <td class="text-secondary">
                 {{ o.items.count }} item{{ o.items.count|pluralize }}
               </td>
-              <td class="text-end"><strong>${{ o.total_cents|add:0 }}</strong></td>
+              <td class="text-end"><strong>${{ o.total_cents|cents_to_dollars }}</strong></td>
               <td class="text-end">
                 <a class="btn btn-sm btn-outline-dark" href="{% url 'orders:detail' o.id %}">View</a>
               </td>
