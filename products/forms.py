@@ -57,10 +57,14 @@ def _validate_upload(file_obj, *, allowed_exts: set[str], max_mb: int) -> None:
 class MultiFileInput(forms.FileInput):
     """
     Correct Django-supported way to enable <input type="file" multiple>.
-    Do NOT pass `multiple=True` to the widget; Django will raise ValueError.
     Must use FileInput (not ClearableFileInput) as base class.
     """
     allow_multiple_selected = True
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        context['widget']['attrs']['multiple'] = True
+        return context
 
 
 def _category_choices_for_form(qs: Iterable[Category]) -> List[Tuple[str, List[Tuple[int, str]]]]:
