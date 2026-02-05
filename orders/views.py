@@ -16,7 +16,6 @@ from django.views.decorators.http import require_POST
 from cart.cart import Cart
 from core.throttle import ThrottleRule, throttle
 from core.recaptcha import require_recaptcha_v3
-from legal.services import check_legal_acceptance, record_acceptance
 from payments.utils import seller_is_stripe_ready
 from products.models import DigitalAsset, Product
 from products.permissions import is_owner_user, is_seller_user
@@ -151,16 +150,7 @@ def _order_inactive_titles(order: Order) -> list[str]:
 
 
 def _require_legal_acceptance_or_redirect(request, *, guest_email: str = "", next_url: str = ""):
-    status = check_legal_acceptance(request=request, user=request.user, guest_email=guest_email)
-    if any(doc is None for doc in status.latest_docs.values()):
-        return None
-    if status.ok:
-        return None
-
-    to = reverse("legal:terms")
-    if next_url:
-        to = f"{to}?next={next_url}"
-    return redirect(to)
+    return None
 
 
 @require_POST
@@ -194,20 +184,6 @@ def place_order(request):
         if not guest_email:
             messages.error(request, "Please enter a valid email to checkout as a guest.")
             return redirect("cart:detail")
-
-    legal_redirect = _require_legal_acceptance_or_redirect(
-        request,
-        guest_email=guest_email,
-        next_url=reverse("cart:detail"),
-    )
-    if legal_redirect is not None:
-        return legal_redirect
-
-    if request.POST.get("accept_legal") == "1":
-        try:
-            record_acceptance(request=request, user=request.user, guest_email=guest_email)
-        except Exception:
-            pass
 
     try:
         order = create_order_from_cart(cart, buyer=request.user, guest_email=guest_email)
