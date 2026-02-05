@@ -12,7 +12,7 @@ from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
 
-from core.storage_backends import get_downloads_storage, get_media_storage
+from core.storage_backends import get_downloads_storage
 
 
 def _get_setting_int(name: str, default: int) -> int:
@@ -127,12 +127,12 @@ class Product(models.Model):
     )
     is_free = models.BooleanField(default=False)
 
-    is_active = models.BooleanField(default=True)
+    # Draft-first default:
+    is_active = models.BooleanField(default=False)
 
     is_featured = models.BooleanField(default=False)
     is_trending = models.BooleanField(default=False)
 
-    # Product details
     complexity_level = models.CharField(
         max_length=20,
         choices=ComplexityLevel.choices,
@@ -224,8 +224,7 @@ class Product(models.Model):
 
     @property
     def file_types_display(self) -> str:
-        types = self.file_types()
-        return ", ".join(types)
+        return ", ".join(self.file_types())
 
 
 class ProductImage(models.Model):
@@ -279,7 +278,7 @@ class DigitalAsset(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="digital_assets")
 
-    # IMPORTANT: downloads storage (S3 downloads bucket when USE_S3=True)
+    # downloads storage (S3 downloads bucket when USE_S3=True)
     file = models.FileField(upload_to="digital_assets/", storage=get_downloads_storage())
 
     original_filename = models.CharField(max_length=255, blank=True)

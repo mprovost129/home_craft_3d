@@ -1,6 +1,13 @@
+# products/views_seller.py
 from __future__ import annotations
 
+import uuid
+from pathlib import Path
+from typing import Optional
+
 from django.contrib import messages
+from django.core.files import File
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8,7 +15,6 @@ from django.utils.text import slugify
 
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
-from payments.decorators import stripe_ready_required
 from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
@@ -40,13 +46,62 @@ def _get_owned_product_or_404(request, pk: int) -> Product:
     return product
 
 
+def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
+    """
+    Copy a stored file to a new key/path and return the new name.
+
+    - If using django-storages S3Boto3Storage, try *server-side* bucket copy (fast).
+    - Otherwise fall back to reading + saving (streaming via File wrapper).
+    """
+    if not source_field:
+        return None
+
+    storage = getattr(source_field, "storage", None)
+    name = getattr(source_field, "name", None)
+    if not storage or not name:
+        return None
+
+    ext = Path(name).suffix
+    new_name = f"{dest_prefix}/{uuid.uuid4().hex}{ext}"
+
+    # Attempt S3 server-side copy if the storage exposes bucket + connection.
+    bucket = getattr(storage, "bucket", None)
+    location = (getattr(storage, "location", "") or "").strip("/")
+
+    if bucket is not None:
+        # Build a CopySource that matches the actual object key.
+        src_key = f"{location}/{name}".lstrip("/") if location else name
+        try:
+            bucket.copy(
+                {"Bucket": bucket.name, "Key": src_key},
+                f"{location}/{new_name}".lstrip("/") if location else new_name,
+            )
+            return new_name
+        except Exception:
+            # Fall through to stream copy.
+            pass
+
+    # Fallback: open and re-save (can be slower for large files, but safe).
+    try:
+        source_field.open("rb")
+        storage.save(new_name, File(source_field))
+        return new_name
+    except Exception:
+        return None
+    finally:
+        try:
+            source_field.close()
+        except Exception:
+            pass
+
+
 @seller_required
 def seller_product_list(request, *args, **kwargs):
     """
     Seller dashboard: list your products.
     Owner/admin sees all products.
 
-    NOTE: This is NOT gated by Stripe readiness. Sellers can still view what they have.
+    NOTE: This is NOT gated by Stripe readiness. Sellers can still create drafts pre-onboarding.
     """
     qs = (
         Product.objects.select_related("category", "seller")
@@ -88,20 +143,36 @@ def seller_product_list(request, *args, **kwargs):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_create(request, *args, **kwargs):
+    """
+    Draft-first create:
+    - Create listing with is_active=False by default.
+    - Redirect flow:
+        FILE -> Assets page first
+        MODEL -> Images page first
+    """
     if request.method == "POST":
         form = ProductForm(request.POST, user=request.user)
         if form.is_valid():
             product = form.save(commit=False)
             product.seller = request.user
+
+            # Draft-first
+            product.is_active = False
+
             # Generate slug before validation if not provided
             if not product.slug:
                 product.slug = slugify(product.title)[:180]
+
             product.full_clean()
             product.save()
-            messages.success(request, "Product created. Next: add images (and digital assets if applicable).")
+
+            if product.kind == Product.Kind.FILE:
+                messages.success(request, "Draft created. Next: upload your digital file(s).")
+                return redirect("products:seller_assets", pk=product.pk)
+
+            messages.success(request, "Draft created. Next: upload your images.")
             return redirect("products:seller_images", pk=product.pk)
     else:
         form = ProductForm(user=request.user)
@@ -110,7 +181,6 @@ def seller_product_create(request, *args, **kwargs):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_edit(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
@@ -119,6 +189,11 @@ def seller_product_edit(request, pk: int):
         form = ProductForm(request.POST, instance=product, user=request.user)
         if form.is_valid():
             obj = form.save(commit=False)
+
+            # Keep existing slug if blank on form submission
+            if not obj.slug:
+                obj.slug = slugify(obj.title)[:180]
+
             obj.full_clean()
             obj.save()
             messages.success(request, "Product updated.")
@@ -134,20 +209,19 @@ def seller_product_edit(request, pk: int):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_UPLOAD_RULE)
 def seller_product_images(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
     if request.method == "POST":
-        # Check if this is bulk upload or single upload
+        # Bulk upload if multiple files
         if "images" in request.FILES and len(request.FILES.getlist("images")) > 1:
-            # Bulk upload mode
             bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
+            form = ProductImageUploadForm()  # keep available in template context
             if bulk_form.is_valid():
                 files = bulk_form.cleaned_data.get("images")
                 sort_order = product.images.count()
-                
+
                 for idx, f in enumerate(files):
                     img = ProductImage(
                         product=product,
@@ -156,12 +230,20 @@ def seller_product_images(request, pk: int):
                     )
                     img.full_clean()
                     img.save()
-                
+
+                # Ensure there's a primary image
+                if not product.images.filter(is_primary=True).exists():
+                    first = product.images.order_by("sort_order", "id").first()
+                    if first:
+                        first.is_primary = True
+                        first.save(update_fields=["is_primary"])
+
                 messages.success(request, f"Successfully uploaded {len(files)} image(s).")
                 return redirect("products:seller_images", pk=product.pk)
         else:
-            # Single upload mode
+            # Single upload
             form = ProductImageUploadForm(request.POST, request.FILES)
+            bulk_form = ProductImageBulkUploadForm()
             if form.is_valid():
                 img: ProductImage = form.save(commit=False)
                 img.product = product
@@ -170,6 +252,11 @@ def seller_product_images(request, pk: int):
 
                 if img.is_primary:
                     ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+
+                # If no primary exists, make the first one primary
+                if not ProductImage.objects.filter(product=product, is_primary=True).exists():
+                    img.is_primary = True
+                    img.save(update_fields=["is_primary"])
 
                 messages.success(request, "Image uploaded.")
                 return redirect("products:seller_images", pk=product.pk)
@@ -186,7 +273,6 @@ def seller_product_images(request, pk: int):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_DELETE_RULE)
 def seller_product_image_delete(request, *args, **kwargs):
     pk = kwargs.get("pk")
@@ -209,13 +295,12 @@ def seller_product_image_delete(request, *args, **kwargs):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_UPLOAD_RULE)
 def seller_product_assets(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
     if product.kind != Product.Kind.FILE:
-        messages.info(request, "This is not a digital file product. Assets are only for FILE listings.")
+        messages.info(request, "Assets are only for FILE listings.")
         return redirect("products:seller_list")
 
     if request.method == "POST":
@@ -239,7 +324,6 @@ def seller_product_assets(request, pk: int):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_DELETE_RULE)
 def seller_product_asset_delete(request, *args, **kwargs):
     pk = kwargs.get("pk")
@@ -256,72 +340,97 @@ def seller_product_asset_delete(request, *args, **kwargs):
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_toggle_active(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
     if request.method == "POST":
         product.is_active = not product.is_active
         product.save(update_fields=["is_active"])
-        messages.success(request, f"Listing is now {'active' if product.is_active else 'inactive'}.")
+        messages.success(request, f"Listing is now {'active' if product.is_active else 'inactive (draft)'}.")
     return redirect("products:seller_list")
 
 
 @seller_required
-@stripe_ready_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_duplicate(request, pk: int):
-    """Create a copy of a product with the same details but as a new listing."""
+    """
+    Create a copy of a product with the same details but as a new listing (draft).
+
+    IMPORTANT:
+    - This performs a SAFE copy of file blobs:
+      - On S3 (django-storages), attempts server-side copy (fast).
+      - Otherwise falls back to open()+save().
+
+    - The duplicate starts as inactive (draft).
+    """
     original = _get_owned_product_or_404(request, pk)
-    
-    if request.method == "POST":
-        # Create new product with copied fields
+
+    if request.method != "POST":
+        return redirect("products:seller_list")
+
+    with transaction.atomic():
         new_product = Product(
             seller=request.user,
             kind=original.kind,
             title=f"{original.title} (Copy)",
-            slug=f"{original.slug}-copy",
+            slug="",  # will be set below
             short_description=original.short_description,
             description=original.description,
             category=original.category,
             price=original.price,
             is_free=original.is_free,
-            is_active=False,  # Start inactive so seller can review
+            is_active=False,  # draft
             complexity_level=original.complexity_level,
             print_time_hours=original.print_time_hours,
         )
-        
-        # Ensure slug is unique
+
+        base_slug = slugify(f"{original.slug}-copy")[:180] or f"{original.pk}-copy"
+        candidate = base_slug
         counter = 1
-        while Product.objects.filter(seller=request.user, slug=new_product.slug).exists():
-            new_product.slug = f"{original.slug}-copy-{counter}"
+        while Product.objects.filter(seller=request.user, slug=candidate).exists():
+            candidate = slugify(f"{base_slug}-{counter}")[:180]
             counter += 1
-        
+        new_product.slug = candidate
+
         new_product.full_clean()
         new_product.save()
-        
-        # Copy images
-        for img in original.images.all():
+
+        # Copy images (safe storage copy)
+        for img in original.images.all().order_by("sort_order", "id"):
+            new_name = _safe_storage_copy(source_field=img.image, dest_prefix="product_images")
+            if not new_name:
+                # If copy fails, skip rather than breaking the whole duplicate.
+                continue
             ProductImage.objects.create(
                 product=new_product,
-                image=img.image,
+                image=new_name,  # storage path
                 alt_text=img.alt_text,
                 is_primary=img.is_primary,
                 sort_order=img.sort_order,
             )
-        
-        # Copy digital assets if applicable
+
+        # Ensure exactly one primary if any images exist
+        if new_product.images.exists() and not new_product.images.filter(is_primary=True).exists():
+            first = new_product.images.order_by("sort_order", "id").first()
+            if first:
+                first.is_primary = True
+                first.save(update_fields=["is_primary"])
+
+        # Copy digital assets if applicable (safe storage copy)
         if original.kind == Product.Kind.FILE:
-            for asset in original.digital_assets.all():
+            for asset in original.digital_assets.all().order_by("id"):
+                new_asset_name = _safe_storage_copy(source_field=asset.file, dest_prefix="digital_assets")
+                if not new_asset_name:
+                    continue
                 DigitalAsset.objects.create(
                     product=new_product,
-                    file=asset.file,
+                    file=new_asset_name,
                     original_filename=asset.original_filename,
                     file_type=asset.file_type,
                     zip_contents=asset.zip_contents,
                 )
-        
-        messages.success(request, f"Product duplicated! You can now edit the copy.")
-        return redirect("products:seller_edit", pk=new_product.pk)
-    
-    return redirect("products:seller_list")
+
+    messages.success(request, "Product duplicated as a draft. Review it, then upload/adjust files and images as needed.")
+    if new_product.kind == Product.Kind.FILE:
+        return redirect("products:seller_assets", pk=new_product.pk)
+    return redirect("products:seller_images", pk=new_product.pk)

@@ -29,6 +29,22 @@ CART_CLEAR_RULE = ThrottleRule(key_prefix="cart_clear", limit=6, window_seconds=
 # ============================================================
 # Helpers
 # ============================================================
+def _is_owner_request(request) -> bool:
+    try:
+        return bool(request.user.is_authenticated and is_owner_user(request.user))
+    except Exception:
+        return False
+
+
+def _clamp_quantity(qty: int) -> int:
+    # Keep it simple for v1. You can add per-product max later.
+    if qty < 1:
+        return 1
+    if qty > 20:
+        return 20
+    return qty
+
+
 def _seller_block_reason(*, request, product: Product) -> str | None:
     """
     Return a human-readable reason if a product cannot be purchased.
@@ -37,17 +53,30 @@ def _seller_block_reason(*, request, product: Product) -> str | None:
     - Owner bypass is based on request.user (not the product's seller).
     - Seller readiness is enforced server-side for cart add/update and order placement.
     """
-    try:
-        if request.user.is_authenticated and is_owner_user(request.user):
-            return None
-    except Exception:
-        pass
+    if _is_owner_request(request):
+        return None
+
+    if not getattr(product, "is_active", True):
+        return "This item is not available right now."
 
     seller = getattr(product, "seller", None)
     if seller and not seller_is_stripe_ready(seller):
         return "Seller hasn’t completed payout setup yet."
 
     return None
+
+
+def _enforce_file_quantity(product: Product, quantity: int) -> int:
+    """
+    Digital FILE items must always be qty=1.
+    """
+    try:
+        if getattr(product, "kind", None) == Product.Kind.FILE:
+            return 1
+    except Exception:
+        # If enum isn't available for some reason, don't blow up.
+        pass
+    return quantity
 
 
 def _log_add_to_cart_throttled(request, *, product: Product) -> None:
@@ -80,6 +109,7 @@ def _prune_blocked_items(request, cart: Cart) -> Tuple[List[str], List[str]]:
     for line in cart.lines():
         product = line.product
 
+        # Inactive → remove
         if not getattr(product, "is_active", True):
             cart.remove(product)
             removed_titles.append(getattr(product, "title", str(product.pk)))
@@ -163,6 +193,12 @@ def cart_add(request):
         messages.error(request, reason)
         return redirect(product.get_absolute_url())
 
+    quantity = _clamp_quantity(quantity)
+    forced = _enforce_file_quantity(product, quantity)
+    if forced != quantity:
+        quantity = forced
+        messages.info(request, "Digital items are limited to 1 per cart.")
+
     cart.add(product, quantity=quantity)
     _log_add_to_cart_throttled(request, product=product)
 
@@ -199,6 +235,12 @@ def cart_update(request):
         cart.remove(product)
         messages.error(request, f"Removed from cart: {reason}")
         return redirect("cart:detail")
+
+    quantity = _clamp_quantity(quantity)
+    forced = _enforce_file_quantity(product, quantity)
+    if forced != quantity:
+        quantity = forced
+        messages.info(request, "Digital items are limited to 1 per cart.")
 
     cart.set_quantity(product, quantity)
     messages.success(request, "Cart updated.")

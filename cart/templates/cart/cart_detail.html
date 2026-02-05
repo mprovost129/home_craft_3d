@@ -44,7 +44,7 @@
           <tr>
             <th style="min-width: 320px;">Item</th>
             <th>Type</th>
-            <th style="width: 160px;">Quantity</th>
+            <th style="width: 180px;">Quantity</th>
             <th class="text-end">Unit</th>
             <th class="text-end">Total</th>
             <th class="text-end">Remove</th>
@@ -87,10 +87,10 @@
                   <form method="post" action="{% url 'cart:update' %}" class="d-flex gap-2">
                     {% csrf_token %}
                     <input type="hidden" name="product_id" value="{{ line.product.pk }}">
-                    <input class="form-control form-control-sm" type="number" name="quantity" min="0" value="{{ line.quantity }}">
+                    <input class="form-control form-control-sm" type="number" name="quantity" min="1" value="{{ line.quantity }}">
                     <button class="btn btn-sm btn-outline-dark" type="submit">Update</button>
                   </form>
-                  <div class="form-text">Set to 0 to remove.</div>
+                  <div class="form-text">Use the remove button to delete an item.</div>
                 {% endif %}
               </td>
 
@@ -100,7 +100,7 @@
               <td class="text-end">
                 <form method="post" action="{% url 'cart:remove' line.product.pk %}">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-outline-danger" type="submit">
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remove">
                     <i class="bi bi-x-lg"></i>
                   </button>
                 </form>
@@ -143,7 +143,11 @@
         <i class="bi bi-receipt me-1"></i>Place order (pending payment)
       </button>
 
-      {% if cart_lines and not can_checkout %}
+      {% if not cart_lines %}
+        <div class="small mt-2 text-secondary">
+          Add items to your cart to continue.
+        </div>
+      {% elif cart_lines and not can_checkout %}
         <div class="small mt-2" style="color:#b45309;">
           Remove items from sellers who haven’t finished Stripe setup to proceed.
         </div>

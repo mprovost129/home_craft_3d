@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block title %}Home Craft 3D · 3D Prints & Digital Files Marketplace{% endblock %}
 {% block meta_title %}Home Craft 3D · 3D Prints & Digital Files{% endblock %}
 {% block meta_description %}Discover high-quality 3D printed models and digital files. Buy from makers worldwide or sell your designs. Trending products, new releases, and more.{% endblock %}
@@ -9,10 +11,13 @@
   <div class="container py-5">
     <div class="row align-items-center g-4">
       <div class="col-lg-6">
-        <h1 class="display-5 fw-bold mb-3">Welcome to Home Craft 3D</h1>
+        <h1 class="display-5 fw-bold mb-3">
+          {{ site_config.home_hero_title|default:"Welcome to Home Craft 3D" }}
+        </h1>
         <p class="lead text-secondary mb-4">
-          Discover thousands of 3D-printable models and digital files from makers worldwide. Find the perfect designs for your projects or share your creations with our community.
+          {{ site_config.home_hero_subtitle|default:"Discover high-quality 3D printable models and digital files. Buy from makers worldwide or sell your designs." }}
         </p>
+
         <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-dark btn-lg" href="{% url 'products:list' %}">
             <i class="bi bi-search me-2"></i>Browse All Products
@@ -22,11 +27,16 @@
           </a>
         </div>
       </div>
+
       <div class="col-lg-6 text-center">
-        <div class="bg-secondary-subtle p-5 rounded-3">
-          <i class="bi bi-box text-secondary" style="font-size: 80px;"></i>
+        <div class="bg-secondary-subtle p-4 rounded-3 h-100 d-flex align-items-center justify-content-center">
+          <img
+            src="{% static 'images/hero.png' %}"
+            alt="3D printer in action printing a dragon"
+            class="img-fluid rounded-3 hero-image">
         </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -59,7 +69,6 @@
 </div>
 
 <div class="container">
-  <!-- Trending Section -->
   {% if trending %}
     <div class="mb-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -79,7 +88,6 @@
     </div>
   {% endif %}
 
-  <!-- New Products Section -->
   {% if new_items %}
     <div class="mb-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -99,7 +107,6 @@
     </div>
   {% endif %}
 
-  <!-- Recently Purchased Section -->
   {% if recently_purchased_list %}
     <div class="mb-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -119,7 +126,6 @@
     </div>
   {% endif %}
 
-  <!-- Most Downloaded Section -->
   {% if most_downloaded_list %}
     <div class="mb-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -139,7 +145,6 @@
     </div>
   {% endif %}
 
-  <!-- Featured Products -->
   {% if featured %}
     <div class="mb-5">
       <div class="d-flex justify-content-between align-items-center mb-4">
@@ -159,7 +164,6 @@
     </div>
   {% endif %}
 
-  <!-- CTA Section -->
   <div class="bg-dark text-white rounded-3 p-5 mb-5 text-center">
     <h2 class="mb-3">Ready to start creating or selling?</h2>
     <p class="lead text-light mb-4">Join our community of makers and creators. Upload your designs, reach customers worldwide, and grow your business.</p>

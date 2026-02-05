@@ -34,15 +34,17 @@ class Category(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = (
-            ("type", "parent", "slug"),
-        )
+        unique_together = (("type", "parent", "slug"),)
         indexes = [
             models.Index(fields=["type", "is_active", "sort_order"]),
             models.Index(fields=["parent", "is_active", "sort_order"]),
             models.Index(fields=["slug"]),
         ]
-        ordering = ["type", "sort_order", "name"]
+        # Alphabetical-first:
+        # - groups by type (Models vs Files)
+        # - groups by parent so children are grouped under their parent in general queries
+        # - alphabetizes by name
+        ordering = ["type", "parent_id", "name"]
 
     def __str__(self) -> str:
         if self.parent:

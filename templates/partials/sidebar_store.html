@@ -1,76 +1,93 @@
-<div class="p-3">
+{# templates/partials/sidebar_store.html #}
+{% load static %}
+
+<div class="p-3 hc3-sidebar">
+
   <div class="text-uppercase small text-secondary fw-semibold mb-2">
     <i class="bi bi-compass me-1"></i>Explore
   </div>
 
-  <ul class="list-unstyled mb-4">
+  <ul class="list-unstyled mb-3">
     <li class="mb-1">
-      <a class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-         href="{% url 'products:list' %}">
+      <a class="hc3-side-link" href="{% url 'products:list' %}">
         <i class="bi bi-grid"></i>
         <span>All Products</span>
       </a>
     </li>
     <li class="mb-1">
-      <a class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-         href="{% url 'products:list' %}?sort=trending">
+      <a class="hc3-side-link" href="{% url 'products:list' %}?sort=trending">
         <i class="bi bi-fire"></i>
         <span>Trending</span>
       </a>
     </li>
     <li class="mb-1">
-      <a class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-         href="{% url 'products:list' %}?sort=top">
+      <a class="hc3-side-link" href="{% url 'products:list' %}?sort=top">
         <i class="bi bi-star"></i>
         <span>Top Rated</span>
       </a>
     </li>
     <li class="mb-1">
-      <a class="d-flex align-items-center gap-2 py-1 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-         href="{% url 'products:list' %}?sort=new">
+      <a class="hc3-side-link" href="{% url 'products:list' %}?sort=new">
         <i class="bi bi-clock"></i>
         <span>New Arrivals</span>
       </a>
     </li>
   </ul>
 
+  {# Filter input (wired by sidebar_filter.js) #}
+  <div class="input-group input-group-sm mb-3">
+    <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+    <input id="hc3SidebarFilter"
+           class="form-control"
+           type="search"
+           placeholder="Filter categories…"
+           aria-label="Filter categories">
+    <button class="btn btn-outline-secondary" type="button" id="hc3SidebarFilterClear" title="Clear">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+
+  {# -------------------- 3D MODELS -------------------- #}
   <div class="text-uppercase small text-secondary fw-semibold mb-2">
     <i class="bi bi-box-seam me-1"></i>3D Models
   </div>
 
-  <ul class="list-unstyled mb-4">
+  <ul class="list-unstyled mb-3" id="hc3ModelsList">
     {% for cat in sidebar_model_categories %}
-      <li class="mb-1">
-        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
-          {% if cat.children.all|length %}
+      {% if forloop.counter0 == 8 %}
+        </ul>
 
-            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
+        <details class="hc3-more mb-3" id="hc3ModelsMore">
+          <summary class="hc3-more-summary">More…</summary>
+          <ul class="list-unstyled mt-2" id="hc3ModelsMoreList">
+      {% endif %}
+
+      <li class="mb-1 hc3-filter-parent" data-name="{{ cat.name|lower }}">
+        <div class="hc3-cat-row">
+          <a class="hc3-cat-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+
+          {% if cat.children.all|length %}
+            <button class="btn btn-sm hc3-tree-toggle hc3-cat-toggle"
                     type="button"
                     data-target="cat-{{ cat.id }}"
                     aria-expanded="false"
-                    aria-controls="cat-{{ cat.id }}">
+                    aria-controls="cat-{{ cat.id }}"
+                    title="Show subcategories">
               <i class="bi bi-caret-right-fill"></i>
             </button>
-          {% else %}
-            <span style="width:38px;"></span>
           {% endif %}
-
-          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
-            {{ cat.name }}
-          </a>
         </div>
 
         {% if cat.children.all|length %}
-
-          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+          <ul class="list-unstyled ms-2 mt-1 hc3-tree-children"
+              id="cat-{{ cat.id }}"
+              hidden>
             {% for child in cat.children.all %}
-              {% if child.is_active %}
-                <li class="py-1">
-                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
-                    <i class="bi bi-dot"></i>{{ child.name }}
-                  </a>
-                </li>
-              {% endif %}
+              <li class="mb-1 hc3-filter-child" data-name="{{ child.name|lower }}">
+                <a class="hc3-child-link" href="{{ child.get_absolute_url }}">
+                  {{ child.name }}
+                </a>
+              </li>
             {% endfor %}
           </ul>
         {% endif %}
@@ -80,43 +97,52 @@
     {% endfor %}
   </ul>
 
+  {% if sidebar_model_categories|length > 8 %}
+        </ul>
+      </details>
+  {% endif %}
+
+  {# -------------------- 3D FILES -------------------- #}
   <div class="text-uppercase small text-secondary fw-semibold mb-2">
     <i class="bi bi-file-earmark-zip me-1"></i>3D Files
   </div>
 
-  <ul class="list-unstyled mb-0">
+  <ul class="list-unstyled mb-0" id="hc3FilesList">
     {% for cat in sidebar_file_categories %}
-      <li class="mb-1">
-        <div class="d-flex align-items-center gap-2 py-1 px-2 rounded hc3-tree-row">
-          {% if cat.children.all|length %}
+      {% if forloop.counter0 == 8 %}
+        </ul>
 
-            <button class="btn btn-sm btn-outline-secondary hc3-tree-toggle"
+        <details class="hc3-more mb-0" id="hc3FilesMore">
+          <summary class="hc3-more-summary">More…</summary>
+          <ul class="list-unstyled mt-2" id="hc3FilesMoreList">
+      {% endif %}
+
+      <li class="mb-1 hc3-filter-parent" data-name="{{ cat.name|lower }}">
+        <div class="hc3-cat-row">
+          <a class="hc3-cat-link" href="{{ cat.get_absolute_url }}">{{ cat.name }}</a>
+
+          {% if cat.children.all|length %}
+            <button class="btn btn-sm hc3-tree-toggle hc3-cat-toggle"
                     type="button"
                     data-target="cat-{{ cat.id }}"
                     aria-expanded="false"
-                    aria-controls="cat-{{ cat.id }}">
+                    aria-controls="cat-{{ cat.id }}"
+                    title="Show subcategories">
               <i class="bi bi-caret-right-fill"></i>
             </button>
-          {% else %}
-            <span style="width:38px;"></span>
           {% endif %}
-
-          <a class="text-decoration-none text-dark flex-grow-1" href="{{ cat.get_absolute_url }}">
-            {{ cat.name }}
-          </a>
         </div>
 
         {% if cat.children.all|length %}
-
-          <ul class="list-unstyled ms-5 mt-1 hc3-tree-children" id="cat-{{ cat.id }}" hidden>
+          <ul class="list-unstyled ms-2 mt-1 hc3-tree-children"
+              id="cat-{{ cat.id }}"
+              hidden>
             {% for child in cat.children.all %}
-              {% if child.is_active %}
-                <li class="py-1">
-                  <a class="text-decoration-none text-dark" href="{{ child.get_absolute_url }}">
-                    <i class="bi bi-dot"></i>{{ child.name }}
-                  </a>
-                </li>
-              {% endif %}
+              <li class="mb-1 hc3-filter-child" data-name="{{ child.name|lower }}">
+                <a class="hc3-child-link" href="{{ child.get_absolute_url }}">
+                  {{ child.name }}
+                </a>
+              </li>
             {% endfor %}
           </ul>
         {% endif %}
@@ -125,4 +151,10 @@
       <li class="text-secondary small">No file categories yet.</li>
     {% endfor %}
   </ul>
+
+  {% if sidebar_file_categories|length > 8 %}
+        </ul>
+      </details>
+  {% endif %}
+
 </div>

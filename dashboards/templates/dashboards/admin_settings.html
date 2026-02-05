@@ -16,6 +16,7 @@
     color: #333333 !important;
   }
 </style>
+
 <div class="container-fluid">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
@@ -72,6 +73,34 @@
             <div class="form-text">{{ form.allowed_shipping_countries_csv.help_text }}</div>
             {% if form.allowed_shipping_countries_csv.errors %}
               <div class="text-danger small mt-1">{{ form.allowed_shipping_countries_csv.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h2 class="h6 mb-3">Home Page</h2>
+
+        <div class="row g-3">
+          <div class="col-12 col-lg-6">
+            <label class="form-label">Hero title</label>
+            {{ form.home_hero_title }}
+            {% if form.home_hero_title.errors %}
+              <div class="text-danger small mt-1">{{ form.home_hero_title.errors }}</div>
+            {% endif %}
+            {% if form.home_hero_title.help_text %}
+              <div class="form-text">{{ form.home_hero_title.help_text }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Hero subtitle</label>
+            {{ form.home_hero_subtitle }}
+            {% if form.home_hero_subtitle.errors %}
+              <div class="text-danger small mt-1">{{ form.home_hero_subtitle.errors }}</div>
+            {% endif %}
+            {% if form.home_hero_subtitle.help_text %}
+              <div class="form-text">{{ form.home_hero_subtitle.help_text }}</div>
             {% endif %}
           </div>
         </div>

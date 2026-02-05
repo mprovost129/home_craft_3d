@@ -1,242 +1,161 @@
+{# products/templates/products/seller/product_images.html #}
 {% extends "base.html" %}
-{% block title %}Seller · Images · {{ product.title }} · Home Craft 3D{% endblock %}
+{% block title %}Images · {{ product.title }} · Home Craft 3D{% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width: 980px;">
-  <div class="d-flex align-items-center justify-content-between mb-3">
+<div class="container py-4" style="max-width: 1100px;">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
     <div>
       <h1 class="h4 mb-1">Images</h1>
       <div class="text-secondary small">{{ product.title }}</div>
+      <div class="text-secondary small">Upload multiple images at once (bulk) or add one at a time.</div>
     </div>
-    <div class="d-flex gap-2">
-      <a class="btn btn-outline-dark" href="{% url 'products:seller_edit' product.pk %}">
-        <i class="bi bi-pencil me-1"></i>Edit Listing
+
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-dark btn-sm" href="{% url 'products:seller_edit' product.pk %}">
+        <i class="bi bi-pencil me-1"></i>Edit listing
       </a>
-      <a class="btn btn-outline-dark" href="{% url 'products:seller_list' %}">
-        <i class="bi bi-arrow-left me-1"></i>Back
+      {% if product.kind == "FILE" %}
+        <a class="btn btn-outline-dark btn-sm" href="{% url 'products:seller_assets' product.pk %}">
+          <i class="bi bi-folder2-open me-1"></i>Digital assets
+        </a>
+      {% endif %}
+      <a class="btn btn-outline-dark btn-sm" href="{% url 'products:seller_list' %}">
+        <i class="bi bi-arrow-left me-1"></i>Back to listings
       </a>
     </div>
   </div>
 
-  <!-- Upload Section -->
-  <div class="card mb-4 border-0 shadow-sm">
-    <div class="card-header bg-light border-bottom">
-      <h2 class="h5 mb-0">
-        <i class="bi bi-image me-2"></i>Upload Images
-      </h2>
-    </div>
-    <div class="card-body">
-      <form method="post" enctype="multipart/form-data" id="bulkUploadForm">
-        {% csrf_token %}
-        <div class="row g-3">
-          <div class="col-12">
-            <!-- Drag and Drop Area -->
-            <div id="dragDropArea" class="border-2 border-dashed rounded p-5 text-center" style="cursor: pointer; transition: all 0.3s;">
-              <div class="mb-3">
-                <i class="bi bi-cloud-arrow-up text-secondary" style="font-size: 2.5rem;"></i>
-              </div>
-              <h5 class="mb-1">Drag images here or click to browse</h5>
-              <p class="text-secondary small mb-0">
-                Supports JPG, PNG, WebP (up to {{ max_image_mb }}MB each)
-              </p>
-              <p class="text-secondary small mb-0">
-                <strong>Upload multiple images at once!</strong>
-              </p>
-              <div class="mt-3">
-                {{ bulk_form.images }}
-              </div>
-            </div>
-            {% if bulk_form.images.errors %}<div class="text-danger small mt-2">{{ bulk_form.images.errors }}</div>{% endif %}
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold">Bulk upload</div>
+            <div class="text-secondary small">Fastest way to add images</div>
           </div>
 
-          <!-- Progress Bar (hidden by default) -->
-          <div class="col-12" id="progressContainer" style="display: none;">
-            <div class="progress">
-              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-            </div>
-            <div class="text-secondary small mt-2" id="progressText">Uploading...</div>
-          </div>
-
-          <!-- File Preview -->
-          <div class="col-12" id="filePreviewContainer" style="display: none;">
-            <div class="text-secondary small mb-2">Selected files:</div>
-            <div id="filePreviewList" class="d-flex flex-wrap gap-2"></div>
-          </div>
-        </div>
-
-        <div class="mt-4 pt-3 border-top">
-          <button class="btn btn-dark btn-lg" type="submit" id="submitBtn">
-            <i class="bi bi-cloud-upload me-2"></i>Upload Images
-          </button>
-          <button class="btn btn-outline-dark btn-lg" type="reset" id="resetBtn">
-            Clear
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Current Images Section -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-light border-bottom">
-      <h2 class="h5 mb-0">
-        <i class="bi bi-images me-2"></i>Current Images ({{ images.count }})
-      </h2>
-    </div>
-    <div class="card-body">
-
-      <div class="row g-3">
-        {% for img in images %}
-          <div class="col-12 col-md-6">
-            <div class="card h-100 border-0 shadow-sm overflow-hidden">
-              {% if img.is_primary %}
-                <div class="position-absolute top-0 end-0 m-2">
-                  <span class="badge bg-warning text-dark">
-                    <i class="bi bi-star-fill me-1"></i>Primary
-                  </span>
-                </div>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-2">
+              {{ bulk_form.images.label_tag }}
+              {{ bulk_form.images }}
+              {% if bulk_form.images.help_text %}
+                <div class="form-text">{{ bulk_form.images.help_text }}</div>
               {% endif %}
-              
-              <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.title }}" class="card-img-top" style="height: 200px; object-fit: cover;">
-              
-              <div class="card-body d-flex flex-column">
-                {% if img.alt_text %}
-                  <p class="card-text text-secondary small mb-2">{{ img.alt_text }}</p>
-                {% else %}
-                  <p class="card-text text-secondary small text-muted mb-2"><em>No alt text</em></p>
-                {% endif %}
-                
-                <div class="mt-auto">
-                  <div class="text-secondary small mb-3">
-                    <i class="bi bi-arrow-down me-1"></i>Order: <strong>{{ img.sort_order }}</strong>
-                  </div>
-                  
-                  <form method="post" action="{% url 'products:seller_image_delete' product.pk img.pk %}" class="d-inline">
-                    {% csrf_token %}
-                    <button class="btn btn-sm btn-outline-danger w-100" type="submit">
-                      <i class="bi bi-trash me-1"></i>Delete Image
-                    </button>
-                  </form>
+              {% for error in bulk_form.images.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <button class="btn btn-dark" type="submit">
+              <i class="bi bi-upload me-1"></i>Upload selected images
+            </button>
+          </form>
+
+          <hr>
+
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="fw-semibold">Single upload</div>
+            <div class="text-secondary small">Set Primary / Sort Order</div>
+          </div>
+
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <div class="mb-2">
+              {{ form.image.label_tag }}
+              {{ form.image }}
+              {% for error in form.image.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="mb-2">
+              {{ form.alt_text.label_tag }}
+              {{ form.alt_text }}
+              {% for error in form.alt_text.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            <div class="row g-2">
+              <div class="col-6">
+                {{ form.sort_order.label_tag }}
+                {{ form.sort_order }}
+                {% for error in form.sort_order.errors %}
+                  <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+              </div>
+              <div class="col-6 d-flex align-items-end">
+                <div class="form-check">
+                  {{ form.is_primary }}
+                  <label class="form-check-label" for="{{ form.is_primary.id_for_label }}">Primary image</label>
                 </div>
               </div>
             </div>
-          </div>
-        {% empty %}
-          <div class="col-12">
-            <div class="alert alert-light border border-secondary text-secondary py-4 text-center">
-              <i class="bi bi-image" style="font-size: 2.5rem; opacity: 0.5;"></i>
-              <p class="mt-3 mb-0">No images uploaded yet.</p>
-              <small class="text-muted">Upload images above to get started.</small>
+
+            <div class="mt-3">
+              <button class="btn btn-outline-dark" type="submit">
+                <i class="bi bi-plus-circle me-1"></i>Add image
+              </button>
             </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">Current images</div>
+            <div class="text-secondary small">{{ images|length }} total</div>
           </div>
-        {% endfor %}
+
+          {% if images %}
+            <div class="row g-2 mt-2">
+              {% for img in images %}
+                <div class="col-6 col-md-4">
+                  <div class="border rounded p-2 h-100">
+                    <div class="ratio ratio-4x3 bg-light rounded overflow-hidden">
+                      <img src="{{ img.image.url }}" alt="{{ img.alt_text|default:product.title }}" style="object-fit: cover;">
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                      <div class="small">
+                        {% if img.is_primary %}
+                          <span class="badge text-bg-dark">Primary</span>
+                        {% else %}
+                          <span class="badge text-bg-light text-dark">Image</span>
+                        {% endif %}
+                        <span class="text-secondary">#{{ img.sort_order }}</span>
+                      </div>
+
+                      <form method="post" action="{% url 'products:seller_image_delete' product.pk img.pk %}">
+                        {% csrf_token %}
+                        <button class="btn btn-sm btn-outline-danger" type="submit" title="Delete">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+                    </div>
+
+                    {% if img.alt_text %}
+                      <div class="text-secondary small mt-1">{{ img.alt_text|truncatechars:42 }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="alert alert-secondary mt-3 mb-0">
+              No images uploaded yet.
+            </div>
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>
-
-  {% if messages %}
-    <div class="mt-3">
-      {% for message in messages %}
-        <div class="alert alert-info mb-2">{{ message }}</div>
-      {% endfor %}
-    </div>
-  {% endif %}
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  const dragDropArea = document.getElementById('dragDropArea');
-  const fileInput = document.querySelector('#id_images');
-  const filePreviewContainer = document.getElementById('filePreviewContainer');
-  const filePreviewList = document.getElementById('filePreviewList');
-  const bulkUploadForm = document.getElementById('bulkUploadForm');
-
-  // Prevent default drag behaviors
-  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dragDropArea.addEventListener(eventName, preventDefaults, false);
-    document.body.addEventListener(eventName, preventDefaults, false);
-  });
-
-  function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  // Highlight drop area when item is dragged over it
-  ['dragenter', 'dragover'].forEach(eventName => {
-    dragDropArea.addEventListener(eventName, highlight, false);
-  });
-
-  ['dragleave', 'drop'].forEach(eventName => {
-    dragDropArea.addEventListener(eventName, unhighlight, false);
-  });
-
-  function highlight(e) {
-    dragDropArea.style.borderColor = '#0d6efd';
-    dragDropArea.style.backgroundColor = '#f0f7ff';
-  }
-
-  function unhighlight(e) {
-    dragDropArea.style.borderColor = '#dee2e6';
-    dragDropArea.style.backgroundColor = 'transparent';
-  }
-
-  // Handle dropped files
-  dragDropArea.addEventListener('drop', handleDrop, false);
-  dragDropArea.addEventListener('click', () => fileInput.click());
-
-  function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    fileInput.files = files;
-    updateFilePreview();
-  }
-
-  // Handle file input change
-  fileInput.addEventListener('change', updateFilePreview);
-
-  function updateFilePreview() {
-    const files = fileInput.files;
-    
-    if (files.length === 0) {
-      filePreviewContainer.style.display = 'none';
-      return;
-    }
-
-    filePreviewList.innerHTML = '';
-    const maxMB = 10;
-
-    Array.from(files).forEach((file, index) => {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      const sizeOk = sizeMB <= maxMB;
-      
-      const preview = document.createElement('div');
-      preview.className = `badge ${sizeOk ? 'text-bg-primary' : 'text-bg-danger'}`;
-      preview.style.padding = '8px 12px';
-      preview.style.fontSize = '0.9rem';
-      preview.innerHTML = `
-        ${file.name} (${sizeMB}MB)
-        ${sizeOk ? '<i class="bi bi-check-circle ms-2"></i>' : '<i class="bi bi-exclamation-circle ms-2"></i>'}
-      `;
-      filePreviewList.appendChild(preview);
-    });
-
-    filePreviewContainer.style.display = 'block';
-  }
-
-  // Form submission feedback
-  bulkUploadForm.addEventListener('submit', function(e) {
-    if (fileInput.files.length > 0) {
-      document.getElementById('submitBtn').disabled = true;
-      document.getElementById('submitBtn').innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
-    }
-  });
-
-  // Reset button
-  document.getElementById('resetBtn').addEventListener('click', function() {
-    filePreviewContainer.style.display = 'none';
-    filePreviewList.innerHTML = '';
-  });
-});
-</script>
 {% endblock %}

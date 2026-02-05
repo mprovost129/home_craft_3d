@@ -15,6 +15,19 @@ class SiteConfig(models.Model):
     - No "settings.py constants" for runtime-tunable business rules.
     """
 
+    # Home page hero (marketing copy)
+    home_hero_title = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        help_text="Home page hero headline (left side).",
+    )
+    home_hero_subtitle = models.TextField(
+        blank=True,
+        default="",
+        help_text="Home page hero paragraph (left side).",
+    )
+
     # Marketplace fee: percent of seller gross (e.g. 10.00 -> 10%)
     marketplace_sales_percent = models.DecimalField(
         max_digits=6,

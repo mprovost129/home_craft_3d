@@ -1,4 +1,3 @@
-# orders/views.py
 from __future__ import annotations
 
 import logging
@@ -47,6 +46,13 @@ def _normalize_guest_email(raw: str) -> str:
     return email
 
 
+def _is_owner_request(request) -> bool:
+    try:
+        return bool(request.user.is_authenticated and is_owner_user(request.user))
+    except Exception:
+        return False
+
+
 def _user_can_access_order(request, order: Order) -> bool:
     if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
         return True
@@ -58,7 +64,13 @@ def _user_can_access_order(request, order: Order) -> bool:
     return bool(t) and str(t) == str(getattr(order, "order_token", ""))
 
 
-def _order_has_unready_sellers(order: Order) -> list[str]:
+def _order_has_unready_sellers(request, order: Order) -> list[str]:
+    """
+    IMPORTANT: Owner bypass is based on request.user.
+    """
+    if _is_owner_request(request):
+        return []
+
     bad: list[str] = []
     for item in order.items.select_related("seller").all():
         seller = getattr(item, "seller", None)
@@ -75,7 +87,13 @@ def _order_has_unready_sellers(order: Order) -> list[str]:
     return out
 
 
-def _cart_has_unready_sellers(cart: Cart) -> list[str]:
+def _cart_has_unready_sellers(request, cart: Cart) -> list[str]:
+    """
+    IMPORTANT: Owner bypass is based on request.user.
+    """
+    if _is_owner_request(request):
+        return []
+
     bad: list[str] = []
     for line in cart.lines():
         product = getattr(line, "product", None)
@@ -90,6 +108,45 @@ def _cart_has_unready_sellers(cart: Cart) -> list[str]:
             continue
         seen.add(u)
         out.append(u)
+    return out
+
+
+def _cart_inactive_titles(cart: Cart) -> list[str]:
+    bad: list[str] = []
+    for line in cart.lines():
+        p = getattr(line, "product", None)
+        if not p:
+            continue
+        if not getattr(p, "is_active", True):
+            bad.append(getattr(p, "title", str(getattr(p, "pk", ""))))
+    # de-dupe
+    seen = set()
+    out: list[str] = []
+    for t in bad:
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
+    return out
+
+
+def _order_inactive_titles(order: Order) -> list[str]:
+    bad: list[str] = []
+    for item in order.items.select_related("product").all():
+        p = getattr(item, "product", None)
+        if not p:
+            bad.append("Unknown item")
+            continue
+        if not getattr(p, "is_active", True):
+            bad.append(getattr(p, "title", str(getattr(p, "pk", ""))))
+    # de-dupe
+    seen = set()
+    out: list[str] = []
+    for t in bad:
+        if t in seen:
+            continue
+        seen.add(t)
+        out.append(t)
     return out
 
 
@@ -113,7 +170,15 @@ def place_order(request):
         messages.info(request, "Your cart is empty.")
         return redirect("cart:detail")
 
-    bad_sellers = _cart_has_unready_sellers(cart)
+    inactive_titles = _cart_inactive_titles(cart)
+    if inactive_titles:
+        messages.error(
+            request,
+            "Some items in your cart are no longer available: " + ", ".join(inactive_titles),
+        )
+        return redirect("cart:detail")
+
+    bad_sellers = _cart_has_unready_sellers(request, cart)
     if bad_sellers:
         messages.error(
             request,
@@ -220,8 +285,16 @@ def checkout_start(request, order_id):
         messages.error(request, "Order has no items.")
         return redirect("orders:detail", order_id=order.pk)
 
-    bad_sellers = _order_has_unready_sellers(order)
-    if bad_sellers and not (request.user.is_authenticated and is_owner_user(request.user)):
+    inactive_titles = _order_inactive_titles(order)
+    if inactive_titles and not _is_owner_request(request):
+        messages.error(
+            request,
+            "One or more items in this order are no longer available: " + ", ".join(inactive_titles),
+        )
+        return redirect("orders:detail", order_id=order.pk)
+
+    bad_sellers = _order_has_unready_sellers(request, order)
+    if bad_sellers:
         messages.error(
             request,
             "One or more sellers in this order haven’t completed payout setup yet: " + ", ".join(bad_sellers),

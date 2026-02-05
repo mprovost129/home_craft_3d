@@ -1,18 +1,93 @@
-/* Home Craft 3D: minimal overrides on top of Bootstrap */
-
-.hc3-tree-row:hover {
-  background: #f8f9fa; /* bootstrap light */
-}
-
-.hc3-tree-toggle {
-  width: 38px; /* keep consistent spacer width when no children */
-}
-
-.navbar-brand img {
-  max-height: 80px;
-  width: auto;
-}
-
+/* Sidebar density + typography */
 .hc3-sidebar {
-  width: 280px;
+  font-size: 0.86rem;           /* slightly smaller than 14px */
+}
+
+.hc3-sidebar .text-uppercase {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+/* Explore links */
+.hc3-side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.22rem 0.4rem;      /* tighter than Bootstrap defaults */
+  border-radius: 0.4rem;
+  text-decoration: none;
+  color: var(--bs-body-color);
+}
+
+.hc3-side-link:hover {
+  background: var(--bs-tertiary-bg);
+}
+
+/* Category rows */
+.hc3-cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.22rem 0.4rem;
+  border-radius: 0.4rem;
+}
+
+.hc3-cat-row:hover {
+  background: var(--bs-tertiary-bg);
+}
+
+.hc3-cat-link {
+  flex: 1;
+  text-decoration: none;
+  color: var(--bs-body-color);
+  font-weight: 500;
+}
+
+/* Child links */
+.hc3-child-link {
+  display: block;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.35rem;
+  text-decoration: none;
+  font-size: 0.80rem;
+  color: var(--bs-secondary);
+}
+
+.hc3-child-link:hover {
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+}
+
+/* Toggle button: quiet */
+.hc3-cat-toggle {
+  border: none;
+  padding: 0.1rem 0.3rem;
+  opacity: 0.65;
+}
+
+.hc3-cat-toggle:hover {
+  opacity: 1;
+  background: transparent;
+}
+
+.form-control:focus,
+.form-select:focus {
+  background-color: #fff;
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+/* Force white form controls even if Django widgets lack Bootstrap classes */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+  background-color: #fff !important;
+  color: #212529;
 }
