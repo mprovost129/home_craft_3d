@@ -34,6 +34,25 @@
               <span class="visually-hidden">Next</span>
             </button>
           </div>
+
+          {% if product.images.all|length > 1 %}
+          <div class="card-body pt-2 pb-2">
+            <div class="d-flex gap-2 flex-wrap">
+              {% for img in product.images.all %}
+                <button 
+                  type="button" 
+                  class="border rounded p-1 bg-white thumbnail-btn {% if forloop.first %}active{% endif %}" 
+                  data-bs-target="#productCarousel" 
+                  data-bs-slide-to="{{ forloop.counter0 }}"
+                  style="width: 70px; height: 70px; cursor: pointer; opacity: {% if forloop.first %}1{% else %}0.6{% endif %};"
+                  onclick="this.parentElement.querySelectorAll('.thumbnail-btn').forEach(b => b.style.opacity='0.6'); this.style.opacity='1';"
+                >
+                  <img src="{{ img.image.url }}" class="w-100 h-100 rounded" style="object-fit: cover;" alt="{{ img.alt_text|default:product.title }}">
+                </button>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
         {% else %}
           <div class="bg-light d-flex align-items-center justify-content-center" style="height:360px;">
             <span class="text-secondary small">No images uploaded yet.</span>
