@@ -92,7 +92,14 @@
                 </div>
               </td>
               <td><span class="badge text-bg-secondary">{{ p.get_kind_display }}</span></td>
-              <td>{{ p.category.name }}</td>
+              <td>
+                {% if p.category.parent %}
+                  <div class="small">{{ p.category.parent.name }}</div>
+                  <div class="text-secondary small">› {{ p.category.name }}</div>
+                {% else %}
+                  {{ p.category.name }}
+                {% endif %}
+              </td>
               <td><strong>{{ p.display_price }}</strong></td>
               <td>
                 {% if p.is_active %}
@@ -134,6 +141,9 @@
                         {% endif %}
                       </button>
                     </form>
+                    <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteModal{{ p.pk }}">
+                      <i class="bi bi-trash me-1"></i>Delete
+                    </button>
                   {% else %}
                     <a class="btn btn-sm btn-outline-dark disabled" href="#" tabindex="-1" aria-disabled="true">
                       <i class="bi bi-pencil me-1"></i>Edit
@@ -163,4 +173,43 @@
     </div>
   </div>
 </div>
+
+<!-- Delete Confirmation Modals -->
+{% for p in products %}
+<div class="modal fade" id="deleteModal{{ p.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ p.pk }}" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="deleteModalLabel{{ p.pk }}">
+          <i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Delete Product?
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">Are you sure you want to permanently delete this product?</p>
+        <div class="alert alert-warning mb-0">
+          <strong>{{ p.title }}</strong>
+          <div class="small mt-1">This will delete:</div>
+          <ul class="small mb-0">
+            <li>All product images</li>
+            <li>All specifications</li>
+            {% if p.kind == "FILE" %}<li>All digital assets</li>{% endif %}
+            <li>Product listing data</li>
+          </ul>
+        </div>
+        <p class="text-danger small mt-2 mb-0"><strong>This action cannot be undone.</strong></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'products:seller_delete' p.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">
+            <i class="bi bi-trash me-1"></i>Delete Permanently
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
 {% endblock %}

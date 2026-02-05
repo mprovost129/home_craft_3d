@@ -43,7 +43,11 @@
       <div class="text-secondary small">
         by <strong><a class="text-decoration-none" href="{% url 'products:seller_shop' p.seller_id %}">{{ p.seller_public_name }}</a></strong>
         {% if show_category|default:True %}
-          · {{ p.category.name }}
+          {% if p.category.parent %}
+            · {{ p.category.parent.name }} › {{ p.category.name }}
+          {% else %}
+            · {{ p.category.name }}
+          {% endif %}
         {% endif %}
       </div>
 

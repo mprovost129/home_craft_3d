@@ -389,6 +389,24 @@ def seller_product_toggle_active(request, pk: int):
 
 
 @seller_required
+@throttle(SELLER_DELETE_RULE)
+def seller_product_delete(request, pk: int):
+    """
+    Delete a product listing.
+    Note: This will cascade delete related images, assets, specs, etc.
+    """
+    product = _get_owned_product_or_404(request, pk)
+    
+    if request.method == "POST":
+        product_title = product.title
+        product.delete()
+        messages.success(request, f"Product '{product_title}' has been deleted.")
+        return redirect("products:seller_list")
+    
+    return redirect("products:seller_list")
+
+
+@seller_required
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_duplicate(request, pk: int):
     """

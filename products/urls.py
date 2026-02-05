@@ -35,4 +35,5 @@ urlpatterns = [
     path("seller/<int:pk>/assets/<int:asset_id>/delete/", views_seller.seller_product_asset_delete, name="seller_asset_delete"),
 
     path("seller/<int:pk>/toggle-active/", views_seller.seller_product_toggle_active, name="seller_toggle_active"),
+    path("seller/<int:pk>/delete/", views_seller.seller_product_delete, name="seller_delete"),
 ]
