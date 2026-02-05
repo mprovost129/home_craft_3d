@@ -95,6 +95,11 @@ class Product(models.Model):
         MODEL = "MODEL", "3D Model (Physical)"
         FILE = "FILE", "3D File (Digital)"
 
+    class ComplexityLevel(models.TextChoices):
+        BEGINNER = "beginner", "Beginner"
+        INTERMEDIATE = "intermediate", "Intermediate"
+        ADVANCED = "advanced", "Advanced"
+
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -126,6 +131,20 @@ class Product(models.Model):
 
     is_featured = models.BooleanField(default=False)
     is_trending = models.BooleanField(default=False)
+
+    # Product details
+    complexity_level = models.CharField(
+        max_length=20,
+        choices=ComplexityLevel.choices,
+        blank=True,
+        null=True,
+        help_text="Difficulty level for this 3D file/model",
+    )
+    print_time_hours = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        help_text="Estimated print time in hours",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

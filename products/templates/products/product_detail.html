@@ -74,6 +74,19 @@
             <span class="badge text-bg-secondary">{{ product.get_kind_display }}</span>
           </div>
 
+          {% if product.complexity_level or product.print_time_hours %}
+            <div class="mt-2 d-flex flex-wrap gap-2">
+              {% if product.complexity_level %}
+                <span class="badge text-bg-secondary">{{ product.get_complexity_level_display }}</span>
+              {% endif %}
+              {% if product.print_time_hours %}
+                <span class="badge text-bg-secondary">
+                  <i class="bi bi-clock me-1"></i>{{ product.print_time_hours }}h print time
+                </span>
+              {% endif %}
+            </div>
+          {% endif %}
+
           <div class="mt-3">
             <div class="h5 mb-2">{{ product.display_price }}</div>
 

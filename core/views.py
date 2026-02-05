@@ -192,7 +192,45 @@ def home(request):
     exclude_ids = {p.id for p in featured} | {p.id for p in new_items} | {p.id for p in trending}
     misc = list(qs.exclude(id__in=exclude_ids).order_by("-created_at")[:HOME_BUCKET_SIZE])
 
-    all_cards = featured + new_items + trending + misc
+    # Recently purchased (by paid order date)
+    since = timezone.now() - timedelta(days=30)
+    recently_purchased = (
+        _base_home_qs()
+        .annotate(
+            recent_purchase_count=Count(
+                "order_items",
+                filter=Q(
+                    order_items__order__status=Order.Status.PAID,
+                    order_items__order__paid_at__gte=since,
+                ),
+                distinct=True,
+            )
+        )
+        .filter(recent_purchase_count__gt=0)
+        .order_by("-recent_purchase_count", "-created_at")[:HOME_BUCKET_SIZE]
+    )
+    recently_purchased = _annotate_rating(recently_purchased)
+    recently_purchased_list = list(recently_purchased)
+    _apply_can_buy_flag(recently_purchased_list)
+
+    # Most downloaded (using order counts)
+    most_downloaded = (
+        _base_home_qs()
+        .annotate(
+            total_purchase_count=Count(
+                "order_items",
+                filter=Q(order_items__order__status=Order.Status.PAID),
+                distinct=True,
+            )
+        )
+        .filter(total_purchase_count__gt=0, kind=Product.Kind.FILE)
+        .order_by("-total_purchase_count", "-created_at")[:HOME_BUCKET_SIZE]
+    )
+    most_downloaded = _annotate_rating(most_downloaded)
+    most_downloaded_list = list(most_downloaded)
+    _apply_can_buy_flag(most_downloaded_list)
+
+    all_cards = featured + new_items + trending + misc + recently_purchased_list + most_downloaded_list
     _apply_can_buy_flag(all_cards)
     _apply_trending_badge_flag(all_cards, computed_ids=computed_ids)
 
@@ -204,6 +242,8 @@ def home(request):
             "trending": trending,
             "new_items": new_items,
             "misc": misc,
+            "recently_purchased": recently_purchased_list,
+            "most_downloaded": most_downloaded_list,
         },
     )
 

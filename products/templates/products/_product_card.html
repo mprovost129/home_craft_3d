@@ -29,13 +29,19 @@
         {% if p.trending_badge %}
           <span class="badge" style="background:#f59e0b; color:#111827;">🔥 Trending</span>
         {% endif %}
-        <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+        {% if p.kind == "FILE" %}
+          <span class="badge text-bg-success">
+            <i class="bi bi-lightning-fill me-1"></i>Instant
+          </span>
+        {% else %}
+          <span class="badge text-bg-secondary">{{ p.get_kind_display }}</span>
+        {% endif %}
       </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center mt-1">
       <div class="text-secondary small">
-        by <strong>{{ p.seller_public_name }}</strong>
+        by <strong><a class="text-decoration-none" href="{% url 'products:seller_shop' p.seller_id %}">{{ p.seller_public_name }}</a></strong>
         {% if show_category|default:True %}
           · {{ p.category.name }}
         {% endif %}
@@ -61,7 +67,22 @@
     </div>
 
     {% if p.kind == "FILE" and p.file_types_display %}
-      <div class="small text-secondary mt-1">Files: {{ p.file_types_display }}</div>
+      <div class="mt-2 d-flex flex-wrap gap-1">
+        {% for file_type in p.file_types %}
+          <span class="badge text-bg-light text-dark">{{ file_type }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if p.complexity_level or p.print_time_hours %}
+      <div class="small text-secondary mt-2">
+        {% if p.complexity_level %}
+          <span class="badge text-bg-secondary">{{ p.get_complexity_level_display }}</span>
+        {% endif %}
+        {% if p.print_time_hours %}
+          <span class="badge text-bg-secondary">{{ p.print_time_hours }}h print</span>
+        {% endif %}
+      </div>
     {% endif %}
 
     {% if p.short_description %}

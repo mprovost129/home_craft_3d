@@ -11,6 +11,9 @@ urlpatterns = [
     path("models/", views.models_list, name="models"),
     path("files/", views.files_list, name="files"),
 
+    # Seller shop page
+    path("shop/<int:seller_id>/", views.seller_shop, name="seller_shop"),
+
     # Engagement redirect (logs CLICK then redirects to detail)
     path("go/<int:pk>/<slug:slug>/", views.product_go, name="go"),
 

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ seller.username }}'s Shop · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ seller.username }}'s Shop · Home Craft 3D{% endblock %}
+{% block meta_description %}Explore {{ seller.username }}'s 3D models and files on Home Craft 3D.{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+    <!-- Seller Info -->
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <div class="h5 mb-2">{{ seller.username }}</div>
+          
+          {% if seller_review_count > 0 %}
+            <div class="mb-3">
+              <div class="h6 mb-1">★ {{ seller_avg_rating|floatformat:1 }}/5</div>
+              <div class="text-secondary small">{{ seller_review_count }} seller rating{{ seller_review_count|pluralize }}</div>
+            </div>
+          {% else %}
+            <div class="text-secondary small mb-3">No ratings yet</div>
+          {% endif %}
+
+          <div class="text-secondary small mb-3">
+            {{ products|length }} product{{ products|pluralize }}
+          </div>
+
+          {% if recent_reviews %}
+            <hr>
+            <div class="text-start">
+              <div class="small fw-semibold mb-2">Recent Feedback</div>
+              {% for review in recent_reviews %}
+                <div class="border-top pt-2 mb-2">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div class="small fw-semibold">{{ review.buyer.username }}</div>
+                    <span class="badge text-bg-dark">{{ review.rating }}/5</span>
+                  </div>
+                  {% if review.title %}
+                    <div class="small fw-semibold">{{ review.title }}</div>
+                  {% endif %}
+                  {% if review.body %}
+                    <div class="small text-secondary">{{ review.body|truncatewords:20 }}</div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Grid -->
+    <div class="col-12 col-lg-8">
+      <h2 class="h4 mb-3">Products</h2>
+
+      {% if products %}
+        <div class="row g-3">
+          {% for p in products %}
+            <div class="col-12 col-sm-6">
+              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-info">This seller hasn't listed any products yet.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

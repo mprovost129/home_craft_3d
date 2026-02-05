@@ -138,5 +138,37 @@
       </div>
     </div>
   {% endif %}
+
+  {% if order.status == order.Status.PAID and request.user.is_authenticated %}
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-white">
+        <div class="fw-semibold">Rate Sellers</div>
+      </div>
+      <div class="card-body">
+        <div class="text-muted small mb-3">Share your feedback about the sellers you purchased from.</div>
+        {% regroup order.items.all by seller as sellers_list %}
+        {% for seller_group in sellers_list %}
+          <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+            <div>
+              <div class="fw-semibold">{{ seller_group.grouper.username }}</div>
+              <div class="small text-muted">{{ seller_group.list|length }} item{{ seller_group.list|pluralize }}</div>
+            </div>
+            <a
+              class="btn btn-sm btn-outline-primary"
+              href="{% url 'reviews:seller_review_new' order.id seller_group.grouper.id %}"
+            >
+              {% with existing=order.seller_reviews.select_related seller_group.grouper.id %}
+              {% if order.seller_reviews|length > 0 %}
+                View rating
+              {% else %}
+                Rate seller
+              {% endif %}
+              {% endwith %}
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

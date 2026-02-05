@@ -47,7 +47,7 @@
       {% endif %}
     </div>
 
-    <form class="d-flex gap-2" method="get">
+    <form class="d-flex flex-wrap gap-2" method="get">
       <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
 
       {% if kind == "MODEL" or kind == "FILE" %}
@@ -68,6 +68,16 @@
           {% endfor %}
         </select>
       {% endif %}
+
+      <input type="number" class="form-control" name="price_min" value="{{ price_min }}" placeholder="Min price" style="max-width:140px;">
+      <input type="number" class="form-control" name="price_max" value="{{ price_max }}" placeholder="Max price" style="max-width:140px;">
+
+      <select class="form-select" name="complexity" style="min-width:200px;">
+        <option value="">All levels</option>
+        {% for value, label in complexity_options %}
+          <option value="{{ value }}" {% if complexity == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
 
       <select class="form-select" name="sort" style="min-width:220px;">
         <option value="new" {% if sort == "new" %}selected{% endif %}>Sort: New</option>

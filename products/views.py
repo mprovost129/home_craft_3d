@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db.models import Avg, Count, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
@@ -185,6 +186,25 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
             | Q(digital_assets__file__iendswith=f".{file_type}")
         ).distinct()
 
+    # Price filter
+    price_min = (request.GET.get("price_min") or "").strip()
+    price_max = (request.GET.get("price_max") or "").strip()
+    if price_min:
+        try:
+            qs = qs.filter(price__gte=Decimal(price_min))
+        except Exception:
+            pass
+    if price_max:
+        try:
+            qs = qs.filter(price__lte=Decimal(price_max))
+        except Exception:
+            pass
+
+    # Complexity filter
+    complexity = (request.GET.get("complexity") or "").strip()
+    if complexity in dict(Product.ComplexityLevel.choices):
+        qs = qs.filter(complexity_level=complexity)
+
     sort = (request.GET.get("sort") or "new").strip().lower()
     qs = _annotate_rating(qs)
 
@@ -236,6 +256,10 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
             "sort": sort,
             "file_type": file_type,
             "file_type_options": _file_type_options(),
+            "price_min": price_min,
+            "price_max": price_max,
+            "complexity": complexity,
+            "complexity_options": Product.ComplexityLevel.choices,
             "min_reviews_top_rated": MIN_REVIEWS_TOP_RATED,
             "trending_fallback": trending_fallback,
             "top_fallback": top_fallback,
@@ -370,5 +394,40 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
             # Q&A
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
+        },
+    )
+
+
+def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
+    """Public seller profile/shop page."""
+    from django.contrib.auth import get_user_model
+    from reviews.models import SellerReview
+    
+    User = get_user_model()
+    seller = get_object_or_404(User, pk=seller_id)
+    
+    # Get seller's products
+    products = _base_qs().filter(seller=seller)
+    products = _annotate_rating(products).order_by("-created_at")
+    products_list = list(products)
+    
+    for p in products_list:
+        p.can_buy = _seller_can_sell(p)
+    
+    # Get seller's reviews
+    seller_reviews = SellerReview.objects.filter(seller=seller).select_related("buyer").order_by("-created_at")
+    seller_review_summary = seller_reviews.aggregate(avg=Avg("rating"), count=Count("id"))
+    seller_avg_rating = seller_review_summary.get("avg") or 0
+    seller_review_count = seller_review_summary.get("count") or 0
+    
+    return render(
+        request,
+        "products/seller_shop.html",
+        {
+            "seller": seller,
+            "products": products_list,
+            "seller_avg_rating": seller_avg_rating,
+            "seller_review_count": seller_review_count,
+            "recent_reviews": list(seller_reviews[:5]),
         },
     )
