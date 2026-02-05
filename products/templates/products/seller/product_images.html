@@ -39,40 +39,8 @@
       <div class="card shadow-sm">
         <div class="card-body">
           <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="fw-semibold">Bulk upload</div>
-            <div class="text-secondary small">Fastest way to add images</div>
-          </div>
-
-          <form method="post" enctype="multipart/form-data" novalidate>
-            {% csrf_token %}
-
-            {% if bulk_form.non_field_errors %}
-              <div class="alert alert-danger mb-2">
-                {{ bulk_form.non_field_errors }}
-              </div>
-            {% endif %}
-
-            <div class="mb-2">
-              {{ bulk_form.images.label_tag }}
-              {{ bulk_form.images }}
-              {% if bulk_form.images.help_text %}
-                <div class="form-text">{{ bulk_form.images.help_text }}</div>
-              {% endif %}
-              {% for error in bulk_form.images.errors %}
-                <div class="text-danger small">{{ error }}</div>
-              {% endfor %}
-            </div>
-
-            <button class="btn btn-dark" type="submit" name="bulk_upload" value="1">
-              <i class="bi bi-upload me-1"></i>Upload selected images
-            </button>
-          </form>
-
-          <hr>
-
-          <div class="d-flex align-items-center justify-content-between mb-2">
-            <div class="fw-semibold">Single upload</div>
-            <div class="text-secondary small">Set Primary / Sort Order</div>
+            <div class="fw-semibold">Upload image</div>
+            <div class="text-secondary small">Add images one at a time</div>
           </div>
 
           <form method="post" enctype="multipart/form-data" novalidate>

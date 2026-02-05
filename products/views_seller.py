@@ -223,82 +223,30 @@ def seller_product_images(request, pk: int):
             return product.images.count()
 
     if request.method == "POST":
-        # Prefer explicit submit routing (template uses named submit buttons).
-        is_bulk = "bulk_upload" in request.POST
-        is_single = "single_upload" in request.POST
+        form = ProductImageUploadForm(request.POST, request.FILES)
 
-        # Backward-compatible fallback if template isn't updated:
-        # - bulk form posts files under "images"
-        # - single form posts file under "image"
-        if not (is_bulk or is_single):
-            if request.FILES.getlist("images"):
-                is_bulk = True
-            elif "image" in request.FILES:
-                is_single = True
+        if form.is_valid():
+            with transaction.atomic():
+                img: ProductImage = form.save(commit=False)
+                img.product = product
 
-        if is_bulk:
-            bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
-            form = ProductImageUploadForm()  # unbound for template
+                # Default sort_order if user left it blank
+                if img.sort_order is None:
+                    img.sort_order = _next_sort_order()
 
-            if bulk_form.is_valid():
-                files = bulk_form.cleaned_data["images"]  # list of files (can be 1+)
-                start_order = _next_sort_order()
+                img.full_clean()
+                img.save()
 
-                with transaction.atomic():
-                    created_ids: list[int] = []
-                    for idx, f in enumerate(files):
-                        img = ProductImage(
-                            product=product,
-                            image=f,
-                            sort_order=start_order + idx,
-                        )
-                        img.full_clean()
-                        img.save()
-                        created_ids.append(img.pk)
+                if img.is_primary:
+                    ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
 
-                    # Ensure exactly one primary exists if none yet
-                    if not product.images.filter(is_primary=True).exists():
-                        first_new = ProductImage.objects.filter(pk__in=created_ids).order_by("sort_order", "id").first()
-                        if first_new:
-                            first_new.is_primary = True
-                            first_new.save(update_fields=["is_primary"])
-
-                messages.success(request, f"Successfully uploaded {len(files)} image(s).")
-                return redirect("products:seller_images", pk=product.pk)
-
-        elif is_single:
-            form = ProductImageUploadForm(request.POST, request.FILES)
-            bulk_form = ProductImageBulkUploadForm()  # unbound for template
-
-            if form.is_valid():
-                with transaction.atomic():
-                    img: ProductImage = form.save(commit=False)
-                    img.product = product
-
-                    # Default sort_order if user left it blank
-                    if img.sort_order is None:
-                        img.sort_order = _next_sort_order()
-
-                    img.full_clean()
-                    img.save()
-
-                    if img.is_primary:
-                        ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
-
-                    # If no primary exists, make this one primary
-                    if not ProductImage.objects.filter(product=product, is_primary=True).exists():
-                        img.is_primary = True
-                        img.save(update_fields=["is_primary"])
+                # If no primary exists, make this one primary
+                if not ProductImage.objects.filter(product=product, is_primary=True).exists():
+                    img.is_primary = True
+                    img.save(update_fields=["is_primary"])
 
                 messages.success(request, "Image uploaded.")
                 return redirect("products:seller_images", pk=product.pk)
-
-        else:
-            # Neither form detected; show both with a clear error.
-            form = ProductImageUploadForm(request.POST, request.FILES)
-            bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
-            messages.error(request, "Please use either Bulk upload or Single upload and try again.")
-
     else:
         form = ProductImageUploadForm()
         bulk_form = ProductImageBulkUploadForm()
@@ -307,7 +255,7 @@ def seller_product_images(request, pk: int):
     return render(
         request,
         "products/seller/product_images.html",
-        {"product": product, "form": form, "bulk_form": bulk_form, "images": images},
+        {"product": product, "form": form, "images": images},
     )
 
 
