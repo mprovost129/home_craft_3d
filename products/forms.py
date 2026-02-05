@@ -8,7 +8,7 @@ from django import forms
 from django.conf import settings
 
 from catalog.models import Category
-from .models import Product, ProductImage, DigitalAsset
+from .models import Product, ProductImage, DigitalAsset, ProductPhysical
 
 
 def _get_setting_int(name: str, default: int) -> int:
@@ -305,3 +305,32 @@ class DigitalAssetUploadForm(forms.ModelForm):
             obj.full_clean()
             obj.save()
         return obj
+
+
+class ProductPhysicalForm(forms.ModelForm):
+    """Form for editing ProductPhysical specifications."""
+    
+    class Meta:
+        model = ProductPhysical
+        fields = [
+            "material",
+            "color",
+            "num_colors",
+            "width_mm",
+            "height_mm",
+            "depth_mm",
+            "weight_grams",
+            "support_required",
+            "specifications",
+        ]
+        widgets = {
+            "material": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., Plastic, Resin, Metal"}),
+            "color": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., White, Multi-color"}),
+            "num_colors": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Number of colors"}),
+            "width_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Width in mm"}),
+            "height_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Height in mm"}),
+            "depth_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Depth in mm"}),
+            "weight_grams": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Weight in grams"}),
+            "support_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "specifications": forms.Textarea(attrs={"class": "form-control", "rows": 4, "placeholder": "Additional specs, assembly instructions, etc."}),
+        }

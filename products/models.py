@@ -319,9 +319,13 @@ class ProductPhysical(models.Model):
 
     material = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=120, blank=True)
+    num_colors = models.PositiveIntegerField(null=True, blank=True, help_text="Number of colors in this print")
     width_mm = models.PositiveIntegerField(null=True, blank=True)
     height_mm = models.PositiveIntegerField(null=True, blank=True)
     depth_mm = models.PositiveIntegerField(null=True, blank=True)
+    weight_grams = models.PositiveIntegerField(null=True, blank=True, help_text="Weight in grams")
+    support_required = models.BooleanField(default=False, help_text="Does this model require supports for printing?")
+    specifications = models.TextField(blank=True, help_text="Additional specifications (e.g., scale info, assembly instructions, etc.)")
 
     def __str__(self) -> str:
         return f"Physical<{self.product_id}>"

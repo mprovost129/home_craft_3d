@@ -15,7 +15,7 @@ from django.utils.text import slugify
 
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
-from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm
+from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm, ProductPhysicalForm
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
 
@@ -205,6 +205,38 @@ def seller_product_edit(request, pk: int):
         request,
         "products/seller/product_form.html",
         {"form": form, "mode": "edit", "product": product},
+    )
+
+
+@seller_required
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
+def seller_product_specs(request, pk: int):
+    """Edit physical product specifications (for MODEL kind only)."""
+    product = _get_owned_product_or_404(request, pk)
+    
+    if product.kind != Product.Kind.MODEL:
+        messages.warning(request, "Specifications are only available for 3D Models.")
+        return redirect("products:seller_list")
+    
+    # Get or create ProductPhysical
+    physical, created = product.physical_spec if hasattr(product, 'physical_spec') else None, False
+    if not physical:
+        from .models import ProductPhysical
+        physical, created = ProductPhysical.objects.get_or_create(product=product)
+    
+    if request.method == "POST":
+        form = ProductPhysicalForm(request.POST, instance=physical)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Specifications updated.")
+            return redirect("products:seller_list")
+    else:
+        form = ProductPhysicalForm(instance=physical)
+    
+    return render(
+        request,
+        "products/seller/product_specs_form.html",
+        {"form": form, "product": product},
     )
 
 
