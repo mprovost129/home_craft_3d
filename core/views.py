@@ -31,10 +31,25 @@ def _base_home_qs():
 
 
 def _annotate_rating(qs):
-    return qs.annotate(
+    qs = qs.annotate(
         avg_rating=Coalesce(Avg("reviews__rating"), Value(0.0), output_field=FloatField()),
         review_count=Coalesce(Count("reviews", distinct=True), Value(0)),
     )
+
+    # Seller reputation (purchased-only seller reviews)
+    qs = qs.annotate(
+        seller_avg_rating=Coalesce(
+            Avg("seller__seller_reviews_received__rating"),
+            Value(0.0),
+            output_field=FloatField(),
+        ),
+        seller_review_count=Coalesce(
+            Count("seller__seller_reviews_received", distinct=True),
+            Value(0),
+        ),
+    )
+
+    return qs
 
 
 def _annotate_trending(qs, *, since_days: int = TRENDING_WINDOW_DAYS):
