@@ -1,156 +1,173 @@
 {% extends "base.html" %}
-{% block title %}Home · Home Craft 3D{% endblock %}
+{% block title %}Home Craft 3D · 3D Prints & Digital Files Marketplace{% endblock %}
 {% block meta_title %}Home Craft 3D · 3D Prints & Digital Files{% endblock %}
-{% block meta_description %}Buy and sell high-quality 3D printed models and 3D print files on Home Craft 3D.{% endblock %}
+{% block meta_description %}Discover high-quality 3D printed models and digital files. Buy from makers worldwide or sell your designs. Trending products, new releases, and more.{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <div class="card mb-3">
-    <div class="card-body">
-      <h1 class="h4 mb-1">Home Craft 3D</h1>
-      <p class="text-secondary mb-3">
-        Buy and sell high-quality 3D printed models and 3D print files.
-      </p>
-
-      <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-dark" href="{% url 'products:models' %}">Browse Models</a>
-        <a class="btn btn-dark" href="{% url 'products:files' %}">Browse Files</a>
-        <a class="btn btn-outline-dark" href="{% url 'catalog:category_list' %}">Browse Categories</a>
-
-        {% if not user.is_authenticated %}
-          <a class="btn btn-outline-dark" href="{% url 'accounts:register' %}">Register</a>
-          <a class="btn btn-outline-dark" href="{% url 'accounts:login' %}">Login</a>
-        {% endif %}
+<!-- Hero Section -->
+<div class="bg-light border-bottom mb-5">
+  <div class="container py-5">
+    <div class="row align-items-center g-4">
+      <div class="col-lg-6">
+        <h1 class="display-5 fw-bold mb-3">Welcome to Home Craft 3D</h1>
+        <p class="lead text-secondary mb-4">
+          Discover thousands of 3D-printable models and digital files from makers worldwide. Find the perfect designs for your projects or share your creations with our community.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-dark btn-lg" href="{% url 'products:list' %}">
+            <i class="bi bi-search me-2"></i>Browse All Products
+          </a>
+          <a class="btn btn-outline-dark btn-lg" href="{% url 'catalog:category_list' %}">
+            <i class="bi bi-grid me-2"></i>Explore Categories
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-6 text-center">
+        <div class="bg-secondary-subtle p-5 rounded-3">
+          <i class="bi bi-box text-secondary" style="font-size: 80px;"></i>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
+<!-- Category Quick Links -->
+<div class="container mb-5">
   <div class="row g-3">
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Featured</div>
-          <div class="text-secondary small">Top picks</div>
-        </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in featured %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">No featured products yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+    <div class="col-md-4">
+      <div class="card h-100 text-center p-4 border-0 bg-light">
+        <h5 class="card-title mb-2">3D Models</h5>
+        <p class="text-secondary small mb-3">Ready-to-print designs</p>
+        <a href="{% url 'products:models' %}" class="btn btn-sm btn-outline-dark">Browse Models</a>
       </div>
     </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">New</div>
-          <div class="text-secondary small">Just added</div>
-        </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in new_items %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">No products yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+    <div class="col-md-4">
+      <div class="card h-100 text-center p-4 border-0 bg-light">
+        <h5 class="card-title mb-2">Digital Files</h5>
+        <p class="text-secondary small mb-3">Instant downloads</p>
+        <a href="{% url 'products:files' %}" class="btn btn-sm btn-outline-dark">Browse Files</a>
       </div>
     </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Trending</div>
-          <div class="text-secondary small">Popular now</div>
-        </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in trending %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">No trending products yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+    <div class="col-md-4">
+      <div class="card h-100 text-center p-4 border-0 bg-light">
+        <h5 class="card-title mb-2">Top Sellers</h5>
+        <p class="text-secondary small mb-3">Trusted creators</p>
+        <a href="{% url 'products:list' %}" class="btn btn-sm btn-outline-dark">View Sellers</a>
       </div>
     </div>
+  </div>
+</div>
 
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Misc</div>
-          <div class="text-secondary small">More to explore</div>
+<div class="container">
+  <!-- Trending Section -->
+  {% if trending %}
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="h3 mb-1">🔥 Trending Now</h2>
+          <p class="text-secondary">Hot products everyone's talking about</p>
         </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in misc %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">Nothing else yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+        <a href="{% url 'products:list' %}?sort=trending" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      <div class="row g-3">
+        {% for p in trending %}
+          <div class="col-12 col-sm-6 col-lg-3">
+            {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="200px" %}
+          </div>
+        {% endfor %}
       </div>
     </div>
+  {% endif %}
 
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Recently Purchased</div>
-          <div class="text-secondary small">Customer favorites</div>
+  <!-- New Products Section -->
+  {% if new_items %}
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="h3 mb-1">✨ Just Added</h2>
+          <p class="text-secondary">Latest designs uploaded</p>
         </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in recently_purchased %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">No recent purchases yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+        <a href="{% url 'products:list' %}?sort=new" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      <div class="row g-3">
+        {% for p in new_items %}
+          <div class="col-12 col-sm-6 col-lg-3">
+            {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="200px" %}
+          </div>
+        {% endfor %}
       </div>
     </div>
+  {% endif %}
 
-    <div class="col-12 col-lg-6">
-      <div class="card h-100">
-        <div class="card-body d-flex justify-content-between align-items-center">
-          <div class="fw-semibold">Most Downloaded</div>
-          <div class="text-secondary small">Top digital files</div>
+  <!-- Recently Purchased Section -->
+  {% if recently_purchased_list %}
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="h3 mb-1">⭐ Customer Favorites</h2>
+          <p class="text-secondary">Popular purchases in the last 30 days</p>
         </div>
-
-        <div class="row g-3 px-3 pb-3">
-          {% for p in most_downloaded %}
-            <div class="col-12 col-sm-6 col-xl-3">
-              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="160px" %}
-            </div>
-          {% empty %}
-            <div class="col-12">
-              <div class="text-secondary small">No downloads yet.</div>
-            </div>
-          {% endfor %}
-        </div>
+        <a href="{% url 'products:list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      <div class="row g-3">
+        {% for p in recently_purchased_list %}
+          <div class="col-12 col-sm-6 col-lg-3">
+            {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="200px" %}
+          </div>
+        {% endfor %}
       </div>
     </div>
+  {% endif %}
+
+  <!-- Most Downloaded Section -->
+  {% if most_downloaded_list %}
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="h3 mb-1">📥 Most Downloaded</h2>
+          <p class="text-secondary">Top digital files everyone's getting</p>
+        </div>
+        <a href="{% url 'products:files' %}?sort=trending" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      <div class="row g-3">
+        {% for p in most_downloaded_list %}
+          <div class="col-12 col-sm-6 col-lg-3">
+            {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="200px" %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- Featured Products -->
+  {% if featured %}
+    <div class="mb-5">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2 class="h3 mb-1">🎯 Featured Picks</h2>
+          <p class="text-secondary">Curated selections from our store</p>
+        </div>
+        <a href="{% url 'products:list' %}" class="btn btn-sm btn-outline-secondary">View all</a>
+      </div>
+      <div class="row g-3">
+        {% for p in featured %}
+          <div class="col-12 col-sm-6 col-lg-3">
+            {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=False image_height="200px" %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- CTA Section -->
+  <div class="bg-dark text-white rounded-3 p-5 mb-5 text-center">
+    <h2 class="mb-3">Ready to start creating or selling?</h2>
+    <p class="lead text-light mb-4">Join our community of makers and creators. Upload your designs, reach customers worldwide, and grow your business.</p>
+    {% if not user.is_authenticated %}
+      <a href="{% url 'accounts:register' %}" class="btn btn-light btn-lg">Get Started Today</a>
+    {% else %}
+      <a href="{% url 'dashboards:home' %}" class="btn btn-light btn-lg">Go to Dashboard</a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
