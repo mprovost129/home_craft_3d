@@ -99,7 +99,7 @@
   <div class="row g-3">
     {% for p in products %}
       <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
-        {% include "products/_product_card.html" with p=p show_add_to_cart=False show_category=True image_height="180px" %}
+        {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=True image_height="180px" %}
       </div>
     {% empty %}
       <div class="col-12">
