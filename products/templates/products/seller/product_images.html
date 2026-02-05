@@ -22,48 +22,54 @@
   <div class="card mb-4 border-0 shadow-sm">
     <div class="card-header bg-light border-bottom">
       <h2 class="h5 mb-0">
-        <i class="bi bi-image me-2"></i>Upload New Image
+        <i class="bi bi-image me-2"></i>Upload Images
       </h2>
     </div>
     <div class="card-body">
-      <form method="post" enctype="multipart/form-data">
+      <form method="post" enctype="multipart/form-data" id="bulkUploadForm">
         {% csrf_token %}
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label fw-semibold">Image File <span class="text-danger">*</span></label>
-            {{ form.image }}
-            {% if form.image.errors %}<div class="text-danger small mt-1">{{ form.image.errors }}</div>{% endif %}
-            <div class="form-text">JPG, PNG, or WebP (up to 10MB recommended)</div>
-          </div>
-
-          <div class="col-12">
-            <label class="form-label fw-semibold">Alt Text (Accessibility)</label>
-            {{ form.alt_text }}
-            {% if form.alt_text.errors %}<div class="text-danger small mt-1">{{ form.alt_text.errors }}</div>{% endif %}
-            <div class="form-text">Describe what the image shows. Helps with SEO and accessibility.</div>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label fw-semibold">Display Order</label>
-            {{ form.sort_order }}
-            {% if form.sort_order.errors %}<div class="text-danger small mt-1">{{ form.sort_order.errors }}</div>{% endif %}
-            <div class="form-text">0 = first image, 1 = second, etc.</div>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <div class="form-check mt-4">
-              {{ form.is_primary }}
-              <label class="form-check-label fw-semibold" for="{{ form.is_primary.id_for_label }}">
-                <i class="bi bi-star-fill text-warning me-1"></i>Set as primary image
-              </label>
+            <!-- Drag and Drop Area -->
+            <div id="dragDropArea" class="border-2 border-dashed rounded p-5 text-center" style="cursor: pointer; transition: all 0.3s;">
+              <div class="mb-3">
+                <i class="bi bi-cloud-arrow-up text-secondary" style="font-size: 2.5rem;"></i>
+              </div>
+              <h5 class="mb-1">Drag images here or click to browse</h5>
+              <p class="text-secondary small mb-0">
+                Supports JPG, PNG, WebP (up to {{ max_image_mb }}MB each)
+              </p>
+              <p class="text-secondary small mb-0">
+                <strong>Upload multiple images at once!</strong>
+              </p>
+              <div class="mt-3">
+                {{ bulk_form.images }}
+              </div>
             </div>
-            <div class="form-text">This will be the thumbnail shown in listings.</div>
+            {% if bulk_form.images.errors %}<div class="text-danger small mt-2">{{ bulk_form.images.errors }}</div>{% endif %}
+          </div>
+
+          <!-- Progress Bar (hidden by default) -->
+          <div class="col-12" id="progressContainer" style="display: none;">
+            <div class="progress">
+              <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+            <div class="text-secondary small mt-2" id="progressText">Uploading...</div>
+          </div>
+
+          <!-- File Preview -->
+          <div class="col-12" id="filePreviewContainer" style="display: none;">
+            <div class="text-secondary small mb-2">Selected files:</div>
+            <div id="filePreviewList" class="d-flex flex-wrap gap-2"></div>
           </div>
         </div>
 
         <div class="mt-4 pt-3 border-top">
-          <button class="btn btn-dark btn-lg" type="submit">
-            <i class="bi bi-cloud-upload me-2"></i>Upload Image
+          <button class="btn btn-dark btn-lg" type="submit" id="submitBtn">
+            <i class="bi bi-cloud-upload me-2"></i>Upload Images
+          </button>
+          <button class="btn btn-outline-dark btn-lg" type="reset" id="resetBtn">
+            Clear
           </button>
         </div>
       </form>
@@ -74,7 +80,7 @@
   <div class="card border-0 shadow-sm">
     <div class="card-header bg-light border-bottom">
       <h2 class="h5 mb-0">
-        <i class="bi bi-images me-2"></i>Current Images
+        <i class="bi bi-images me-2"></i>Current Images ({{ images.count }})
       </h2>
     </div>
     <div class="card-body">
@@ -136,4 +142,101 @@
     </div>
   {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const dragDropArea = document.getElementById('dragDropArea');
+  const fileInput = document.querySelector('#id_images');
+  const filePreviewContainer = document.getElementById('filePreviewContainer');
+  const filePreviewList = document.getElementById('filePreviewList');
+  const bulkUploadForm = document.getElementById('bulkUploadForm');
+
+  // Prevent default drag behaviors
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dragDropArea.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  // Highlight drop area when item is dragged over it
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dragDropArea.addEventListener(eventName, highlight, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dragDropArea.addEventListener(eventName, unhighlight, false);
+  });
+
+  function highlight(e) {
+    dragDropArea.style.borderColor = '#0d6efd';
+    dragDropArea.style.backgroundColor = '#f0f7ff';
+  }
+
+  function unhighlight(e) {
+    dragDropArea.style.borderColor = '#dee2e6';
+    dragDropArea.style.backgroundColor = 'transparent';
+  }
+
+  // Handle dropped files
+  dragDropArea.addEventListener('drop', handleDrop, false);
+  dragDropArea.addEventListener('click', () => fileInput.click());
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    fileInput.files = files;
+    updateFilePreview();
+  }
+
+  // Handle file input change
+  fileInput.addEventListener('change', updateFilePreview);
+
+  function updateFilePreview() {
+    const files = fileInput.files;
+    
+    if (files.length === 0) {
+      filePreviewContainer.style.display = 'none';
+      return;
+    }
+
+    filePreviewList.innerHTML = '';
+    const maxMB = 10;
+
+    Array.from(files).forEach((file, index) => {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      const sizeOk = sizeMB <= maxMB;
+      
+      const preview = document.createElement('div');
+      preview.className = `badge ${sizeOk ? 'text-bg-primary' : 'text-bg-danger'}`;
+      preview.style.padding = '8px 12px';
+      preview.style.fontSize = '0.9rem';
+      preview.innerHTML = `
+        ${file.name} (${sizeMB}MB)
+        ${sizeOk ? '<i class="bi bi-check-circle ms-2"></i>' : '<i class="bi bi-exclamation-circle ms-2"></i>'}
+      `;
+      filePreviewList.appendChild(preview);
+    });
+
+    filePreviewContainer.style.display = 'block';
+  }
+
+  // Form submission feedback
+  bulkUploadForm.addEventListener('submit', function(e) {
+    if (fileInput.files.length > 0) {
+      document.getElementById('submitBtn').disabled = true;
+      document.getElementById('submitBtn').innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+    }
+  });
+
+  // Reset button
+  document.getElementById('resetBtn').addEventListener('click', function() {
+    filePreviewContainer.style.display = 'none';
+    filePreviewList.innerHTML = '';
+  });
+});
+</script>
 {% endblock %}

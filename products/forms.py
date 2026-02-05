@@ -118,6 +118,29 @@ class ProductImageUploadForm(forms.ModelForm):
         return img
 
 
+class ProductImageBulkUploadForm(forms.Form):
+    """Handle multiple image uploads at once."""
+    images = forms.FileField(
+        widget=forms.ClearableFileInput(attrs={
+            "multiple": True,
+            "accept": "image/*",
+            "class": "form-control",
+        }),
+        required=True,
+        help_text="Select one or more images. Supported: JPG, PNG, WebP (up to 10MB each)"
+    )
+    
+    def clean_images(self):
+        files = self.files.getlist('images')
+        if not files:
+            raise forms.ValidationError("Please select at least one image.")
+        
+        for f in files:
+            _validate_upload(f, allowed_exts=ALLOWED_IMAGE_EXTS, max_mb=MAX_IMAGE_MB)
+        
+        return files
+
+
 class DigitalAssetUploadForm(forms.ModelForm):
     class Meta:
         model = DigitalAsset

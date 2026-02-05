@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
 from payments.decorators import stripe_ready_required
-from .forms import ProductForm, ProductImageUploadForm, DigitalAssetUploadForm
+from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
 
@@ -140,26 +140,48 @@ def seller_product_images(request, pk: int):
     product = _get_owned_product_or_404(request, pk)
 
     if request.method == "POST":
-        form = ProductImageUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            img: ProductImage = form.save(commit=False)
-            img.product = product
-            img.full_clean()
-            img.save()
+        # Check if this is bulk upload or single upload
+        if "images" in request.FILES and len(request.FILES.getlist("images")) > 1:
+            # Bulk upload mode
+            bulk_form = ProductImageBulkUploadForm(request.POST, request.FILES)
+            if bulk_form.is_valid():
+                files = bulk_form.cleaned_data.get("images")
+                sort_order = product.images.count()
+                
+                for idx, f in enumerate(files):
+                    img = ProductImage(
+                        product=product,
+                        image=f,
+                        sort_order=sort_order + idx,
+                    )
+                    img.full_clean()
+                    img.save()
+                
+                messages.success(request, f"Successfully uploaded {len(files)} image(s).")
+                return redirect("products:seller_images", pk=product.pk)
+        else:
+            # Single upload mode
+            form = ProductImageUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                img: ProductImage = form.save(commit=False)
+                img.product = product
+                img.full_clean()
+                img.save()
 
-            if img.is_primary:
-                ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+                if img.is_primary:
+                    ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
 
-            messages.success(request, "Image uploaded.")
-            return redirect("products:seller_images", pk=product.pk)
+                messages.success(request, "Image uploaded.")
+                return redirect("products:seller_images", pk=product.pk)
     else:
         form = ProductImageUploadForm()
+        bulk_form = ProductImageBulkUploadForm()
 
     images = product.images.all().order_by("sort_order", "id")
     return render(
         request,
         "products/seller/product_images.html",
-        {"product": product, "form": form, "images": images},
+        {"product": product, "form": form, "bulk_form": bulk_form, "images": images},
     )
 
 
@@ -242,4 +264,64 @@ def seller_product_toggle_active(request, pk: int):
         product.is_active = not product.is_active
         product.save(update_fields=["is_active"])
         messages.success(request, f"Listing is now {'active' if product.is_active else 'inactive'}.")
+    return redirect("products:seller_list")
+
+
+@seller_required
+@stripe_ready_required
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
+def seller_product_duplicate(request, pk: int):
+    """Create a copy of a product with the same details but as a new listing."""
+    original = _get_owned_product_or_404(request, pk)
+    
+    if request.method == "POST":
+        # Create new product with copied fields
+        new_product = Product(
+            seller=request.user,
+            kind=original.kind,
+            title=f"{original.title} (Copy)",
+            slug=f"{original.slug}-copy",
+            short_description=original.short_description,
+            description=original.description,
+            category=original.category,
+            price=original.price,
+            is_free=original.is_free,
+            is_active=False,  # Start inactive so seller can review
+            complexity_level=original.complexity_level,
+            print_time_hours=original.print_time_hours,
+        )
+        
+        # Ensure slug is unique
+        counter = 1
+        while Product.objects.filter(seller=request.user, slug=new_product.slug).exists():
+            new_product.slug = f"{original.slug}-copy-{counter}"
+            counter += 1
+        
+        new_product.full_clean()
+        new_product.save()
+        
+        # Copy images
+        for img in original.images.all():
+            ProductImage.objects.create(
+                product=new_product,
+                image=img.image,
+                alt_text=img.alt_text,
+                is_primary=img.is_primary,
+                sort_order=img.sort_order,
+            )
+        
+        # Copy digital assets if applicable
+        if original.kind == Product.Kind.FILE:
+            for asset in original.digital_assets.all():
+                DigitalAsset.objects.create(
+                    product=new_product,
+                    file=asset.file,
+                    original_filename=asset.original_filename,
+                    file_type=asset.file_type,
+                    zip_contents=asset.zip_contents,
+                )
+        
+        messages.success(request, f"Product duplicated! You can now edit the copy.")
+        return redirect("products:seller_edit", pk=new_product.pk)
+    
     return redirect("products:seller_list")
