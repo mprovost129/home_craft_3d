@@ -53,11 +53,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Add CDN cache headers for static images/assets.
 - Consider server‑side caching for home page sections.
 
-## Accessibility
-- Ensure all icon‑only buttons have aria‑labels.
-- Maintain color contrast for badges and small text.
-- Add focus outlines for interactive elements.
-
 ---
 ## Priority (Next 2–4 weeks)
 1) Home hero CTA clarity + Top Sellers real cards

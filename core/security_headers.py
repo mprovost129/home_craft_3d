@@ -69,6 +69,10 @@ class SecurityHeadersMiddleware:
         # Permissions policy
         resp["Permissions-Policy"] = self.permissions_policy
 
+        # Cache-Control for static and media files
+        if request.path.startswith(settings.STATIC_URL) or request.path.startswith(settings.MEDIA_URL):
+            resp["Cache-Control"] = "public, max-age=31536000, immutable"
+
         # Only set HSTS when HTTPS is truly enforced.
         hsts_seconds = int(getattr(settings, "SECURE_HSTS_SECONDS", 0) or 0)
         if hsts_seconds > 0:

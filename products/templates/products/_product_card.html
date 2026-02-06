@@ -7,12 +7,18 @@
 
 <div class="card h-100">
   {% if p.primary_image %}
-    <img
-      src="{{ p.primary_image.image.url }}"
-      class="card-img-top"
-      alt="{{ p.primary_image.alt_text|default:p.title }}"
-      style="height:{{ image_height|default:'180px' }}; object-fit:cover;"
-    >
+      <picture>
+        {% if p.primary_image.image.url|lower|endswith:'.jpg' or p.primary_image.image.url|lower|endswith:'.jpeg' or p.primary_image.image.url|lower|endswith:'.png' %}
+          <source srcset="{{ p.primary_image.image.url|replace:'.jpg','.webp'|replace:'.jpeg','.webp'|replace:'.png','.webp' }}" type="image/webp">
+        {% endif %}
+        <img
+          src="{{ p.primary_image.image.url }}"
+          class="card-img-top"
+          alt="{{ p.primary_image.alt_text|default:p.title }}"
+          style="height:{{ image_height|default:'180px' }}; object-fit:cover;"
+          loading="lazy"
+        >
+      </picture>
   {% else %}
     <div class="bg-light d-flex align-items-center justify-content-center" style="height:{{ image_height|default:'180px' }};">
       <span class="text-secondary small">No image</span>

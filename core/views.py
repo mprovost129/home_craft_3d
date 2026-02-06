@@ -160,6 +160,9 @@ def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int
         p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
 
 
+from django.views.decorators.cache import cache_page
+
+@cache_page(60 * 15)  # Cache for 15 minutes
 def home(request):
     qs = _base_home_qs()
     qs = _annotate_rating(qs)
