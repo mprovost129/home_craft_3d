@@ -363,8 +363,18 @@ def admin_dashboard(request):
                         "visitors": _safe_int(row.get("visitors")),
                     }
                 )
-        except Exception:
-            plausible_api_error = "Plausible API request failed. Check your filters or date range."
+        except Exception as e:
+            plausible_api_error = "Plausible API request failed."
+            resp = getattr(e, "response", None)
+            if resp is not None:
+                try:
+                    detail = (resp.text or "").strip()
+                    if detail:
+                        plausible_api_error = f"Plausible API request failed ({resp.status_code}). {detail[:200]}"
+                    else:
+                        plausible_api_error = f"Plausible API request failed ({resp.status_code})."
+                except Exception:
+                    plausible_api_error = "Plausible API request failed."
             plausible_summary_display = {}
             plausible_top_pages = []
 
