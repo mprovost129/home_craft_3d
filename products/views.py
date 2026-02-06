@@ -406,6 +406,25 @@ def _render_product_detail(
 
     _apply_trending_badge_flag(more_like_this_list, computed_ids=set())
 
+    related_same_seller_qs = (
+        _base_qs()
+        .filter(seller_id=product.seller_id, kind=product.kind)
+        .exclude(pk=product.pk)
+    )
+    related_same_category_qs = (
+        _base_qs()
+        .filter(category=product.category, kind=product.kind)
+        .exclude(pk=product.pk)
+    )
+
+    related_same_seller = list(_annotate_rating(related_same_seller_qs).order_by("-created_at")[:8])
+    related_same_category = list(
+        _annotate_rating(related_same_category_qs).order_by("-created_at")[:8]
+    )
+
+    for p in related_same_seller + related_same_category:
+        p.can_buy = _seller_can_sell(p)
+
     # -------------------------
     # Q&A Tab (A)
     # -------------------------
@@ -433,6 +452,8 @@ def _render_product_detail(
             "seller_avg_rating": seller_avg_rating,
             "seller_review_count": seller_review_count,
             "can_buy": can_buy,
+            "related_same_seller": related_same_seller,
+            "related_same_category": related_same_category,
             # Q&A
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,

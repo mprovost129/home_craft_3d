@@ -64,6 +64,14 @@
       </li>
 
       <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row ms-3"
+           href="{% url 'products:seller_shop' user.id %}">
+          <i class="bi bi-shop"></i>
+          <span>My Storefront</span>
+        </a>
+      </li>
+
+      <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'orders:seller_orders_list' %}">
           <i class="bi bi-truck"></i>

@@ -22,7 +22,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Add sort rationale tooltips (Trending vs Top Rated).
 
 ## Product Detail Page
-- Add a clear “What you get” section (files list + license summary).
 - Include a sticky purchase panel for desktop.
 - Surface seller response time or fulfillment expectations.
 - Add a mini FAQ accordion under specs.
@@ -36,10 +35,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Add order preview with thumbnails.
 - Clarify that digital downloads are delivered instantly post‑payment.
 
-## Buyer Orders / Purchases
-## Buyer Orders / Purchases
-
-## Seller Dashboard / Listings
 ## Seller Dashboard / Listings
 - Add a progress checklist per listing (Images ✓, Specs ✓, Assets ✓, Active ✓).
 - Add bulk actions for activate/deactivate.

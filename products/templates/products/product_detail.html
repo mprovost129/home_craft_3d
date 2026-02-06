@@ -82,6 +82,11 @@
                   {{ product.category.name }}
                 {% endif %}
               </div>
+              <div class="mt-2">
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'products:seller_shop' product.seller_id %}">
+                  <i class="bi bi-shop me-1"></i>Visit seller store
+                </a>
+              </div>
 
               <div class="mt-1 small">
                 {% if review_count and review_count > 0 %}
@@ -367,5 +372,36 @@
       </div>
     </div>
   </div>
+
+  {% if related_same_seller or related_same_category %}
+    <div class="mt-4">
+      {% if related_same_seller %}
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h2 class="h5 mb-0">More from this seller</h2>
+          <a class="text-decoration-none" href="{% url 'products:seller_shop' product.seller_id %}">View seller shop</a>
+        </div>
+        <div class="row g-3">
+          {% for p in related_same_seller %}
+            <div class="col-12 col-sm-6 col-lg-3">
+              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=True image_height="160px" %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if related_same_category %}
+        <div class="d-flex align-items-center justify-content-between mb-2 mt-4">
+          <h2 class="h5 mb-0">More in this category</h2>
+        </div>
+        <div class="row g-3">
+          {% for p in related_same_category %}
+            <div class="col-12 col-sm-6 col-lg-3">
+              {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=True image_height="160px" %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 {% endblock %}
