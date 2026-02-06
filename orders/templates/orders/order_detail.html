@@ -131,6 +131,28 @@
     </div>
   </div>
 
+  {% if order.requires_shipping and shipping_timeline %}
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white">
+        <div class="fw-semibold">Order status</div>
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+          <span class="badge {% if shipping_timeline.paid %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+            <i class="bi bi-credit-card me-1"></i>Paid
+          </span>
+          <span class="badge {% if shipping_timeline.shipped %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+            <i class="bi bi-truck me-1"></i>Shipped
+          </span>
+          <span class="badge {% if shipping_timeline.delivered %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+            <i class="bi bi-house-check me-1"></i>Delivered
+          </span>
+        </div>
+        <div class="text-secondary small mt-2">Status updates apply to physical items in this order.</div>
+      </div>
+    </div>
+  {% endif %}
+
   {% if order.requires_shipping %}
     <div class="card shadow-sm">
       <div class="card-header bg-white">

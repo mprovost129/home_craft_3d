@@ -17,8 +17,6 @@
               <div class="h6 mb-1">★ {{ seller_avg_rating|floatformat:1 }}/5</div>
               <div class="text-secondary small">{{ seller_review_count }} seller rating{{ seller_review_count|pluralize }}</div>
             </div>
-          {% else %}
-            <div class="text-secondary small mb-3">No ratings yet</div>
           {% endif %}
 
           <div class="text-secondary small mb-3">

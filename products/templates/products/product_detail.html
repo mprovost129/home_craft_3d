@@ -97,8 +97,6 @@
                 {% if seller_review_count and seller_review_count > 0 %}
                   <span class="badge text-bg-secondary me-1">Seller {{ seller_avg_rating|floatformat:1 }}/5</span>
                   <span class="text-secondary">{{ seller_review_count }} seller rating{{ seller_review_count|pluralize }}</span>
-                {% else %}
-                  <span class="text-secondary">Seller has no ratings yet.</span>
                 {% endif %}
               </div>
             </div>

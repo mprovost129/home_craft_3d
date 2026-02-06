@@ -54,8 +54,6 @@
       <div class="small text-secondary" style="white-space:nowrap;">
         {% if p.review_count and p.review_count > 0 %}
           ★ {{ p.avg_rating|floatformat:1 }}/5 ({{ p.review_count }})
-        {% else %}
-          No reviews
         {% endif %}
       </div>
     </div>
@@ -64,8 +62,6 @@
       <div class="small text-secondary" style="white-space:nowrap;">
         {% if p.seller_review_count and p.seller_review_count > 0 %}
           Seller ★ {{ p.seller_avg_rating|floatformat:1 }}/5 ({{ p.seller_review_count }})
-        {% else %}
-          Seller: no ratings
         {% endif %}
       </div>
     </div>
@@ -75,6 +71,12 @@
         {% for file_type in p.file_types %}
           <span class="badge text-bg-light text-dark">{{ file_type }}</span>
         {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if p.kind == "FILE" and p.digital and p.digital.license_type %}
+      <div class="mt-2">
+        <span class="badge text-bg-info">{{ p.digital.get_license_type_display }}</span>
       </div>
     {% endif %}
 

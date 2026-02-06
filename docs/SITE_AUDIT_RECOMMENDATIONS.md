@@ -8,7 +8,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Establish a single primary CTA per page (avoid competing actions).
 - Normalize heading hierarchy (one H1 per page; section headers H2/H3).
 - Reduce card metadata density (seller + category + badges + ratings is heavy).
-- Standardize empty states (e.g., “No reviews” → “New listing” or hide line).
 - Ensure consistent button hierarchy (primary/danger/secondary usage).
 
 ## Home Page
@@ -19,9 +18,7 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Ensure above‑the‑fold content shows 1–2 real products with ratings to build trust.
 
 ## Product Listing Pages (All Products / Models / Files)
-- Show category hierarchy in a compact line (already implemented).
 - Consider hiding seller rating line when zero (reduces noise).
-- Add “License type” badge for digital files if provided.
 - Add “Ships from” for physical models (if data exists) and lead time.
 - Add sort rationale tooltips (Trending vs Top Rated).
 
@@ -43,7 +40,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Validate buyer notes length and show remaining character count.
 
 ## Buyer Orders / Purchases
-- Show order status timeline for physical items.
 - Provide quick contact seller option from order detail.
 
 ## Seller Dashboard / Listings
@@ -53,10 +49,7 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Add a warning if specs are empty when listing is active.
 
 ## Seller Orders / Fulfillment
-- Surface buyer instructions more prominently (already added; consider card header).
-
 ## Payments / Stripe Payouts
-- Replace “MVP note” with “Stripe setup status” (already updated).
 - Add a plain‑language summary: “You can sell when all three are green.”
 - Display last payout date if available.
 
@@ -67,7 +60,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 ## Performance & Technical
 - Ensure images are WebP where possible and lazy‑load below the fold.
 - Add CDN cache headers for static images/assets.
-- Add category parent to select_related (already done).
 - Consider server‑side caching for home page sections.
 
 ## Accessibility

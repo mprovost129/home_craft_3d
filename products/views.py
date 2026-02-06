@@ -35,7 +35,7 @@ def _file_type_options() -> list[str]:
 def _base_qs():
     return (
         Product.objects.filter(is_active=True)
-        .select_related("category", "category__parent", "seller")
+        .select_related("category", "category__parent", "seller", "digital")
         .prefetch_related("images", "digital_assets")
     )
 

@@ -79,6 +79,14 @@
                     <div class="text-secondary small">
                       by {{ line.product.seller.username }} · {{ line.product.category.name }}
                     </div>
+                    {% if line.buyer_notes %}
+                      <div class="alert alert-info mt-2 mb-0 p-2">
+                        <div class="small fw-semibold">
+                          <i class="bi bi-chat-left-text me-1"></i>Buyer notes
+                        </div>
+                        <div class="small" style="white-space: pre-wrap;">{{ line.buyer_notes }}</div>
+                      </div>
+                    {% endif %}
                   </div>
                 </div>
               </td>

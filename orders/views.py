@@ -251,6 +251,7 @@ def order_detail(request, order_id):
 
     can_download = bool(order.status == Order.Status.PAID and _user_can_access_order(request, order))
     has_digital_assets = False
+    shipping_timeline = None
     if can_download:
         for item in order.items.all():
             if not item.is_digital:
@@ -262,6 +263,25 @@ def order_detail(request, order_id):
             except Exception:
                 continue
 
+    if order.requires_shipping:
+        shipped = False
+        delivered = False
+        for item in order.items.all():
+            if not item.requires_shipping:
+                continue
+            if item.fulfillment_status == item.FulfillmentStatus.DELIVERED:
+                delivered = True
+                shipped = True
+                break
+            if item.fulfillment_status == item.FulfillmentStatus.SHIPPED:
+                shipped = True
+
+        shipping_timeline = {
+            "paid": order.status == Order.Status.PAID,
+            "shipped": shipped,
+            "delivered": delivered,
+        }
+
     return render(
         request,
         "orders/order_detail.html",
@@ -270,6 +290,7 @@ def order_detail(request, order_id):
             "order_token": _token_from_request(request),
             "can_download": can_download,
             "has_digital_assets": has_digital_assets,
+            "shipping_timeline": shipping_timeline,
             "stripe_publishable_key": getattr(settings, "STRIPE_PUBLISHABLE_KEY", ""),
         },
     )
