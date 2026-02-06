@@ -107,7 +107,7 @@
               <td class="text-end">
                 <form method="post" action="{% url 'cart:remove' line.product.pk %}">
                   {% csrf_token %}
-                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remove">
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remove" aria-label="Remove {{ line.product.title }} from cart">
                     <i class="bi bi-x-lg"></i>
                   </button>
                 </form>

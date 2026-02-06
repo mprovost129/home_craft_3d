@@ -50,14 +50,17 @@
                       <td class="fw-semibold">
                         <a class="text-decoration-none" href="{% url 'products:detail' pk=it.product_id slug=it.product.slug %}">{{ it.title }}</a>
                         {% if it.carrier or it.tracking_number %}
-                          <div class="text-secondary small">
-                            {% if it.carrier %}Carrier: <span class="font-monospace">{{ it.carrier }}</span>{% endif %}
+                          <div class="text-secondary small d-flex flex-wrap align-items-center gap-2">
+                            <div>
+                              {% if it.carrier %}Carrier: <span class="font-monospace">{{ it.carrier }}</span>{% endif %}
+                              {% if it.tracking_number %}
+                                {% if it.carrier %} · {% endif %}
+                                Tracking: <span class="font-monospace" data-tracking-value="{{ it.tracking_number }}">{{ it.tracking_number }}</span>
+                              {% endif %}
+                            </div>
                             {% if it.tracking_number %}
-                              {% if it.carrier %} · {% endif %}
-                              Tracking: <span class="font-monospace">{{ it.tracking_number }}</span>
-                            {% endif %}
-                            {% if it.tracking_number %}
-                              <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                              <a href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                              <button class="btn btn-sm btn-outline-secondary" type="button" data-copy-tracking="{{ it.tracking_number }}">Copy</button>
                             {% endif %}
                           </div>
                         {% endif %}
@@ -97,7 +100,15 @@
                                 {% csrf_token %}
                                 <div class="row g-2">
                                   <div class="col-md-5">
-                                    <input class="form-control form-control-sm" name="carrier" placeholder="Carrier (USPS/UPS/FedEx)" />
+                                    <select class="form-select form-select-sm" name="carrier">
+                                      <option value="">Carrier (optional)</option>
+                                      <option>USPS</option>
+                                      <option>UPS</option>
+                                      <option>FedEx</option>
+                                      <option>DHL</option>
+                                      <option>Other</option>
+                                    </select>
+                                    <input class="form-control form-control-sm mt-2 d-none" name="carrier_other" placeholder="Enter carrier" data-carrier-other>
                                   </div>
                                   <div class="col-md-7">
                                     <input class="form-control form-control-sm" name="tracking_number" placeholder="Tracking number (optional)" />
@@ -174,4 +185,50 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-copy-tracking]');
+    if (!btn) return;
+
+    const value = btn.getAttribute('data-copy-tracking') || '';
+    if (!value) return;
+
+    navigator.clipboard.writeText(value).then(function () {
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(function () {
+        btn.textContent = original;
+      }, 1200);
+    });
+  });
+
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('select[name="carrier"]');
+    if (!select) return;
+    const form = select.closest('form');
+    if (!form) return;
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!otherInput) return;
+
+    if (select.value === 'Other') {
+      otherInput.classList.remove('d-none');
+      otherInput.focus();
+    } else {
+      otherInput.classList.add('d-none');
+      otherInput.value = '';
+    }
+  });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target.closest('form');
+    if (!form) return;
+    const select = form.querySelector('select[name="carrier"]');
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!select || !otherInput) return;
+    if (select.value === 'Other' && otherInput.value.trim()) {
+      select.value = otherInput.value.trim();
+    }
+  });
+</script>
 {% endblock %}

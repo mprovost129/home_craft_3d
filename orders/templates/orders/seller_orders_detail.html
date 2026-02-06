@@ -65,7 +65,15 @@
                     <!-- Show form to mark as shipped -->
                     <form method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}" class="d-flex gap-2 flex-wrap">
                       {% csrf_token %}
-                      <input type="text" name="carrier" class="form-control form-control-sm" placeholder="Carrier" style="max-width: 140px;">
+                      <select name="carrier" class="form-select form-select-sm" style="max-width: 160px;">
+                        <option value="">Carrier (optional)</option>
+                        <option>USPS</option>
+                        <option>UPS</option>
+                        <option>FedEx</option>
+                        <option>DHL</option>
+                        <option>Other</option>
+                      </select>
+                      <input type="text" name="carrier_other" class="form-control form-control-sm d-none" placeholder="Enter carrier" style="max-width: 160px;" data-carrier-other>
                       <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 160px;">
                       <button type="submit" class="btn btn-sm btn-primary">Ship</button>
                     </form>
@@ -76,6 +84,7 @@
                         {% if it.carrier %} · {% endif %}
                         <span class="text-monospace">{{ it.tracking_number }}</span>
                         <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-copy-tracking="{{ it.tracking_number }}">Copy</button>
                       {% endif %}
                     </div>
                   {% else %}
@@ -94,4 +103,50 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-copy-tracking]');
+    if (!btn) return;
+
+    const value = btn.getAttribute('data-copy-tracking') || '';
+    if (!value) return;
+
+    navigator.clipboard.writeText(value).then(function () {
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(function () {
+        btn.textContent = original;
+      }, 1200);
+    });
+  });
+
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('select[name="carrier"]');
+    if (!select) return;
+    const form = select.closest('form');
+    if (!form) return;
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!otherInput) return;
+
+    if (select.value === 'Other') {
+      otherInput.classList.remove('d-none');
+      otherInput.focus();
+    } else {
+      otherInput.classList.add('d-none');
+      otherInput.value = '';
+    }
+  });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target.closest('form');
+    if (!form) return;
+    const select = form.querySelector('select[name="carrier"]');
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!select || !otherInput) return;
+    if (select.value === 'Other' && otherInput.value.trim()) {
+      select.value = otherInput.value.trim();
+    }
+  });
+</script>
 {% endblock %}

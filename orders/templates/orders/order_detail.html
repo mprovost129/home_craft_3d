@@ -35,8 +35,14 @@
   </div>
 
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-white">
+    <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
       <div class="fw-semibold">Items</div>
+      {% if can_download and has_digital_assets %}
+        <a class="btn btn-sm btn-outline-primary"
+           href="{% url 'orders:download_all_assets' order_id=order.id %}{% if order_token %}?t={{ order_token }}{% endif %}">
+          <i class="bi bi-download me-1"></i>Download all
+        </a>
+      {% endif %}
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">

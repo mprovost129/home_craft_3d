@@ -8,7 +8,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Establish a single primary CTA per page (avoid competing actions).
 - Normalize heading hierarchy (one H1 per page; section headers H2/H3).
 - Reduce card metadata density (seller + category + badges + ratings is heavy).
-- Add trust strip site‑wide: Secure payments • Instant downloads • Buyer protection.
 - Standardize empty states (e.g., “No reviews” → “New listing” or hide line).
 - Ensure consistent button hierarchy (primary/danger/secondary usage).
 
@@ -36,7 +35,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 ## Cart
 - Show a summary of digital license type and file formats inline.
 - Highlight custom instructions (buyer notes) in cart line items.
-- Add “Continue shopping” CTA.
 - Show fee breakdown (platform fee visible to seller only).
 
 ## Checkout
@@ -45,7 +43,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Validate buyer notes length and show remaining character count.
 
 ## Buyer Orders / Purchases
-- Add “Download all” button for digital orders.
 - Show order status timeline for physical items.
 - Provide quick contact seller option from order detail.
 
@@ -57,8 +54,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 
 ## Seller Orders / Fulfillment
 - Surface buyer instructions more prominently (already added; consider card header).
-- Add copy‑to‑clipboard for tracking number.
-- Allow adding tracking carrier from a dropdown.
 
 ## Payments / Stripe Payouts
 - Replace “MVP note” with “Stripe setup status” (already updated).

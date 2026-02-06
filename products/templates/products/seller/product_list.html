@@ -94,9 +94,20 @@
           {% for p in products %}
             <tr>
               <td class="fw-semibold">
-                <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-                <div class="text-secondary small">
-                  by {{ p.seller.username }}
+                <div class="d-flex align-items-center gap-2">
+                  {% if p.primary_image %}
+                    <img src="{{ p.primary_image.image.url }}" alt="{{ p.title }}" class="rounded border" style="width:48px;height:48px;object-fit:cover;">
+                  {% else %}
+                    <div class="rounded border bg-light d-flex align-items-center justify-content-center" style="width:48px;height:48px;">
+                      <span class="text-secondary small">No image</span>
+                    </div>
+                  {% endif %}
+                  <div>
+                    <a class="text-decoration-none" href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+                    <div class="text-secondary small">
+                      by {{ p.seller.username }}
+                    </div>
+                  </div>
                 </div>
               </td>
               <td><span class="badge text-bg-secondary">{{ p.get_kind_display }}</span></td>

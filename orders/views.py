@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import zipfile
+from io import BytesIO
 
 from django.conf import settings
 from django.contrib import messages
@@ -13,6 +15,7 @@ from django.core.validators import validate_email
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
 from cart.cart import Cart
@@ -247,6 +250,17 @@ def order_detail(request, order_id):
         raise Http404("Not found")
 
     can_download = bool(order.status == Order.Status.PAID and _user_can_access_order(request, order))
+    has_digital_assets = False
+    if can_download:
+        for item in order.items.all():
+            if not item.is_digital:
+                continue
+            try:
+                if item.product.digital_assets.exists():
+                    has_digital_assets = True
+                    break
+            except Exception:
+                continue
 
     return render(
         request,
@@ -255,6 +269,7 @@ def order_detail(request, order_id):
             "order": order,
             "order_token": _token_from_request(request),
             "can_download": can_download,
+            "has_digital_assets": has_digital_assets,
             "stripe_publishable_key": getattr(settings, "STRIPE_PUBLISHABLE_KEY", ""),
         },
     )
@@ -374,6 +389,59 @@ def download_asset(request, order_id, asset_id):
     return FileResponse(file_handle, as_attachment=True, filename=filename)
 
 
+def download_all_assets(request, order_id):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("items", "items__product", "items__product__digital_assets"),
+        pk=order_id,
+    )
+
+    if order.status != Order.Status.PAID:
+        raise Http404("Not found")
+
+    if not _user_can_access_order(request, order):
+        if order.buyer_id and not request.user.is_authenticated:
+            return redirect("accounts:login")
+        raise Http404("Not found")
+
+    assets = []
+    for item in order.items.all():
+        if not item.is_digital:
+            continue
+        try:
+            if item.product.kind != Product.Kind.FILE:
+                continue
+        except Exception:
+            continue
+
+        for asset in item.product.digital_assets.all():
+            assets.append((item.product, asset))
+
+    if not assets:
+        raise Http404("Not found")
+
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for product, asset in assets:
+            try:
+                asset.file.open("rb")
+                raw_name = asset.original_filename or asset.file.name.rsplit("/", 1)[-1]
+                safe_product = slugify(getattr(product, "title", "product") or "product")
+                safe_name = raw_name.replace("/", "-").replace("\\", "-")
+                zip_name = f"{safe_product}/{safe_name}"
+                zf.writestr(zip_name, asset.file.read())
+            except Exception:
+                continue
+            finally:
+                try:
+                    asset.file.close()
+                except Exception:
+                    pass
+
+    buffer.seek(0)
+    filename = f"order-{order.id}-downloads.zip"
+    return FileResponse(buffer, as_attachment=True, filename=filename)
+
+
 @login_required
 @login_required
 def purchases(request):
@@ -386,7 +454,21 @@ def purchases(request):
     paginator = Paginator(qs, 20)
     page = paginator.get_page(request.GET.get("page") or 1)
 
-    return render(request, "orders/purchases.html", {"page_obj": page, "orders": page.object_list})
+    orders = list(page.object_list)
+    for order in orders:
+        has_assets = False
+        for item in order.items.all():
+            if not item.is_digital:
+                continue
+            try:
+                if item.product.digital_assets.exists():
+                    has_assets = True
+                    break
+            except Exception:
+                continue
+        order.has_digital_assets = has_assets
+
+    return render(request, "orders/purchases.html", {"page_obj": page, "orders": orders})
 
 
 @login_required

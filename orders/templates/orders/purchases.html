@@ -40,6 +40,12 @@
               <td class="text-end fw-semibold">${{ order.total_cents|cents_to_dollars }}</td>
               <td class="text-end">
                 <div class="d-flex flex-column gap-1 align-items-end">
+                  {% if order.has_digital_assets %}
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{% url 'orders:download_all_assets' order_id=order.id %}">
+                      <i class="bi bi-download me-1"></i>Download all
+                    </a>
+                  {% endif %}
                   {% for item in order.items.all %}
                     {% if item.is_digital %}
                       {% for a in item.product.digital_assets.all %}
