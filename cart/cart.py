@@ -99,6 +99,19 @@ class Cart:
 
         self._save()
 
+    def set_notes(self, product: Product, buyer_notes: str) -> None:
+        pid = str(product.pk)
+        if pid not in self.data:
+            return
+
+        notes = (buyer_notes or "").strip()
+        if notes:
+            self.data[pid]["notes"] = notes
+        else:
+            self.data[pid].pop("notes", None)
+
+        self._save()
+
     def remove(self, product: Product) -> None:
         pid = str(product.pk)
         if pid in self.data:

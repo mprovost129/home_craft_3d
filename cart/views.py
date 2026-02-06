@@ -223,6 +223,7 @@ def cart_update(request):
 
     product_id = (request.POST.get("product_id") or "").strip()
     qty_raw = (request.POST.get("quantity") or "1").strip()
+    buyer_notes = (request.POST.get("buyer_notes") or "").strip()[:1000]
 
     try:
         quantity = int(qty_raw)
@@ -249,6 +250,8 @@ def cart_update(request):
         messages.info(request, "Digital items are limited to 1 per cart.")
 
     cart.set_quantity(product, quantity)
+    if buyer_notes or "buyer_notes" in request.POST:
+        cart.set_notes(product, buyer_notes)
     messages.success(request, "Cart updated.")
     return redirect("cart:detail")
 

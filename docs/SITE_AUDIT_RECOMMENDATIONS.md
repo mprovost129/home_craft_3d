@@ -31,7 +31,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 
 ## Cart
 - Show a summary of digital license type and file formats inline.
-- Highlight custom instructions (buyer notes) in cart line items.
 - Show fee breakdown (platform fee visible to seller only).
 
 ## Checkout

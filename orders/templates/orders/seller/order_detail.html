@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load money %}
 {% block title %}Seller Order #{{ order.id }} · Home Craft 3D{% endblock %}
 
 {% block content %}
@@ -48,7 +49,7 @@
                   {% for it in items %}
                     <tr>
                       <td class="fw-semibold">
-                        <a class="text-decoration-none" href="{% url 'products:detail' pk=it.product_id slug=it.product.slug %}">{{ it.title }}</a>
+                        <a class="text-decoration-none" href="{% url 'products:detail' pk=it.product_id slug=it.product.slug %}">{{ it.product.title }}</a>
                         {% if it.carrier or it.tracking_number %}
                           <div class="text-secondary small d-flex flex-wrap align-items-center gap-2">
                             <div>
@@ -74,14 +75,14 @@
                         {% endif %}
                       </td>
                       <td>
-                        {% if it.kind == "MODEL" %}
-                          <span class="badge text-bg-secondary">Physical</span>
-                        {% else %}
+                        {% if it.is_digital %}
                           <span class="badge text-bg-info">Digital</span>
+                        {% else %}
+                          <span class="badge text-bg-secondary">Physical</span>
                         {% endif %}
                       </td>
                       <td class="text-end">{{ it.quantity }}</td>
-                      <td class="text-end"><strong>${{ it.line_total|floatformat:2 }}</strong></td>
+                      <td class="text-end"><strong>${{ it.line_total_cents|cents_to_dollars }}</strong></td>
                       <td>
                         {% if it.is_digital %}
                           <span class="badge text-bg-success">Delivered</span>
@@ -96,7 +97,7 @@
                             <span class="badge text-bg-warning text-dark">Unfulfilled</span>
 
                             {% if order.status == "PAID" %}
-                              <form class="mt-2" method="post" action="{% url 'orders:seller_item_mark_shipped' it.id %}">
+                              <form class="mt-2" method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}">
                                 {% csrf_token %}
                                 <div class="row g-2">
                                   <div class="col-md-5">

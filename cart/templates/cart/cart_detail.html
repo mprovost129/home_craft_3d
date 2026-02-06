@@ -87,6 +87,17 @@
                         <div class="small" style="white-space: pre-wrap;">{{ line.buyer_notes }}</div>
                       </div>
                     {% endif %}
+                    <form method="post" action="{% url 'cart:update' %}" class="mt-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ line.product.pk }}">
+                      <input type="hidden" name="quantity" value="{{ line.quantity }}">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">Notes</span>
+                        <input class="form-control" name="buyer_notes" value="{{ line.buyer_notes }}" placeholder="Add a note for the seller (optional)">
+                        <button class="btn btn-outline-dark" type="submit">Save</button>
+                      </div>
+                      <div class="form-text">Shown to the seller after purchase.</div>
+                    </form>
                   </div>
                 </div>
               </td>

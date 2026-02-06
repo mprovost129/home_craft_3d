@@ -464,7 +464,6 @@ def download_all_assets(request, order_id):
 
 
 @login_required
-@login_required
 def purchases(request):
     qs = (
         Order.objects.filter(buyer=request.user, status=Order.Status.PAID, paid_at__isnull=False)
@@ -545,7 +544,14 @@ def seller_order_detail(request, order_id):
     if not is_owner_user(user):
         seller_items = seller_items.filter(seller=user)
 
-    return render(request, "orders/seller_order_detail.html", {"order": order, "seller_items": seller_items})
+    seller_total_cents = sum(int(it.line_total_cents or 0) for it in seller_items)
+    seller_total = seller_total_cents / 100
+
+    return render(
+        request,
+        "orders/seller/order_detail.html",
+        {"order": order, "items": seller_items, "seller_total": seller_total},
+    )
 
 @login_required
 @require_POST
