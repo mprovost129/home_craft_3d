@@ -210,8 +210,11 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
     lines.append(f"Quantity: {item.quantity}")
     lines.append("")
     
+    if item.carrier:
+        lines.append(f"Carrier: {item.carrier}")
     if item.tracking_number:
         lines.append(f"Tracking number: {item.tracking_number}")
+    if item.carrier or item.tracking_number:
         lines.append("")
     
     lines.append("View your order:")
@@ -571,6 +574,7 @@ class OrderItem(models.Model):
         choices=FulfillmentStatus.choices,
         default=FulfillmentStatus.PENDING,
     )
+    carrier = models.CharField(max_length=80, blank=True, default="")
     tracking_number = models.CharField(max_length=255, blank=True, default="")
     shipped_at = models.DateTimeField(null=True, blank=True)
     buyer_notified_at = models.DateTimeField(null=True, blank=True)
@@ -592,16 +596,17 @@ class OrderItem(models.Model):
     def line_total_cents(self) -> int:
         return int(self.quantity) * int(self.unit_price_cents)
 
-    def mark_shipped(self, tracking_number: str = "") -> bool:
+    def mark_shipped(self, tracking_number: str = "", carrier: str = "") -> bool:
         """Mark item as shipped and notify buyer."""
         if self.fulfillment_status == self.FulfillmentStatus.SHIPPED:
             return False
         
         self.fulfillment_status = self.FulfillmentStatus.SHIPPED
         self.tracking_number = (tracking_number or "").strip()
+        self.carrier = (carrier or "").strip()
         self.shipped_at = timezone.now()
         self.buyer_notified_at = timezone.now()
-        self.save(update_fields=["fulfillment_status", "tracking_number", "shipped_at", "buyer_notified_at", "updated_at"])
+        self.save(update_fields=["fulfillment_status", "tracking_number", "carrier", "shipped_at", "buyer_notified_at", "updated_at"])
         
         # Send buyer notification email
         _send_buyer_shipped_email(self.order, self)

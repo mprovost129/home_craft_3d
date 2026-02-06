@@ -49,8 +49,17 @@
                     <tr>
                       <td class="fw-semibold">
                         <a class="text-decoration-none" href="{% url 'products:detail' pk=it.product_id slug=it.product.slug %}">{{ it.title }}</a>
-                        {% if it.tracking_number %}
-                          <div class="text-secondary small">Tracking: <span class="font-monospace">{{ it.tracking_number }}</span></div>
+                        {% if it.carrier or it.tracking_number %}
+                          <div class="text-secondary small">
+                            {% if it.carrier %}Carrier: <span class="font-monospace">{{ it.carrier }}</span>{% endif %}
+                            {% if it.tracking_number %}
+                              {% if it.carrier %} · {% endif %}
+                              Tracking: <span class="font-monospace">{{ it.tracking_number }}</span>
+                            {% endif %}
+                            {% if it.tracking_number %}
+                              <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                            {% endif %}
+                          </div>
                         {% endif %}
                         {% if it.buyer_notes %}
                           <div class="alert alert-info alert-sm mt-2 mb-0 p-2">
@@ -88,12 +97,13 @@
                                 {% csrf_token %}
                                 <div class="row g-2">
                                   <div class="col-md-5">
-                                    <input class="form-control form-control-sm" name="carrier" placeholder="Carrier (UPS/USPS/FedEx)" />
+                                    <input class="form-control form-control-sm" name="carrier" placeholder="Carrier (USPS/UPS/FedEx)" />
                                   </div>
                                   <div class="col-md-7">
-                                    <input class="form-control form-control-sm" name="tracking_number" placeholder="Tracking number" />
+                                    <input class="form-control form-control-sm" name="tracking_number" placeholder="Tracking number (optional)" />
                                   </div>
                                 </div>
+                                <div class="form-text small">Add carrier and tracking number from your label/receipt. We’ll email it to the buyer.</div>
                                 <div class="mt-2">
                                   <button class="btn btn-sm btn-dark" type="submit">
                                     <i class="bi bi-truck me-1"></i>Mark shipped

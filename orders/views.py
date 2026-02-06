@@ -466,7 +466,8 @@ def mark_item_shipped(request, order_id, item_id):
         messages.error(request, "You can only update your own items.")
         return redirect("orders:seller_orders_list")
     
-    # Get tracking number from POST data
+    # Get carrier/tracking info from POST data
+    carrier = (request.POST.get("carrier") or "").strip()
     tracking_number = (request.POST.get("tracking_number") or "").strip()
     
     # Only mark shipped if it requires shipping (physical items)
@@ -475,10 +476,12 @@ def mark_item_shipped(request, order_id, item_id):
         return redirect("orders:seller_order_detail", order_id=order_id)
     
     # Mark item as shipped
-    success = item.mark_shipped(tracking_number)
+    success = item.mark_shipped(tracking_number, carrier)
     
     if success:
         msg = "Item marked as shipped."
+        if carrier:
+            msg += f" Carrier: {carrier}."
         if tracking_number:
             msg += f" Tracking number: {tracking_number}"
         messages.success(request, msg)

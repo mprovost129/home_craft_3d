@@ -63,13 +63,21 @@
                 {% if it.requires_shipping %}
                   {% if it.fulfillment_status == 'pending' %}
                     <!-- Show form to mark as shipped -->
-                    <form method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}" class="d-flex gap-2">
+                    <form method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}" class="d-flex gap-2 flex-wrap">
                       {% csrf_token %}
-                      <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 140px;">
+                      <input type="text" name="carrier" class="form-control form-control-sm" placeholder="Carrier" style="max-width: 140px;">
+                      <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 160px;">
                       <button type="submit" class="btn btn-sm btn-primary">Ship</button>
                     </form>
-                  {% elif it.tracking_number %}
-                    <small class="text-monospace">{{ it.tracking_number }}</small>
+                  {% elif it.carrier or it.tracking_number %}
+                    <div class="small">
+                      {% if it.carrier %}<span class="text-monospace">{{ it.carrier }}</span>{% endif %}
+                      {% if it.tracking_number %}
+                        {% if it.carrier %} · {% endif %}
+                        <span class="text-monospace">{{ it.tracking_number }}</span>
+                        <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                      {% endif %}
+                    </div>
                   {% else %}
                     <small class="text-secondary">—</small>
                   {% endif %}
