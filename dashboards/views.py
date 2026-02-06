@@ -246,7 +246,7 @@ def admin_dashboard(request):
     if plausible_api_enabled:
         try:
             plausible_summary = plausible_get_summary(period=f"{DASH_RECENT_DAYS}d")
-            plausible_top_pages = plausible_get_top_pages(period=f"{DASH_RECENT_DAYS}d", limit=8)
+            plausible_top_pages_raw = plausible_get_top_pages(period=f"{DASH_RECENT_DAYS}d", limit=8)
 
             def _safe_int(value, default=0):
                 try:
@@ -281,6 +281,16 @@ def admin_dashboard(request):
                 "bounce_rate": round(_safe_float(plausible_summary.get("bounce_rate")), 1),
                 "visit_duration": _format_duration(plausible_summary.get("visit_duration")),
             }
+
+            plausible_top_pages = []
+            for row in plausible_top_pages_raw or []:
+                plausible_top_pages.append(
+                    {
+                        "page": row.get("page") or row.get("name") or "",
+                        "pageviews": _safe_int(row.get("pageviews")),
+                        "visitors": _safe_int(row.get("visitors")),
+                    }
+                )
         except Exception:
             plausible_api_enabled = False
             plausible_summary_display = {}

@@ -215,7 +215,7 @@
                       <tbody>
                         {% for row in plausible_top_pages %}
                           <tr>
-                            <td class="text-truncate" style="max-width: 280px;">{{ row.page|default:row.name }}</td>
+                            <td class="text-truncate" style="max-width: 280px;">{{ row.page|default:"" }}</td>
                             <td class="text-end">{{ row.pageviews|default:"0" }}</td>
                             <td class="text-end">{{ row.visitors|default:"0" }}</td>
                           </tr>
