@@ -133,7 +133,7 @@ def _annotate_trending(qs, *, since_days: int = TRENDING_WINDOW_DAYS):
 def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int] | None = None) -> None:
     computed_ids = computed_ids or set()
     for p in products:
-        p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
+        p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))  # type: ignore[attr-defined]
 
 
 def _seller_can_sell(product: Product) -> bool:
@@ -151,10 +151,10 @@ def _seller_can_sell(product: Product) -> bool:
         pass
 
     try:
-        if not product.seller_id:
+        if not product.seller_id:  # type: ignore[attr-defined]
             return False
         return SellerStripeAccount.objects.filter(
-            user_id=product.seller_id,
+            user_id=product.seller_id,  # type: ignore[attr-defined]
             stripe_account_id__gt="",
             details_submitted=True,
             charges_enabled=True,
@@ -283,7 +283,7 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
     _apply_trending_badge_flag(products, computed_ids=computed_ids)
 
     for p in products:
-        p.can_buy = _seller_can_sell(p)
+        p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
 
     return render(
         request,
@@ -325,7 +325,7 @@ def files_list(request: HttpRequest) -> HttpResponse:
 
 def _log_event_throttled(request: HttpRequest, *, product: Product, event_type: str, minutes: int) -> None:
     try:
-        key = f"hc3_event_{event_type.lower()}_{product.id}"
+        key = f"hc3_event_{event_type.lower()}_{product.id}"  # type: ignore[attr-defined]
         now = timezone.now()
         last_iso = request.session.get(key)
 
@@ -390,7 +390,7 @@ def _render_product_detail(
     review_count = summary.get("count") or 0
     recent_reviews = list(review_qs[:5])
 
-    seller_qs = SellerReview.objects.filter(seller_id=product.seller_id)
+    seller_qs = SellerReview.objects.filter(seller_id=product.seller_id)  # type: ignore[attr-defined]
     seller_summary = seller_qs.aggregate(avg=Avg("rating"), count=Count("id"))
     seller_avg_rating = seller_summary.get("avg") or 0
     seller_review_count = seller_summary.get("count") or 0
@@ -413,7 +413,7 @@ def _render_product_detail(
 
     related_same_seller_qs = (
         _base_qs()
-        .filter(seller_id=product.seller_id, kind=product.kind)
+        .filter(seller_id=product.seller_id, kind=product.kind)  # type: ignore[attr-defined]
         .exclude(pk=product.pk)
     )
     related_same_category_qs = (
@@ -428,7 +428,7 @@ def _render_product_detail(
     )
 
     for p in related_same_seller + related_same_category:
-        p.can_buy = _seller_can_sell(p)
+        p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
 
     # -------------------------
     # Q&A Tab (A)
@@ -497,7 +497,7 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
     products_list = list(products)
     
     for p in products_list:
-        p.can_buy = _seller_can_sell(p)
+        p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
     
     # Get seller's reviews
     seller_reviews = SellerReview.objects.filter(seller=seller).select_related("buyer").order_by("-created_at")

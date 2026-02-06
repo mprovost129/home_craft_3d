@@ -24,7 +24,7 @@
           <div class="text-secondary small mb-2">
             {{ products|length }} product{{ products|pluralize }}
           </div>
-          {% if profile and (profile.website or profile.social_instagram or profile.social_twitter or profile.social_facebook or profile.social_youtube) %}
+          {% if profile and profile.website or profile.social_instagram or profile.social_twitter or profile.social_facebook or profile.social_youtube %}
             <div class="mb-2">
               {% if profile.website %}
                 <a href="{{ profile.website }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-globe"></i> Website</a>
