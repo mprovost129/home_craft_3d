@@ -27,6 +27,14 @@
     </div>
   </div>
 
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-info mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="row">
     <div class="col-lg-8">
       <div class="card">

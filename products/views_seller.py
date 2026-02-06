@@ -169,11 +169,16 @@ def seller_product_create(request, *args, **kwargs):
             product.save()
 
             if product.kind == Product.Kind.FILE:
-                messages.success(request, "Draft created. Next: upload your digital file(s).")
-                return redirect("products:seller_assets", pk=product.pk)
-
-            messages.success(request, "Draft created. Next: upload your images.")
-            return redirect("products:seller_images", pk=product.pk)
+                messages.success(
+                    request,
+                    f"Draft created for '{product.title}' (digital file listing). Add files and images from My Listings.",
+                )
+            else:
+                messages.success(
+                    request,
+                    f"Draft created for '{product.title}' (physical listing). Add images and specs from My Listings.",
+                )
+            return redirect("products:seller_list")
     else:
         form = ProductForm(user=request.user)
 
@@ -196,7 +201,7 @@ def seller_product_edit(request, pk: int):
 
             obj.full_clean()
             obj.save()
-            messages.success(request, "Product updated.")
+            messages.success(request, f"Listing saved for '{product.title}'.")
             return redirect("products:seller_list")
     else:
         form = ProductForm(instance=product, user=request.user)
@@ -223,7 +228,7 @@ def seller_product_specs(request, pk: int):
             form = ProductPhysicalForm(request.POST, instance=physical)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Physical specifications updated.")
+                messages.success(request, f"Specs saved for '{product.title}' (physical).")
                 return redirect("products:seller_list")
         else:
             form = ProductPhysicalForm(instance=physical)
@@ -243,7 +248,7 @@ def seller_product_specs(request, pk: int):
             form = ProductDigitalForm(request.POST, instance=digital)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Digital specifications updated.")
+                messages.success(request, f"Specs saved for '{product.title}' (digital file).")
                 return redirect("products:seller_list")
         else:
             form = ProductDigitalForm(instance=digital)
@@ -296,8 +301,8 @@ def seller_product_images(request, pk: int):
                     img.is_primary = True
                     img.save(update_fields=["is_primary"])
 
-                messages.success(request, "Image uploaded.")
-                return redirect("products:seller_images", pk=product.pk)
+                messages.success(request, f"Image uploaded for '{product.title}'.")
+                return redirect("products:seller_list")
     else:
         form = ProductImageUploadForm()
         bulk_form = ProductImageBulkUploadForm()
@@ -326,10 +331,10 @@ def seller_product_image_delete(request, *args, **kwargs):
             if next_img:
                 next_img.is_primary = True
                 next_img.save(update_fields=["is_primary"])
-        messages.success(request, "Image deleted.")
-        return redirect("products:seller_images", pk=product.pk)
+        messages.success(request, f"Image deleted for '{product.title}'.")
+        return redirect("products:seller_list")
 
-    return redirect("products:seller_images", pk=product.pk)
+    return redirect("products:seller_list")
 
 
 @seller_required
@@ -348,8 +353,8 @@ def seller_product_assets(request, pk: int):
             asset.product = product
             asset.full_clean()
             asset.save()
-            messages.success(request, "Digital asset uploaded.")
-            return redirect("products:seller_assets", pk=product.pk)
+            messages.success(request, f"Digital asset uploaded for '{product.title}'.")
+            return redirect("products:seller_list")
     else:
         form = DigitalAssetUploadForm()
 
@@ -371,10 +376,10 @@ def seller_product_asset_delete(request, *args, **kwargs):
 
     if request.method == "POST":
         asset.delete()
-        messages.success(request, "Digital asset deleted.")
-        return redirect("products:seller_assets", pk=product.pk)
+        messages.success(request, f"Digital asset deleted for '{product.title}'.")
+        return redirect("products:seller_list")
 
-    return redirect("products:seller_assets", pk=product.pk)
+    return redirect("products:seller_list")
 
 
 @seller_required
@@ -384,7 +389,10 @@ def seller_product_toggle_active(request, pk: int):
     if request.method == "POST":
         product.is_active = not product.is_active
         product.save(update_fields=["is_active"])
-        messages.success(request, f"Listing is now {'active' if product.is_active else 'inactive (draft)'}.")
+        messages.success(
+            request,
+            f"Listing '{product.title}' is now {'active' if product.is_active else 'inactive (draft)'}.",
+        )
     return redirect("products:seller_list")
 
 
@@ -486,7 +494,8 @@ def seller_product_duplicate(request, pk: int):
                     zip_contents=asset.zip_contents,
                 )
 
-    messages.success(request, "Product duplicated as a draft. Review it, then upload/adjust files and images as needed.")
-    if new_product.kind == Product.Kind.FILE:
-        return redirect("products:seller_assets", pk=new_product.pk)
-    return redirect("products:seller_images", pk=new_product.pk)
+    messages.success(
+        request,
+        "Product duplicated as a draft. Edit files, images, and specs from My Listings.",
+    )
+    return redirect("products:seller_list")
