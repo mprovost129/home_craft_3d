@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 from decimal import Decimal
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -27,6 +28,34 @@ DASH_RECENT_DAYS = 30
 
 def _cents_to_dollars(cents: int) -> Decimal:
     return (Decimal(int(cents or 0)) / Decimal("100")).quantize(Decimal("0.01"))
+
+
+def _build_plausible_embed_url(shared_url: str, *, theme: str = "light") -> str:
+    """
+    Plausible shared links embed by adding query params (not by swapping /share/ to /embed/).
+
+    Example:
+      https://plausible.io/share/homecraft3d.com?auth=XYZ
+    becomes:
+      https://plausible.io/share/homecraft3d.com?auth=XYZ&embed=true&theme=light
+    """
+    shared_url = (shared_url or "").strip()
+    if not shared_url:
+        return ""
+
+    try:
+        parsed = urlparse(shared_url)
+        qs = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        qs["embed"] = "true"
+        # theme is optional; Plausible supports light/dark
+        if theme:
+            qs["theme"] = theme
+
+        new_query = urlencode(qs, doseq=True)
+        return urlunparse(parsed._replace(query=new_query))
+    except Exception:
+        # If anything odd happens, just don't embed.
+        return ""
 
 
 @login_required
@@ -113,9 +142,7 @@ def seller_dashboard(request):
         sold_count=Sum("quantity"),
     )
 
-    payout_available_cents = max(
-        0, int((sales_totals.get("net_cents") or 0) + balance_cents)
-    )
+    payout_available_cents = max(0, int((sales_totals.get("net_cents") or 0) + balance_cents))
 
     ledger_entries = SellerBalanceEntry.objects.filter(seller=user).order_by("-created_at")[:10]
 
@@ -203,7 +230,10 @@ def admin_dashboard(request):
 
     # ---- Plausible (shared dashboard link) ----
     plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
-    plausible_embed_url = plausible_shared_url.replace("/share/", "/embed/") if plausible_shared_url else ""
+
+    # Embed uses the SAME share URL + embed=true (+ theme)
+    # NOTE: iframe can still be blocked by adblock/privacy; "Open Plausible" should always work.
+    plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
 
     return render(
         request,
