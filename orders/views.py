@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import zipfile
-from io import BytesIO
+from tempfile import SpooledTemporaryFile
 
 from django.conf import settings
 from django.contrib import messages
@@ -440,7 +440,7 @@ def download_all_assets(request, order_id):
     if not assets:
         raise Http404("Not found")
 
-    buffer = BytesIO()
+    buffer = SpooledTemporaryFile(max_size=20 * 1024 * 1024)
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for product, asset in assets:
             try:
@@ -598,3 +598,70 @@ def mark_item_shipped(request, order_id, item_id):
         messages.info(request, "This item has already been marked as shipped.")
     
     return redirect("orders:seller_order_detail", order_id=order_id)
+
+
+@login_required
+@require_POST
+def mark_item_delivered(request, order_id, item_id):
+    """Mark an OrderItem as delivered."""
+    user = request.user
+    if not (is_seller_user(user) or is_owner_user(user)):
+        messages.error(request, "You don't have permission to update orders.")
+        return redirect("dashboards:consumer")
+
+    order = get_object_or_404(Order, pk=order_id)
+
+    item = get_object_or_404(
+        order.items.select_related("seller"),
+        pk=item_id,
+    )
+
+    if not is_owner_user(user) and item.seller != user:
+        messages.error(request, "You can only update your own items.")
+        return redirect("orders:seller_orders_list")
+
+    if not item.requires_shipping:
+        messages.warning(request, "This item doesn't require shipping.")
+        return redirect("orders:seller_order_detail", order_id=order_id)
+
+    if item.fulfillment_status != item.FulfillmentStatus.SHIPPED:
+        messages.info(request, "Item must be shipped before marking delivered.")
+        return redirect("orders:seller_order_detail", order_id=order_id)
+
+    if item.mark_delivered():
+        messages.success(request, "Item marked as delivered.")
+    else:
+        messages.info(request, "This item has already been marked delivered.")
+
+    return redirect("orders:seller_order_detail", order_id=order_id)
+
+
+@require_POST
+def mark_item_delivered_buyer(request, order_id, item_id):
+    """Allow buyers to confirm delivery for shipped physical items."""
+    order = get_object_or_404(Order, pk=order_id)
+
+    if not _user_can_access_order(request, order):
+        if order.buyer_id and not request.user.is_authenticated:
+            return redirect("accounts:login")
+        raise Http404("Not found")
+
+    item = get_object_or_404(order.items.all(), pk=item_id)
+
+    if not item.requires_shipping:
+        messages.info(request, "This item doesn't require shipping.")
+        return redirect("orders:detail", order_id=order.pk)
+
+    if item.fulfillment_status != item.FulfillmentStatus.SHIPPED:
+        messages.info(request, "Item must be shipped before marking delivered.")
+        return redirect("orders:detail", order_id=order.pk)
+
+    if item.mark_delivered():
+        messages.success(request, "Thanks for confirming delivery.")
+    else:
+        messages.info(request, "This item has already been marked delivered.")
+
+    t = _token_from_request(request)
+    if order.is_guest and t:
+        return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={t}")
+    return redirect("orders:detail", order_id=order.pk)

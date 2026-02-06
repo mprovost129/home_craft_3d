@@ -77,6 +77,20 @@
                       <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 160px;">
                       <button type="submit" class="btn btn-sm btn-primary">Ship</button>
                     </form>
+                  {% elif it.fulfillment_status == 'shipped' %}
+                    <div class="small mb-1">
+                      {% if it.carrier %}<span class="text-monospace">{{ it.carrier }}</span>{% endif %}
+                      {% if it.tracking_number %}
+                        {% if it.carrier %} · {% endif %}
+                        <span class="text-monospace">{{ it.tracking_number }}</span>
+                        <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-copy-tracking="{{ it.tracking_number }}">Copy</button>
+                      {% endif %}
+                    </div>
+                    <form method="post" action="{% url 'orders:mark_item_delivered' order.id it.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-dark">Mark delivered</button>
+                    </form>
                   {% elif it.carrier or it.tracking_number %}
                     <div class="small">
                       {% if it.carrier %}<span class="text-monospace">{{ it.carrier }}</span>{% endif %}

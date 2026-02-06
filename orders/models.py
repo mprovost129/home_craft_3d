@@ -613,6 +613,15 @@ class OrderItem(models.Model):
         
         return True
 
+    def mark_delivered(self) -> bool:
+        """Mark item as delivered."""
+        if self.fulfillment_status == self.FulfillmentStatus.DELIVERED:
+            return False
+
+        self.fulfillment_status = self.FulfillmentStatus.DELIVERED
+        self.save(update_fields=["fulfillment_status", "updated_at"])
+        return True
+
 
 LineItem = OrderItem
 

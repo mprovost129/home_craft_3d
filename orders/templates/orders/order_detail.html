@@ -66,6 +66,22 @@
                     <span class="badge text-bg-info">Digital</span>
                   {% else %}
                     <span class="badge text-bg-warning">Physical</span>
+                    <div class="small text-secondary mt-1">
+                      Status:
+                      {% if item.fulfillment_status == "delivered" %}
+                        <span class="badge text-bg-success">Delivered</span>
+                      {% elif item.fulfillment_status == "shipped" %}
+                        <span class="badge text-bg-success">Shipped</span>
+                        <form class="d-inline" method="post" action="{% url 'orders:mark_item_delivered_buyer' order_id=order.id item_id=item.id %}{% if order_token %}?t={{ order_token }}{% endif %}">
+                          {% csrf_token %}
+                          <button class="btn btn-sm btn-outline-dark ms-2" type="submit">
+                            Confirm delivery
+                          </button>
+                        </form>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Processing</span>
+                      {% endif %}
+                    </div>
                   {% endif %}
                 </td>
 

@@ -88,10 +88,20 @@
                           <span class="badge text-bg-success">Delivered</span>
                           <div class="text-secondary small">Downloads handled automatically.</div>
                         {% else %}
-                          {% if it.fulfillment_status == "SHIPPED" %}
+                          {% if it.fulfillment_status == "delivered" %}
+                            <span class="badge text-bg-success">Delivered</span>
+                          {% elif it.fulfillment_status == "shipped" %}
                             <span class="badge text-bg-success">Shipped</span>
                             {% if it.shipped_at %}
                               <div class="text-secondary small">{{ it.shipped_at|date:"M j, Y" }}</div>
+                            {% endif %}
+                            {% if order.status == "PAID" %}
+                              <form class="mt-2" method="post" action="{% url 'orders:mark_item_delivered' order.id it.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-outline-dark" type="submit">
+                                  <i class="bi bi-check2-circle me-1"></i>Mark delivered
+                                </button>
+                              </form>
                             {% endif %}
                           {% else %}
                             <span class="badge text-bg-warning text-dark">Unfulfilled</span>

@@ -18,6 +18,7 @@ urlpatterns = [
     path("<uuid:order_id>/checkout/cancel/", views.checkout_cancel, name="checkout_cancel"),
     path("<uuid:order_id>/download/<int:asset_id>/", views.download_asset, name="download_asset"),
     path("<uuid:order_id>/download/all/", views.download_all_assets, name="download_all_assets"),
+    path("<uuid:order_id>/items/<uuid:item_id>/mark-delivered/", views.mark_item_delivered_buyer, name="mark_item_delivered_buyer"),
 
     # Buyer: Purchases (paid-only downloads live here)
     path("purchases/", views.purchases, name="purchases"),
@@ -29,6 +30,7 @@ urlpatterns = [
     path("seller/orders/", views.seller_orders_list, name="seller_orders_list"),
     path("seller/orders/<uuid:order_id>/", views.seller_order_detail, name="seller_order_detail"),
     path("seller/orders/<uuid:order_id>/items/<uuid:item_id>/mark-shipped/", views.mark_item_shipped, name="mark_item_shipped"),
+    path("seller/orders/<uuid:order_id>/items/<uuid:item_id>/mark-delivered/", views.mark_item_delivered, name="mark_item_delivered"),
 
     # Refunds (mounted under Orders)
     path("refunds/", include(("refunds.urls", "refunds"), namespace="refunds")),
