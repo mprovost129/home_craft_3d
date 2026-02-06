@@ -338,6 +338,49 @@ def seller_product_image_delete(request, *args, **kwargs):
 
 
 @seller_required
+@throttle(SELLER_PRODUCT_MUTATE_RULE)
+def seller_product_image_update(request, pk: int, image_id: int):
+    product = _get_owned_product_or_404(request, pk)
+    img = get_object_or_404(ProductImage, pk=image_id, product=product)
+
+    if request.method != "POST":
+        return redirect("products:seller_images", pk=product.pk)
+
+    action = (request.POST.get("action") or "").strip()
+    sort_value = (request.POST.get("sort_order") or "").strip()
+
+    updated_fields = []
+
+    if sort_value:
+        try:
+            sort_order = int(sort_value)
+            if sort_order < 0:
+                sort_order = 0
+            if img.sort_order != sort_order:
+                img.sort_order = sort_order
+                updated_fields.append("sort_order")
+        except ValueError:
+            messages.error(request, "Sort order must be a whole number.")
+
+    if action == "make_primary":
+        ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
+        if not img.is_primary:
+            img.is_primary = True
+            updated_fields.append("is_primary")
+
+    if updated_fields:
+        img.save(update_fields=updated_fields)
+        if action == "make_primary":
+            messages.success(request, f"Primary image updated for '{product.title}'.")
+        elif "sort_order" in updated_fields:
+            messages.success(request, f"Image order updated for '{product.title}'.")
+    else:
+        messages.info(request, "No changes to save.")
+
+    return redirect("products:seller_images", pk=product.pk)
+
+
+@seller_required
 @throttle(SELLER_UPLOAD_RULE)
 def seller_product_assets(request, pk: int):
     product = _get_owned_product_or_404(request, pk)

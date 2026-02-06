@@ -11,6 +11,7 @@ urlpatterns = [
 
     path("<int:pk>/images/", views_seller.seller_product_images, name="seller_images"),
     path("<int:pk>/images/<int:image_id>/delete/", views_seller.seller_product_image_delete, name="seller_image_delete"),
+    path("<int:pk>/images/<int:image_id>/update/", views_seller.seller_product_image_update, name="seller_image_update"),
 
     path("<int:pk>/assets/", views_seller.seller_product_assets, name="seller_assets"),
     path("<int:pk>/assets/<int:asset_id>/delete/", views_seller.seller_product_asset_delete, name="seller_asset_delete"),
