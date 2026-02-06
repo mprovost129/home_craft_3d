@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
+import re
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -238,6 +239,49 @@ def admin_dashboard(request):
     # NOTE: iframe can still be blocked by adblock/privacy; "Open Plausible" should always work.
     plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
 
+    plausible_period = (request.GET.get("period") or "30d").strip()
+    allowed_periods = {"7d", "30d", "90d", "6mo", "12mo", "year", "today", "yesterday", "custom"}
+    if plausible_period not in allowed_periods:
+        plausible_period = "30d"
+
+    plausible_from = (request.GET.get("from") or "").strip()
+    plausible_to = (request.GET.get("to") or "").strip()
+    if plausible_period != "custom":
+        plausible_from = ""
+        plausible_to = ""
+
+    page_filter_raw = (request.GET.get("page") or "").strip()
+    plausible_filters = ""
+    if page_filter_raw:
+        if page_filter_raw.startswith("="):
+            value = page_filter_raw[1:].strip()
+            if value:
+                plausible_filters = f"event:page=={value}"
+        else:
+            value = re.escape(page_filter_raw)
+            plausible_filters = f"event:page~={value}"
+
+    try:
+        plausible_top_limit = int(request.GET.get("limit") or 8)
+    except ValueError:
+        plausible_top_limit = 8
+    plausible_top_limit = max(5, min(plausible_top_limit, 50))
+
+    labels = {
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "6mo": "Last 6 months",
+        "12mo": "Last 12 months",
+        "year": "Year to date",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "custom": "Custom range",
+    }
+    plausible_period_label = labels.get(plausible_period, "Last 30 days")
+    if plausible_period == "custom" and (plausible_from or plausible_to):
+        plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
+
     plausible_api_enabled = plausible_is_configured()
     plausible_summary = {}
     plausible_top_pages = []
@@ -245,8 +289,19 @@ def admin_dashboard(request):
 
     if plausible_api_enabled:
         try:
-            plausible_summary = plausible_get_summary(period=f"{DASH_RECENT_DAYS}d")
-            plausible_top_pages_raw = plausible_get_top_pages(period=f"{DASH_RECENT_DAYS}d", limit=8)
+            plausible_summary = plausible_get_summary(
+                period=plausible_period,
+                from_date=plausible_from or None,
+                to_date=plausible_to or None,
+                filters=plausible_filters or None,
+            )
+            plausible_top_pages_raw = plausible_get_top_pages(
+                period=plausible_period,
+                limit=plausible_top_limit,
+                from_date=plausible_from or None,
+                to_date=plausible_to or None,
+                filters=plausible_filters or None,
+            )
 
             def _safe_int(value, default=0):
                 try:
@@ -316,6 +371,12 @@ def admin_dashboard(request):
             "plausible_api_enabled": plausible_api_enabled,
             "plausible_summary": plausible_summary_display,
             "plausible_top_pages": plausible_top_pages,
+            "plausible_period": plausible_period,
+            "plausible_from": plausible_from,
+            "plausible_to": plausible_to,
+            "plausible_page_filter": page_filter_raw,
+            "plausible_top_limit": plausible_top_limit,
+            "plausible_period_label": plausible_period_label,
         },
     )
 

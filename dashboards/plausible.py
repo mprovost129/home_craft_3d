@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 from django.conf import settings
@@ -23,7 +23,13 @@ def _get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
 	return response.json()
 
 
-def get_summary(period: str = "30d") -> Dict[str, Any]:
+def get_summary(
+	period: str = "30d",
+	*,
+	from_date: Optional[str] = None,
+	to_date: Optional[str] = None,
+	filters: Optional[str] = None,
+) -> Dict[str, Any]:
 	if not is_configured():
 		return {}
 
@@ -32,11 +38,24 @@ def get_summary(period: str = "30d") -> Dict[str, Any]:
 		"period": period,
 		"metrics": "visitors,pageviews,visits,bounce_rate,visit_duration",
 	}
+	if from_date:
+		params["from"] = from_date
+	if to_date:
+		params["to"] = to_date
+	if filters:
+		params["filters"] = filters
 	data = _get("aggregate", params)
 	return data.get("results", {}) or {}
 
 
-def get_top_pages(period: str = "30d", limit: int = 10) -> List[Dict[str, Any]]:
+def get_top_pages(
+	period: str = "30d",
+	limit: int = 10,
+	*,
+	from_date: Optional[str] = None,
+	to_date: Optional[str] = None,
+	filters: Optional[str] = None,
+) -> List[Dict[str, Any]]:
 	if not is_configured():
 		return []
 
@@ -47,5 +66,11 @@ def get_top_pages(period: str = "30d", limit: int = 10) -> List[Dict[str, Any]]:
 		"metrics": "pageviews,visitors",
 		"limit": str(limit),
 	}
+	if from_date:
+		params["from"] = from_date
+	if to_date:
+		params["to"] = to_date
+	if filters:
+		params["filters"] = filters
 	data = _get("breakdown", params)
 	return data.get("results", []) or []

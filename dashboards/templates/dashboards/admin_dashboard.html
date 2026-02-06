@@ -138,6 +138,33 @@
       <div class="card">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div class="fw-semibold">Analytics (Plausible)</div>
+          <form class="d-flex flex-wrap align-items-center gap-2" method="get">
+            <select class="form-select form-select-sm" name="period" style="min-width:160px;">
+              <option value="7d" {% if plausible_period == "7d" %}selected{% endif %}>Last 7 days</option>
+              <option value="30d" {% if plausible_period == "30d" %}selected{% endif %}>Last 30 days</option>
+              <option value="90d" {% if plausible_period == "90d" %}selected{% endif %}>Last 90 days</option>
+              <option value="6mo" {% if plausible_period == "6mo" %}selected{% endif %}>Last 6 months</option>
+              <option value="12mo" {% if plausible_period == "12mo" %}selected{% endif %}>Last 12 months</option>
+              <option value="year" {% if plausible_period == "year" %}selected{% endif %}>Year to date</option>
+              <option value="today" {% if plausible_period == "today" %}selected{% endif %}>Today</option>
+              <option value="yesterday" {% if plausible_period == "yesterday" %}selected{% endif %}>Yesterday</option>
+              <option value="custom" {% if plausible_period == "custom" %}selected{% endif %}>Custom range</option>
+            </select>
+            <input class="form-control form-control-sm" type="date" name="from" value="{{ plausible_from }}" title="From date">
+            <input class="form-control form-control-sm" type="date" name="to" value="{{ plausible_to }}" title="To date">
+            <input class="form-control form-control-sm" type="text" name="page" value="{{ plausible_page_filter }}" placeholder="Page filter" style="min-width:160px;">
+            <select class="form-select form-select-sm" name="limit" style="width:110px;">
+              <option value="5" {% if plausible_top_limit == 5 %}selected{% endif %}>Top 5</option>
+              <option value="10" {% if plausible_top_limit == 10 %}selected{% endif %}>Top 10</option>
+              <option value="15" {% if plausible_top_limit == 15 %}selected{% endif %}>Top 15</option>
+              <option value="20" {% if plausible_top_limit == 20 %}selected{% endif %}>Top 20</option>
+              <option value="30" {% if plausible_top_limit == 30 %}selected{% endif %}>Top 30</option>
+              <option value="40" {% if plausible_top_limit == 40 %}selected{% endif %}>Top 40</option>
+              <option value="50" {% if plausible_top_limit == 50 %}selected{% endif %}>Top 50</option>
+            </select>
+            <button class="btn btn-sm btn-outline-dark" type="submit">Apply</button>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboards:admin' %}">Reset</a>
+          </form>
           <div class="d-flex gap-2">
             {% if plausible_shared_url %}
               <a class="btn btn-outline-primary btn-sm" href="{{ plausible_shared_url }}" target="_blank" rel="noopener">
@@ -192,7 +219,7 @@
               <div class="col-6 col-md-4 col-xl-2">
                 <div class="border rounded p-3 h-100">
                   <div class="text-secondary small">Period</div>
-                  <div class="h6 mb-0">Last {{ since_days }} days</div>
+                  <div class="h6 mb-0">{{ plausible_period_label }}</div>
                 </div>
               </div>
             </div>
