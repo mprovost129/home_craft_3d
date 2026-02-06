@@ -8,10 +8,9 @@
 <div class="card h-100">
   {% if p.primary_image %}
       <picture>
-        {% if p.primary_image.image.url|lower|endswith:'.jpg' or p.primary_image.image.url|lower|endswith:'.jpeg' or p.primary_image.image.url|lower|endswith:'.png' %}
-          <source srcset="{{ p.primary_image.image.url|replace:'.jpg','.webp'|replace:'.jpeg','.webp'|replace:'.png','.webp' }}" type="image/webp">
-          <source srcset="{{ p.primary_image.image.url|replace:'.webp','.jpg' }}" type="image/jpeg">
-        {% endif %}
+          <source srcset="{% static 'images/hero.webp' %}" type="image/webp">
+          <source srcset="{% static 'images/hero.jpg' %}" type="image/jpeg">
+          <source srcset="{% static 'images/hero.png' %}" type="image/png">
         <img
           src="{{ p.primary_image.image.url }}"
           class="card-img-top"
