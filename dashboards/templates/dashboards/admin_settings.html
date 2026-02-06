@@ -77,6 +77,21 @@
           </div>
         </div>
 
+        <div class="col-12">
+          <label class="form-label">Plausible shared dashboard URL</label>
+          {{ form.plausible_shared_url }}
+          {% if form.plausible_shared_url.help_text %}
+          <div class="form-text">{{ form.plausible_shared_url.help_text }}</div>
+          {% else %}
+          <div class="form-text">
+              Paste your Plausible shared link (ex: https://plausible.io/share/homecraft3d.com?auth=...).
+          </div>
+          {% endif %}
+          {% if form.plausible_shared_url.errors %}
+          <div class="text-danger small mt-1">{{ form.plausible_shared_url.errors }}</div>
+            {% endif %}
+          </div>
+
         <hr class="my-4">
 
         <h2 class="h6 mb-3">Home Page</h2>

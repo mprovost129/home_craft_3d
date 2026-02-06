@@ -5,7 +5,7 @@ from typing import Dict, Tuple
 
 from django.db import transaction
 
-from .models import SiteSetting
+from .models import SiteConfig
 
 # (default_value, description)
 DEFAULTS: Dict[str, Tuple[str, str]] = {
@@ -23,39 +23,58 @@ def ensure_defaults_exist() -> None:
     Safe to call at runtime.
     """
     # Avoid wrapping in atomic unless you want strict consistency; this is fine.
-    for key, (val, desc) in DEFAULTS.items():
-        SiteSetting.objects.get_or_create(
-            key=key,
-            defaults={"value": val, "description": desc},
-        )
+    SiteConfig.objects.get_or_create(pk=1)
 
 
 def get_str(key: str, default: str = "") -> str:
-    obj = SiteSetting.objects.filter(key=key).first()
+    obj = SiteConfig.objects.filter(pk=1).first()
     if obj is None:
         return default
-    return (obj.value or "").strip()
+    val = getattr(obj, key, None)
+    if val is None:
+        return default
+    return str(val).strip()
 
 
 def get_int(key: str, default: int = 0) -> int:
-    obj = SiteSetting.objects.filter(key=key).first()
+    obj = SiteConfig.objects.filter(pk=1).first()
     if obj is None:
         return default
-    return obj.as_int(default=default)
+    try:
+        val = getattr(obj, key, None)
+        if val is None:
+            return default
+        return int(val)
+    except (ValueError, TypeError):
+        return default
 
 
 def get_decimal(key: str, default: Decimal = Decimal("0")) -> Decimal:
-    obj = SiteSetting.objects.filter(key=key).first()
+    obj = SiteConfig.objects.filter(pk=1).first()
     if obj is None:
         return default
-    return obj.as_decimal(default=default)
+    try:
+        val = getattr(obj, key, None)
+        if val is None:
+            return default
+        return Decimal(str(val))
+    except Exception:
+        return default
 
 
 def get_bool(key: str, default: bool = False) -> bool:
-    obj = SiteSetting.objects.filter(key=key).first()
+    obj = SiteConfig.objects.filter(pk=1).first()
     if obj is None:
         return default
-    return obj.as_bool(default=default)
+    try:
+        val = getattr(obj, key, None)
+        if val is None:
+            return default
+        if isinstance(val, bool):
+            return val
+        return str(val).lower() in ("true", "1", "yes")
+    except Exception:
+        return default
 
 
 def marketplace_sales_percent() -> Decimal:
