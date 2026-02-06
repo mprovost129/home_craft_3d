@@ -210,6 +210,46 @@ document.addEventListener('DOMContentLoaded', function() {
   if (kindSelect.value) {
     updateKindInfo();
   }
+
+  const categorySelect = document.querySelector('[name="category"]');
+
+  function filterCategoriesByKind(kind) {
+    if (!categorySelect) return;
+    const groups = Array.from(categorySelect.querySelectorAll('optgroup'));
+    let hasVisibleSelection = false;
+
+    groups.forEach(function (group) {
+      const label = (group.getAttribute('label') || '').toLowerCase();
+      const isFileGroup = label.includes('(files)');
+      const showGroup = kind === 'FILE' ? isFileGroup : !isFileGroup;
+
+      group.disabled = !showGroup;
+      group.style.display = showGroup ? '' : 'none';
+
+      Array.from(group.querySelectorAll('option')).forEach(function (opt) {
+        opt.disabled = !showGroup;
+        if (showGroup && opt.selected) {
+          hasVisibleSelection = true;
+        }
+      });
+    });
+
+    if (!hasVisibleSelection) {
+      const firstVisible = Array.from(categorySelect.querySelectorAll('option')).find(function (opt) {
+        return !opt.disabled;
+      });
+      if (firstVisible) {
+        categorySelect.value = firstVisible.value;
+      }
+    }
+  }
+
+  if (kindSelect && categorySelect) {
+    filterCategoriesByKind(kindSelect.value || 'FILE');
+    kindSelect.addEventListener('change', function () {
+      filterCategoriesByKind(kindSelect.value);
+    });
+  }
 });
 </script>
 {% endblock %}

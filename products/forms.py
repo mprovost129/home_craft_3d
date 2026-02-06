@@ -157,11 +157,12 @@ class ProductForm(forms.ModelForm):
         base_qs = Category.objects.filter(is_active=True).order_by("type", "parent_id", "sort_order", "name", "id")
 
         # Kind-specific filtering (models vs files)
-        kind_value = None
         if self.instance and self.instance.pk:
             kind_value = self.instance.kind
         else:
-            kind_value = self.data.get("kind") or self.initial.get("kind")
+            kind_value = self.data.get("kind") or self.initial.get("kind") or Product.Kind.FILE
+            if not self.data:
+                self.fields["kind"].initial = kind_value
 
         if kind_value in (Product.Kind.MODEL, Product.Kind.FILE):
             expected_type = Category.CategoryType.MODEL if kind_value == Product.Kind.MODEL else Category.CategoryType.FILE
