@@ -103,9 +103,16 @@ class AnalyticsAdminSite(admin.AdminSite):
 # Extend the default admin site with analytics
 admin.site.__class__ = AnalyticsAdminSite
 
+class SiteEmailTemplateInline(admin.TabularInline):
+    model = SiteEmailTemplate
+    extra = 0
+    fields = ("name", "subject", "is_active", "updated_at")
+    readonly_fields = ("updated_at",)
+    show_change_link = True
 
 @admin.register(SiteConfig)
 class SiteConfigAdmin(admin.ModelAdmin):
+    inlines = [SiteEmailTemplateInline]
     list_display = (
         "id",
         "marketplace_sales_percent",
@@ -207,15 +214,26 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
 
     actions = ["send_email_to_all_users", "send_email_to_all_staff"]
 
+    from django.template import Context, Template
+
+    def render_template(self, raw, context_dict):
+        # Use Django's template engine for rendering
+        return Template(raw).render(Context(context_dict))
+
     def send_email_to_all_users(self, request, queryset):
         User = get_user_model()
         users = User.objects.filter(is_active=True, email__isnull=False).exclude(email="")
+        site_name = request.get_host()
         for template in queryset:
             messages_sent = 0
             datatuple = []
             for user in users:
-                subject = template.subject.replace("{{ user }}", user.get_full_name() or user.username)
-                body = template.body.replace("{{ user }}", user.get_full_name() or user.username)
+                context = {
+                    "user": user.get_full_name() or user.username,
+                    "site_name": site_name,
+                }
+                subject = self.render_template(template.subject, context)
+                body = self.render_template(template.body, context)
                 datatuple.append((subject, body, None, [user.email]))
             if datatuple:
                 send_mass_mail(datatuple, fail_silently=False)
@@ -226,12 +244,17 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
     def send_email_to_all_staff(self, request, queryset):
         User = get_user_model()
         users = User.objects.filter(is_staff=True, is_active=True, email__isnull=False).exclude(email="")
+        site_name = request.get_host()
         for template in queryset:
             messages_sent = 0
             datatuple = []
             for user in users:
-                subject = template.subject.replace("{{ user }}", user.get_full_name() or user.username)
-                body = template.body.replace("{{ user }}", user.get_full_name() or user.username)
+                context = {
+                    "user": user.get_full_name() or user.username,
+                    "site_name": site_name,
+                }
+                subject = self.render_template(template.subject, context)
+                body = self.render_template(template.body, context)
                 datatuple.append((subject, body, None, [user.email]))
             if datatuple:
                 send_mass_mail(datatuple, fail_silently=False)
