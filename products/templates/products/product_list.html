@@ -68,7 +68,7 @@
         {% endif %}
       {% endif %}
     </div>
-    <div class="collapse {% if filters_active %}show{% endif %} mt-2" id="productFilters">
+    <div class="collapse{% if filters_active %} show{% endif %} mt-2" id="productFilters">
       <form class="d-flex flex-wrap gap-2" method="get">
         <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
 

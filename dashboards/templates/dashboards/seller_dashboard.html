@@ -67,7 +67,9 @@
               <td class="small">{{ e.created_at|date:"Y-m-d" }}</td>
               <td class="small">{{ e.get_reason_display }}</td>
               <td class="text-end {% if e.amount_cents < 0 %}text-danger{% else %}text-success{% endif %}">
-                ${{ e.amount_cents|divisibleby:100|yesno:'0,1' }}{{ e.amount_cents|abs|stringformat:'d'|slice:':-2' }}.{{ e.amount_cents|abs|stringformat:'d'|slice:'-2:' }}
+                {% with abs_cents=e.amount_cents|floatformat:0 %}
+                  ${{ e.amount_cents|divisibleby:100|yesno:'0,1' }}{{ e.amount_cents|floatformat:2|stringformat:'s'|slice:'1:' }}
+                {% endwith %}
               </td>
             </tr>
           {% empty %}
