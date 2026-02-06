@@ -232,6 +232,10 @@ def home(request):
     _apply_can_buy_flag(all_cards)
     _apply_trending_badge_flag(all_cards, computed_ids=computed_ids)
 
+    # Advertisement banner (show first currently active)
+    from core.models_advert import AdvertisementBanner
+    ad_banner = AdvertisementBanner.objects.filter(is_active=True).order_by("-created_at").first()
+
     return render(
         request,
         "core/home.html",
@@ -242,6 +246,7 @@ def home(request):
             "misc": misc,
             "recently_purchased": recently_purchased_list,
             "most_downloaded": most_downloaded_list,
+            "ad_banner": ad_banner,
         },
     )
 

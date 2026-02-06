@@ -1,3 +1,9 @@
+from .models_advert import AdvertisementBanner
+@admin.register(AdvertisementBanner)
+class AdvertisementBannerAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_active", "start_date", "end_date", "created_at")
+    list_filter = ("is_active", "start_date", "end_date")
+    search_fields = ("title",)
 from __future__ import annotations
 
 from datetime import timedelta
