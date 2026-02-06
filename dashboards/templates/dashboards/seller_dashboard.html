@@ -122,10 +122,13 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% with all_green=checklist.has_image and checklist.has_specs and checklist.has_assets and checklist.is_active %}
                   <div class="d-flex align-items-center gap-2">
                     <span title="Checklist status">
-                      <i class="bi bi-circle-fill {% if all_green %}text-success{% else %}text-secondary{% endif %}"></i>
+                      {% if checklist.has_image and checklist.has_specs and checklist.has_assets and checklist.is_active %}
+                        <i class="bi bi-circle-fill text-success"></i>
+                      {% else %}
+                        <i class="bi bi-circle-fill text-secondary"></i>
+                      {% endif %}
                     </span>
                     <div class="d-flex flex-row gap-3 small">
                       <span title="Image">
@@ -142,7 +145,6 @@
                       </span>
                     </div>
                   </div>
-                  {% endwith %}
                 </td>
               </tr>
               {% endwith %}
