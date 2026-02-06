@@ -286,22 +286,27 @@ def admin_dashboard(request):
     plausible_summary = {}
     plausible_top_pages = []
     plausible_summary_display = {}
+    plausible_api_error = ""
 
     if plausible_api_enabled:
         try:
-            plausible_summary = plausible_get_summary(
-                period=plausible_period,
-                from_date=plausible_from or None,
-                to_date=plausible_to or None,
-                filters=plausible_filters or None,
-            )
-            plausible_top_pages_raw = plausible_get_top_pages(
-                period=plausible_period,
-                limit=plausible_top_limit,
-                from_date=plausible_from or None,
-                to_date=plausible_to or None,
-                filters=plausible_filters or None,
-            )
+            if plausible_period == "custom" and not (plausible_from and plausible_to):
+                plausible_api_error = "Select both From and To dates for a custom range."
+                plausible_top_pages_raw = []
+            else:
+                plausible_summary = plausible_get_summary(
+                    period=plausible_period,
+                    from_date=plausible_from or None,
+                    to_date=plausible_to or None,
+                    filters=plausible_filters or None,
+                )
+                plausible_top_pages_raw = plausible_get_top_pages(
+                    period=plausible_period,
+                    limit=plausible_top_limit,
+                    from_date=plausible_from or None,
+                    to_date=plausible_to or None,
+                    filters=plausible_filters or None,
+                )
 
             def _safe_int(value, default=0):
                 try:
@@ -347,7 +352,7 @@ def admin_dashboard(request):
                     }
                 )
         except Exception:
-            plausible_api_enabled = False
+            plausible_api_error = "Plausible API request failed. Check your filters or date range."
             plausible_summary_display = {}
             plausible_top_pages = []
 
@@ -377,6 +382,7 @@ def admin_dashboard(request):
             "plausible_page_filter": page_filter_raw,
             "plausible_top_limit": plausible_top_limit,
             "plausible_period_label": plausible_period_label,
+            "plausible_api_error": plausible_api_error,
         },
     )
 
