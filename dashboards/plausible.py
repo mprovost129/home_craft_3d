@@ -39,7 +39,7 @@ def get_summary(
 		"metrics": "visitors,pageviews,visits,bounce_rate,visit_duration",
 	}
 	if from_date:
-		params["from"] = from_date
+		params["date"] = from_date
 	if to_date:
 		params["to"] = to_date
 	if filters:
@@ -67,7 +67,7 @@ def get_top_pages(
 		"limit": str(limit),
 	}
 	if from_date:
-		params["from"] = from_date
+		params["date"] = from_date
 	if to_date:
 		params["to"] = to_date
 	if filters:
