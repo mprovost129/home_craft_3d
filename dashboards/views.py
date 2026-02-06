@@ -250,14 +250,14 @@ def admin_dashboard(request):
     plausible_from = (request.GET.get("from") or "").strip()
     plausible_to = (request.GET.get("to") or "").strip()
 
-    if plausible_period in {"today", "yesterday"}:
+    if selected_period in {"today", "yesterday"}:
         base_date = timezone.now().date()
-        if plausible_period == "yesterday":
+        if selected_period == "yesterday":
             base_date = base_date - timedelta(days=1)
         plausible_from = base_date.isoformat()
         plausible_to = base_date.isoformat()
         api_period = "custom"
-    elif plausible_period != "custom":
+    elif selected_period != "custom":
         plausible_from = ""
         plausible_to = ""
 
