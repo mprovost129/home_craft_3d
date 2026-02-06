@@ -316,26 +316,23 @@ def _send_paid_order_email(order: "Order") -> None:
     For guests: includes tokenized links for order access and downloads.
     For authenticated: includes direct links to purchases page.
     """
-    # Determine recipient email
     recipient_email = ""
     if order.buyer and order.buyer.email:
         recipient_email = order.buyer.email
     elif order.guest_email:
         recipient_email = order.guest_email
-    
+
     if not recipient_email:
         return
 
     base = _site_base_url()
     logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
-    
-    # Build order link
+
     if order.is_guest:
         order_link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}"
     else:
         order_link = f"{base}{reverse('orders:purchases')}"
 
-    # Get digital assets
     product_ids = list(order.items.values_list("product_id", flat=True))
     if not product_ids:
         assets = []
@@ -351,7 +348,7 @@ def _send_paid_order_email(order: "Order") -> None:
     lines: list[str] = []
     lines.append("Thanks for your purchase at Home Craft 3D!")
     lines.append("")
-    
+
     if order.is_guest:
         lines.append("Access your order here:")
     else:
@@ -372,7 +369,7 @@ def _send_paid_order_email(order: "Order") -> None:
                 continue
 
             fn = a.original_filename or (a.file.name.rsplit("/", 1)[-1] if a.file else "download")
-            
+
             if order.is_guest:
                 dl = (
                     f"{base}"
@@ -443,7 +440,6 @@ def _send_seller_new_order_email(order: "Order") -> None:
     """
     Send notification to sellers when they receive paid orders with physical items.
     """
-    # Get all unique sellers with physical items in this order
     sellers_with_physical = {}
     for item in order.items.filter(requires_shipping=True).select_related("seller"):
         seller = item.seller
@@ -476,7 +472,7 @@ def _send_seller_new_order_email(order: "Order") -> None:
         for item in items:
             lines.append(f"- {item.quantity}x {item.product.title} (${item.line_total_cents / 100:.2f})")
         lines.append("")
-        
+
         if order.requires_shipping:
             lines.append("Shipping address:")
             lines.append(f"{order.shipping_name}")
@@ -537,13 +533,12 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
     """
     Send notification to buyer when seller ships item with tracking info.
     """
-    # Only send to buyer if they have an email
     recipient_email = ""
     if order.buyer and order.buyer.email:
         recipient_email = order.buyer.email
     elif order.guest_email:
         recipient_email = order.guest_email
-    
+
     if not recipient_email:
         return
 
@@ -559,14 +554,14 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
     lines.append(f"Item: {item.product.title}")
     lines.append(f"Quantity: {item.quantity}")
     lines.append("")
-    
+
     if item.carrier:
         lines.append(f"Carrier: {item.carrier}")
     if item.tracking_number:
         lines.append(f"Tracking number: {item.tracking_number}")
     if item.carrier or item.tracking_number:
         lines.append("")
-    
+
     lines.append("View your order:")
     lines.append(order_link)
     lines.append("")
@@ -842,6 +837,13 @@ class Order(models.Model):
         paid_at: Optional[timezone.datetime] = None,
         note: str = "",
     ) -> bool:
+        """
+        Marks order PAID and ensures a SALE ledger entry exists per seller.
+
+        IMPORTANT: Ledger rule
+          - On paid => create SellerBalanceEntry(reason=SALE, amount=+seller_net_total_for_order)
+          - On transfer => create SellerBalanceEntry(reason=PAYOUT, amount=-payout_amount)
+        """
         changed = False
         now = paid_at or timezone.now()
 
@@ -872,6 +874,15 @@ class Order(models.Model):
             update_fields.append("updated_at")
             self.save(update_fields=update_fields)
 
+        # ✅ Always ensure SALE entries exist once the order is PAID (idempotent)
+        if self.status == self.Status.PAID:
+            try:
+                from payments.services import ensure_sale_balance_entries_for_paid_order
+                ensure_sale_balance_entries_for_paid_order(order=self)
+            except Exception:
+                # Do not break the paid flow on ledger write failures.
+                pass
+
         if changed:
             msg = note or ""
             if payment_intent_id and payment_intent_id != "FREE":
@@ -880,23 +891,7 @@ class Order(models.Model):
                 msg = msg or "Marked paid via FREE checkout"
             self._add_event(OrderEvent.Type.PAID, msg)
 
-            # --- Add SellerBalanceEntry for each seller in this order ---
-            from payments.models import SellerBalanceEntry
-            for item in self.items.all():
-                # Only add if not already present for this order item
-                if not SellerBalanceEntry.objects.filter(order_item=item, reason=SellerBalanceEntry.Reason.ADJUSTMENT).exists():
-                    SellerBalanceEntry.objects.create(
-                        seller=item.seller,
-                        amount_cents=item.seller_net_cents,
-                        reason=SellerBalanceEntry.Reason.ADJUSTMENT,
-                        order=self,
-                        order_item=item,
-                        note=f"Order paid: {self.pk} (item {item.pk})"
-                    )
-
-            # Send confirmation email to buyer (guest or authenticated)
             _send_paid_order_email(self)
-            # Send notification to sellers with physical items
             _send_seller_new_order_email(self)
 
         return changed
@@ -962,7 +957,6 @@ class OrderItem(models.Model):
         help_text="Seller net on this line (gross - marketplace_fee).",
     )
 
-    # Fulfillment tracking
     fulfillment_status = models.CharField(
         max_length=24,
         choices=FulfillmentStatus.choices,
@@ -991,24 +985,21 @@ class OrderItem(models.Model):
         return int(self.quantity) * int(self.unit_price_cents)
 
     def mark_shipped(self, tracking_number: str = "", carrier: str = "") -> bool:
-        """Mark item as shipped and notify buyer."""
         if self.fulfillment_status == self.FulfillmentStatus.SHIPPED:
             return False
-        
+
         self.fulfillment_status = self.FulfillmentStatus.SHIPPED
         self.tracking_number = (tracking_number or "").strip()
         self.carrier = (carrier or "").strip()
         self.shipped_at = timezone.now()
         self.buyer_notified_at = timezone.now()
         self.save(update_fields=["fulfillment_status", "tracking_number", "carrier", "shipped_at", "buyer_notified_at", "updated_at"])
-        
-        # Send buyer notification email
+
         _send_buyer_shipped_email(self.order, self)
-        
+
         return True
 
     def mark_delivered(self) -> bool:
-        """Mark item as delivered."""
         if self.fulfillment_status == self.FulfillmentStatus.DELIVERED:
             return False
 

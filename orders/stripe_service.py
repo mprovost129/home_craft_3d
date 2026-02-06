@@ -144,9 +144,10 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
     Create Stripe transfers for a PAID order.
 
     Ledger-aware:
-      - Applies seller balance
-      - Never overpays
-      - Carries negative balances forward
+      - Uses SELLER LEDGER for balance
+      - Applies prior negative balance (carry forward)
+      - Does NOT attempt to pay prior positive balances via source_transaction (Stripe restriction)
+      - Never pays more than this order's net when using source_transaction
     """
     payment_intent_id = (payment_intent_id or "").strip()
     if not payment_intent_id or payment_intent_id == "FREE":
@@ -195,14 +196,24 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
             )
             continue
 
-        balance_cents = int(get_seller_balance_cents(seller=acct.user) or 0)
-        payout_cents = max(0, net_cents + balance_cents)
+        # Ledger after SALE credit exists (mark_paid ensures SALE entries)
+        balance_after_sale = int(get_seller_balance_cents(seller=acct.user) or 0)
+
+        # Infer the balance before this order’s SALE credit.
+        # This lets us apply prior NEGATIVE balances, without double-paying.
+        balance_before_sale = balance_after_sale - net_cents
+
+        # Desired payout for this order = net_cents plus any prior negative balance
+        desired_payout = max(0, net_cents + balance_before_sale)
+
+        # IMPORTANT: because we use source_transaction, do not pay more than this order's net.
+        payout_cents = min(net_cents, desired_payout)
 
         if payout_cents <= 0:
             OrderEvent.objects.create(
                 order=order,
                 type=OrderEvent.Type.WARNING,
-                message=f"transfer skipped seller={seller_id} (balance={balance_cents})",
+                message=f"transfer skipped seller={seller_id} (balance_before={balance_before_sale})",
             )
             continue
 
@@ -217,7 +228,9 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
                 "payment_intent_id": str(payment_intent_id),
                 "gross_cents": str(gross_cents),
                 "net_cents": str(net_cents),
-                "seller_balance_before": str(balance_cents),
+                "seller_balance_before": str(balance_before_sale),
+                "seller_balance_after_sale": str(balance_after_sale),
+                "desired_payout": str(desired_payout),
             },
         }
 
@@ -226,7 +239,7 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
 
         transfer = stripe.Transfer.create(
             **kwargs,
-            idempotency_key=f"transfer:{order.pk}:{seller_id}:v4",
+            idempotency_key=f"transfer:{order.pk}:{seller_id}:v5",
         )
 
         SellerBalanceEntry.objects.create(
@@ -241,7 +254,7 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
             order=order,
             seller=acct.user,
             payout_cents=int(payout_cents),
-            balance_before_cents=int(balance_cents),
+            balance_before_cents=int(balance_before_sale),
             transfer_id=str(getattr(transfer, "id", "") or ""),
         )
 
@@ -251,6 +264,6 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
             message=(
                 f"transfer={transfer.id} seller={seller_id} "
                 f"gross={gross_cents} net={net_cents} "
-                f"balance_before={balance_cents} payout={payout_cents}"
+                f"balance_before={balance_before_sale} payout={payout_cents}"
             ),
         )
