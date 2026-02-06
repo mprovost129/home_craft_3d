@@ -505,6 +505,9 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
     seller_avg_rating = seller_review_summary.get("avg") or 0
     seller_review_count = seller_review_summary.get("count") or 0
     
+    # Get seller profile (for avatar, shop name, bio, socials)
+    profile = getattr(seller, "profile", None)
+
     return render(
         request,
         "products/seller_shop.html",
@@ -514,5 +517,6 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
             "seller_avg_rating": seller_avg_rating,
             "seller_review_count": seller_review_count,
             "recent_reviews": list(seller_reviews[:5]),
+            "profile": profile,
         },
     )

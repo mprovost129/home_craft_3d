@@ -10,19 +10,45 @@
     <div class="col-12 col-lg-4">
       <div class="card shadow-sm">
         <div class="card-body text-center">
-          <div class="h5 mb-2">{{ seller.username }}</div>
-          
+          {% if profile and profile.avatar %}
+            <img src="{{ profile.avatar.url }}" alt="{{ profile.public_seller_name }} avatar" class="rounded-circle mb-2" style="width: 96px; height: 96px; object-fit: cover;">
+          {% endif %}
+          <div class="h5 mb-1">{{ profile.public_seller_name|default:seller.username }}</div>
+          {% if profile and profile.city %}
+            <div class="text-secondary small mb-1">{{ profile.city }}{% if profile.state %}, {{ profile.get_state_display }}{% endif %}</div>
+          {% endif %}
+          <div class="text-secondary small mb-1">Member since {{ seller.date_joined|date:"F Y" }}</div>
+          {% if profile and profile.bio %}
+            <div class="mb-2 small">{{ profile.bio }}</div>
+          {% endif %}
+          <div class="text-secondary small mb-2">
+            {{ products|length }} product{{ products|pluralize }}
+          </div>
+          {% if profile and (profile.website or profile.social_instagram or profile.social_twitter or profile.social_facebook or profile.social_youtube) %}
+            <div class="mb-2">
+              {% if profile.website %}
+                <a href="{{ profile.website }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-globe"></i> Website</a>
+              {% endif %}
+              {% if profile.social_instagram %}
+                <a href="{{ profile.social_instagram }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-instagram"></i></a>
+              {% endif %}
+              {% if profile.social_twitter %}
+                <a href="{{ profile.social_twitter }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-twitter-x"></i></a>
+              {% endif %}
+              {% if profile.social_facebook %}
+                <a href="{{ profile.social_facebook }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-facebook"></i></a>
+              {% endif %}
+              {% if profile.social_youtube %}
+                <a href="{{ profile.social_youtube }}" class="me-2" target="_blank" rel="noopener"><i class="bi bi-youtube"></i></a>
+              {% endif %}
+            </div>
+          {% endif %}
           {% if seller_review_count > 0 %}
             <div class="mb-3">
               <div class="h6 mb-1">★ {{ seller_avg_rating|floatformat:1 }}/5</div>
               <div class="text-secondary small">{{ seller_review_count }} seller rating{{ seller_review_count|pluralize }}</div>
             </div>
           {% endif %}
-
-          <div class="text-secondary small mb-3">
-            {{ products|length }} product{{ products|pluralize }}
-          </div>
-
           {% if recent_reviews %}
             <hr>
             <div class="text-start">

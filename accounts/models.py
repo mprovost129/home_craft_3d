@@ -6,6 +6,13 @@ from django.db import models
 
 
 class Profile(models.Model):
+        # Public profile fields
+        bio = models.TextField(blank=True, help_text="Short public bio/about for your shop.")
+        website = models.URLField(blank=True, help_text="Personal or shop website.")
+        social_instagram = models.URLField(blank=True, help_text="Instagram profile URL.")
+        social_twitter = models.URLField(blank=True, help_text="Twitter/X profile URL.")
+        social_facebook = models.URLField(blank=True, help_text="Facebook profile URL.")
+        social_youtube = models.URLField(blank=True, help_text="YouTube channel URL.")
     """Marketplace Profile.
 
     Extends the configured AUTH_USER_MODEL with marketplace-specific profile data and role flags.

@@ -17,7 +17,7 @@ urlpatterns = [
     path("sitemap.txt", core_views.sitemap_xml),
     path("sitemap.xml.gz", core_views.sitemap_xml),
     path("admin/", admin.site.urls),
-    path("", include("core.urls")),
+    path("", include(("core.urls", "core"), namespace="core")),
     path("accounts/", include("accounts.urls")),
     path("catalog/", include("catalog.urls")),
     path("products/", include("products.urls")),
