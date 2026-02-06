@@ -227,7 +227,6 @@ class Product(models.Model):
                     (digital.license_type or "").strip(),
                     (digital.requirements or "").strip(),
                     (digital.license_text or "").strip(),
-                    digital.file_count,
                 ]
             )
 

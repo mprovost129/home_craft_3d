@@ -18,6 +18,7 @@ from payments.models import SellerStripeAccount
 from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm, ProductPhysicalForm, ProductDigitalForm
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
+from .views import _render_product_detail
 
 
 SELLER_PRODUCT_MUTATE_RULE = ThrottleRule(key_prefix="seller_product_mutate", limit=20, window_seconds=60)
@@ -407,6 +408,12 @@ def seller_product_assets(request, pk: int):
         "products/seller/product_assets.html",
         {"product": product, "form": form, "assets": assets},
     )
+
+
+@seller_required
+def seller_product_preview(request, pk: int):
+    product = _get_owned_product_or_404(request, pk)
+    return _render_product_detail(request=request, product=product, log_event=False)
 
 
 @seller_required
