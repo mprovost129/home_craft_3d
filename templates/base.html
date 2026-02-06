@@ -54,23 +54,13 @@
   <script defer src="{% static 'js/theme.js' %}"></script>
 
   <!-- Privacy-friendly analytics by Plausible -->
-<script defer data-domain="www.homecraft3d.com" src="https://plausible.io/js/script.js"></script>
+  <!-- Privacy-friendly analytics by Plausible -->
+  <script async src="https://plausible.io/js/pa-5XNuOwjbWUjNLisCdIwnh.js"></script>
 
-<script>
-  // Global analytics props (no PII)
-  window.HC3D_ANALYTICS_PROPS = { role: "{{ analytics_role|default:'guest' }}" };
-
-  // Safe helper for custom events
-  window.plausibleEvent = function(name, extraProps) {
-    try {
-      if (typeof window.plausible !== "function") return;
-      const props = Object.assign({}, window.HC3D_ANALYTICS_PROPS || {}, extraProps || {});
-      window.plausible(name, { props });
-    } catch (e) {
-      // no-op
-    }
-  };
-</script>
+  <script>
+    window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+    plausible.init()
+  </script>
 
 </head>
 
