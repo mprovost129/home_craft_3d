@@ -1,0 +1,26 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h1 style="margin:0 0 12px;font-size:20px;">Thanks for your purchase!</h1>
+  <p style="margin:0 0 12px;">Your order <strong>#{{ order_id }}</strong> is confirmed.</p>
+
+  <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Order link</div>
+    <a href="{{ order_link }}" style="color:#2563eb;text-decoration:none;">View your order</a>
+  </div>
+
+  {% if downloads %}
+    <h2 style="margin:16px 0 8px;font-size:16px;">Your downloads</h2>
+    <ul style="padding-left:18px;margin:0;">
+      {% for d in downloads %}
+        <li style="margin:6px 0;">
+          <strong>{{ d.filename }}</strong><br>
+          <a href="{{ d.url }}" style="color:#2563eb;text-decoration:none;">Download</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if is_guest %}
+    <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Keep this link safe so you can access your order later.</p>
+  {% endif %}
+{% endblock %}

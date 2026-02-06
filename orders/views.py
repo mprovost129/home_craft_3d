@@ -375,6 +375,7 @@ def checkout_success(request):
 
 def checkout_cancel(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
+    order.mark_canceled(note="Checkout canceled by buyer")
     messages.info(request, "Checkout canceled.")
     t = _token_from_request(request)
     if order.is_guest and t:

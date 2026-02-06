@@ -18,7 +18,7 @@ from payments.services import get_seller_balance_cents
 from payments.utils import seller_is_stripe_ready
 from products.permissions import is_owner_user
 
-from .models import Order, OrderEvent
+from .models import Order, OrderEvent, _send_payout_email
 
 
 def _stripe_init() -> None:
@@ -235,6 +235,14 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
             reason=SellerBalanceEntry.Reason.PAYOUT,
             order=order,
             note=f"Stripe transfer {transfer.id}",
+        )
+
+        _send_payout_email(
+            order=order,
+            seller=acct.user,
+            payout_cents=int(payout_cents),
+            balance_before_cents=int(balance_cents),
+            transfer_id=str(getattr(transfer, "id", "") or ""),
         )
 
         OrderEvent.objects.create(

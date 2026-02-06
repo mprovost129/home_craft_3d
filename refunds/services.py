@@ -6,16 +6,203 @@ import logging
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.mail import send_mail
 from django.db import transaction
 from django.utils import timezone
+from django.urls import reverse
+from django.template.loader import render_to_string
+from django.conf import settings
 
-from orders.models import Order, OrderEvent, OrderItem
+from orders.models import Order, OrderEvent, OrderItem, _absolute_static_url, _site_base_url
 from products.permissions import is_owner_user
 
 from .models import AllocatedLineRefund, RefundRequest
 from .stripe_service import create_stripe_refund_for_request
 
 logger = logging.getLogger(__name__)
+
+
+def _buyer_email_for_refund(rr: RefundRequest) -> str:
+    if rr.buyer and rr.buyer.email:
+        return rr.buyer.email
+    if rr.requester_email:
+        return rr.requester_email
+    if rr.order and rr.order.guest_email:
+        return rr.order.guest_email
+    return ""
+
+
+def _seller_email_for_refund(rr: RefundRequest) -> str:
+    seller = getattr(rr, "seller", None)
+    if seller and getattr(seller, "email", None):
+        return seller.email
+    return ""
+
+
+def _order_link_for_refund(rr: RefundRequest, base: str) -> str:
+    order = rr.order
+    link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}"
+    if order.is_guest:
+        link = f"{link}?t={order.order_token}"
+    return link
+
+
+def _seller_order_link(rr: RefundRequest, base: str) -> str:
+    return f"{base}{reverse('orders:seller_order_detail', kwargs={'order_id': rr.order.pk})}"
+
+
+def _format_cents(cents: int) -> str:
+    return f"${(int(cents or 0) / 100.0):.2f}"
+
+
+def _send_refund_requested_email(rr: RefundRequest) -> None:
+    recipient = _seller_email_for_refund(rr)
+    if not recipient:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _seller_order_link(rr, base)
+
+    item_title = getattr(rr.order_item.product, "title", "Item")
+    refund_amount = _format_cents(rr.total_refund_cents_snapshot)
+
+    subject = f"Refund requested for order #{rr.order.pk}"
+    body = "\n".join(
+        [
+            f"Refund requested for {item_title}.",
+            f"Amount: {refund_amount}",
+            "",
+            "View request:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/refund_requested.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": rr.order.pk,
+            "item_title": item_title,
+            "refund_amount": refund_amount,
+            "order_link": order_link,
+            "reason": rr.get_reason_display(),
+            "notes": rr.notes,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
+
+
+def _send_refund_decision_email(rr: RefundRequest) -> None:
+    recipient = _buyer_email_for_refund(rr)
+    if not recipient:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _order_link_for_refund(rr, base)
+
+    item_title = getattr(rr.order_item.product, "title", "Item")
+    refund_amount = _format_cents(rr.total_refund_cents_snapshot)
+
+    approved = rr.status == RefundRequest.Status.APPROVED
+    subject = (
+        f"Refund approved for order #{rr.order.pk}" if approved else f"Refund declined for order #{rr.order.pk}"
+    )
+
+    template = "emails/refund_approved.html" if approved else "emails/refund_declined.html"
+
+    body = "\n".join(
+        [
+            f"Refund decision for {item_title}.",
+            f"Amount: {refund_amount}",
+            "",
+            "View order:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        template,
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": rr.order.pk,
+            "item_title": item_title,
+            "refund_amount": refund_amount,
+            "order_link": order_link,
+            "decision_note": rr.seller_decision_note,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
+
+
+def _send_refund_processed_email(rr: RefundRequest) -> None:
+    recipient = _buyer_email_for_refund(rr)
+    if not recipient:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _order_link_for_refund(rr, base)
+
+    item_title = getattr(rr.order_item.product, "title", "Item")
+    refund_amount = _format_cents(rr.total_refund_cents_snapshot)
+
+    subject = f"Refund processed for order #{rr.order.pk}"
+    body = "\n".join(
+        [
+            f"Your refund for {item_title} has been processed.",
+            f"Amount: {refund_amount}",
+            "",
+            "View order:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/refund_processed.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": rr.order.pk,
+            "item_title": item_title,
+            "refund_amount": refund_amount,
+            "order_link": order_link,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
 
 
 # ============================================================
@@ -160,6 +347,8 @@ def create_refund_request(
     except Exception:
         pass
 
+    _send_refund_requested_email(rr)
+
     return rr
 
 
@@ -196,6 +385,8 @@ def seller_decide(*, rr: RefundRequest, seller_user, approve: bool, note: str = 
         )
     except Exception:
         pass
+
+    _send_refund_decision_email(rr)
 
     return rr
 
@@ -242,5 +433,7 @@ def trigger_refund(*, rr: RefundRequest, actor_user, allow_staff_safety_valve: b
         )
     except Exception:
         pass
+
+    _send_refund_processed_email(rr)
 
     return rr

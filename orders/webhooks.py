@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from payments.models import SellerBalanceEntry
 
-from .models import Order, OrderEvent, StripeWebhookEvent
+from .models import Order, OrderEvent, StripeWebhookEvent, _send_order_failed_email
 from .stripe_service import create_transfers_for_paid_order, verify_and_parse_webhook
 
 logger = logging.getLogger(__name__)
@@ -169,6 +169,13 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     obj = (event.get("data") or {}).get("object") or {}
     order_id = _get_order_id_from_event(event)
 
+    if not order_id and event_type == "payment_intent.payment_failed":
+        payment_intent_id = (obj.get("id") or "").strip()
+        if payment_intent_id:
+            fallback = Order.objects.filter(stripe_payment_intent_id=payment_intent_id).first()
+            if fallback:
+                order_id = str(fallback.pk)
+
     if not order_id:
         logger.warning("Stripe event %s (%s) missing order_id mapping", stripe_event_id, event_type)
         return HttpResponse(status=200)
@@ -199,6 +206,20 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     order.set_shipping_from_stripe(**ship)
 
                 create_transfers_for_paid_order(order=order, payment_intent_id=payment_intent_id)
+                return HttpResponse(status=200)
+
+            if event_type == "checkout.session.expired":
+                order.mark_canceled(note="Checkout session expired")
+                return HttpResponse(status=200)
+
+            if event_type == "payment_intent.payment_failed":
+                failure_message = (obj.get("last_payment_error") or {}).get("message") or "Payment failed"
+                OrderEvent.objects.create(
+                    order=order,
+                    type=OrderEvent.Type.WARNING,
+                    message=f"Payment failed (event={stripe_event_id})",
+                )
+                _send_order_failed_email(order, reason=failure_message)
                 return HttpResponse(status=200)
 
             if event_type in {"charge.refunded", "refund.created", "refund.updated"}:

@@ -1,0 +1,27 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h1 style="margin:0 0 12px;font-size:20px;">Your order has shipped</h1>
+  <p style="margin:0 0 12px;">Order <strong>#{{ order_id }}</strong></p>
+
+  <div style="margin:12px 0;">
+    <div style="font-size:12px;color:#6b7280;">Item</div>
+    <div><strong>{{ item_title }}</strong> (Qty {{ quantity }})</div>
+  </div>
+
+  {% if carrier or tracking_number %}
+    <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
+      {% if carrier %}<div><strong>Carrier:</strong> {{ carrier }}</div>{% endif %}
+      {% if tracking_number %}
+        <div><strong>Tracking:</strong> {{ tracking_number }}</div>
+        <div style="margin-top:6px;">
+          <a href="https://trackingmore.com/track/?tracknumber={{ tracking_number|urlencode }}" style="color:#2563eb;text-decoration:none;">Track package</a>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Order link</div>
+    <a href="{{ order_link }}" style="color:#2563eb;text-decoration:none;">View your order</a>
+  </div>
+{% endblock %}

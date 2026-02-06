@@ -1,0 +1,17 @@
+{% extends "emails/base.html" %}
+{% block content %}
+  <h1 style="margin:0 0 12px;font-size:20px;">Refund requested</h1>
+  <p style="margin:0 0 12px;">A refund was requested for order <strong>#{{ order_id }}</strong>.</p>
+
+  <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Request details</div>
+    <div><strong>Item:</strong> {{ item_title }}</div>
+    <div><strong>Amount:</strong> {{ refund_amount }}</div>
+    <div><strong>Reason:</strong> {{ reason }}</div>
+    {% if notes %}
+      <div style="margin-top:6px;color:#6b7280;">Notes: {{ notes }}</div>
+    {% endif %}
+  </div>
+
+  <a href="{{ order_link }}" style="color:#2563eb;text-decoration:none;">Review refund request</a>
+{% endblock %}

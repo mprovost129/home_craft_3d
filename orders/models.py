@@ -12,6 +12,7 @@ from django.core.mail import send_mail
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
+from django.template.loader import render_to_string
 
 
 def _site_base_url() -> str:
@@ -23,6 +24,290 @@ def _site_base_url() -> str:
     if base:
         return base
     return "http://localhost:8000"
+
+
+def _absolute_static_url(path: str) -> str:
+    base = _site_base_url().rstrip("/")
+    static_url = (getattr(settings, "STATIC_URL", "/static/") or "/static/").strip()
+    if not static_url.startswith("/"):
+        static_url = f"/{static_url}"
+    if not static_url.endswith("/"):
+        static_url = f"{static_url}/"
+    return f"{base}{static_url}{path.lstrip('/')}"
+
+
+def _order_detail_link(*, order: "Order", base: str) -> str:
+    link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}"
+    if order.is_guest:
+        link = f"{link}?t={order.order_token}"
+    return link
+
+
+def _get_order_recipient_email(order: "Order") -> str:
+    if order.buyer and order.buyer.email:
+        return order.buyer.email
+    if order.guest_email:
+        return order.guest_email
+    return ""
+
+
+def _send_order_canceled_email(order: "Order") -> None:
+    recipient_email = _get_order_recipient_email(order)
+    if not recipient_email:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _order_detail_link(order=order, base=base)
+
+    subject = f"Your Home Craft 3D order #{order.pk} was canceled"
+    body = "\n".join(
+        [
+            f"Your order #{order.pk} was canceled.",
+            "",
+            "View order details:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/order_canceled.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient_email],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
+
+
+def _send_order_failed_email(order: "Order", reason: str = "") -> None:
+    recipient_email = _get_order_recipient_email(order)
+    if not recipient_email:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _order_detail_link(order=order, base=base)
+    reason = (reason or "Payment failed.").strip()
+
+    subject = f"Payment failed for order #{order.pk}"
+    body = "\n".join(
+        [
+            f"We couldn't process payment for order #{order.pk}.",
+            reason,
+            "",
+            "View order details:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/order_failed.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "reason": reason,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient_email],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
+
+
+def _send_payout_email(
+    *,
+    order: "Order",
+    seller,
+    payout_cents: int,
+    balance_before_cents: int,
+    transfer_id: str,
+) -> None:
+    if not seller or not getattr(seller, "email", None):
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = f"{base}{reverse('orders:seller_order_detail', kwargs={'order_id': order.pk})}"
+
+    payout_amount = float(payout_cents) / 100.0
+    balance_before = float(balance_before_cents) / 100.0
+
+    subject = f"Transfer sent for order #{order.pk}"
+    body = "\n".join(
+        [
+            f"A transfer was sent for order #{order.pk}.",
+            f"Amount: ${payout_amount:.2f}",
+            f"Balance before payout: ${balance_before:.2f}",
+            "",
+            "View order details:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/payout_sent.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "payout_amount": f"${payout_amount:.2f}",
+            "balance_before": f"${balance_before:.2f}",
+            "transfer_id": transfer_id,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [seller.email],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
+
+
+def _send_download_reminder_email(order: "Order") -> bool:
+    recipient_email = _get_order_recipient_email(order)
+    if not recipient_email:
+        return False
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    order_link = _order_detail_link(order=order, base=base)
+
+    product_ids = list(order.items.values_list("product_id", flat=True))
+    if not product_ids:
+        assets = []
+    else:
+        from products.models import DigitalAsset  # noqa
+
+        assets = list(
+            DigitalAsset.objects.filter(product_id__in=product_ids)
+            .select_related("product")
+            .order_by("product_id", "id")
+        )
+
+    downloads = []
+    for a in assets:
+        try:
+            if a.product.kind != a.product.Kind.FILE:
+                continue
+        except Exception:
+            continue
+
+        fn = a.original_filename or (a.file.name.rsplit("/", 1)[-1] if a.file else "download")
+        if order.is_guest:
+            dl = (
+                f"{base}"
+                f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+                f"?t={order.order_token}"
+            )
+        else:
+            dl = f"{base}{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+        downloads.append({"filename": fn, "url": dl})
+
+    if not downloads:
+        return False
+
+    subject = f"Your Home Craft 3D downloads are ready (Order #{order.pk})"
+    body = "\n".join(
+        [
+            f"Your downloads for order #{order.pk} are ready.",
+            "",
+            "Access your order:",
+            order_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/download_reminder.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "downloads": downloads,
+            "is_guest": bool(order.is_guest),
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [recipient_email],
+            html_message=html_message,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _send_review_request_email(order: "Order", item: "OrderItem") -> None:
+    if not order.buyer or not order.buyer.email:
+        return
+
+    base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
+    review_link = f"{base}{reverse('reviews:review_for_item', kwargs={'order_item_id': item.pk})}"
+
+    subject = f"How was your order? Review {item.product.title}"
+    body = "\n".join(
+        [
+            f"Thanks for your purchase! We'd love your review for {item.product.title}.",
+            "",
+            "Leave a review:",
+            review_link,
+        ]
+    )
+
+    html_message = render_to_string(
+        "emails/review_request.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "product_title": item.product.title,
+            "review_link": review_link,
+            "order_id": order.pk,
+        },
+    )
+
+    try:
+        send_mail(
+            subject,
+            body,
+            getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            [order.buyer.email],
+            html_message=html_message,
+        )
+    except Exception:
+        pass
 
 
 def _send_paid_order_email(order: "Order") -> None:
@@ -42,6 +327,7 @@ def _send_paid_order_email(order: "Order") -> None:
         return
 
     base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
     
     # Build order link
     if order.is_guest:
@@ -107,12 +393,47 @@ def _send_paid_order_email(order: "Order") -> None:
     subject = f"Your Home Craft 3D order #{order.pk}"
     body = "\n".join(lines)
 
+    downloads = []
+    for a in assets:
+        try:
+            if a.product.kind != a.product.Kind.FILE:
+                continue
+        except Exception:
+            continue
+
+        fn = a.original_filename or (a.file.name.rsplit("/", 1)[-1] if a.file else "download")
+        if order.is_guest:
+            dl = (
+                f"{base}"
+                f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+                f"?t={order.order_token}"
+            )
+        else:
+            dl = (
+                f"{base}"
+                f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
+            )
+        downloads.append({"filename": fn, "url": dl})
+
+    html_message = render_to_string(
+        "emails/order_paid.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "downloads": downloads,
+            "is_guest": bool(order.is_guest),
+        },
+    )
+
     try:
         send_mail(
             subject,
             body,
             getattr(settings, "DEFAULT_FROM_EMAIL", None),
             [recipient_email],
+            html_message=html_message,
         )
     except Exception:
         pass
@@ -138,6 +459,7 @@ def _send_seller_new_order_email(order: "Order") -> None:
         return
 
     base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
     fulfillment_link = f"{base}{reverse('orders:seller_order_detail', kwargs={'order_id': order.pk})}"
 
     for seller_info in sellers_with_physical.values():
@@ -173,12 +495,39 @@ def _send_seller_new_order_email(order: "Order") -> None:
         subject = f"New order received - #{order.pk}"
         body = "\n".join(lines)
 
+        shipping_lines = ""
+        if order.requires_shipping:
+            parts = [
+                f"{order.shipping_name}",
+                f"{order.shipping_line1}",
+            ]
+            if order.shipping_line2:
+                parts.append(order.shipping_line2)
+            if order.shipping_city:
+                parts.append(f"{order.shipping_city}, {order.shipping_state} {order.shipping_postal_code}")
+            if order.shipping_country:
+                parts.append(order.shipping_country)
+            shipping_lines = "\n".join([p for p in parts if p])
+
+        html_message = render_to_string(
+            "emails/seller_new_order.html",
+            {
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "fulfillment_link": fulfillment_link,
+                "items": [f"{item.quantity}x {item.product.title} (${item.line_total_cents / 100:.2f})" for item in items],
+                "shipping_lines": shipping_lines,
+            },
+        )
+
         try:
             send_mail(
                 subject,
                 body,
                 getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 [seller.email],
+                html_message=html_message,
             )
         except Exception:
             pass
@@ -199,6 +548,7 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
         return
 
     base = _site_base_url()
+    logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
     order_link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}"
     if order.is_guest:
         order_link += f"?t={order.order_token}"
@@ -225,12 +575,27 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
     subject = f"Your order #{order.pk} has shipped"
     body = "\n".join(lines)
 
+    html_message = render_to_string(
+        "emails/buyer_shipped.html",
+        {
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "item_title": item.product.title,
+            "quantity": item.quantity,
+            "carrier": item.carrier,
+            "tracking_number": item.tracking_number,
+        },
+    )
+
     try:
         send_mail(
             subject,
             body,
             getattr(settings, "DEFAULT_FROM_EMAIL", None),
             [recipient_email],
+            html_message=html_message,
         )
     except Exception:
         pass
@@ -523,6 +888,22 @@ class Order(models.Model):
 
         return changed
 
+    def mark_canceled(self, *, note: str = "") -> bool:
+        if self.status == self.Status.CANCELED:
+            return False
+
+        if self.status in {self.Status.PAID, self.Status.REFUNDED}:
+            return False
+
+        self.status = self.Status.CANCELED
+        self.save(update_fields=["status", "updated_at"])
+
+        msg = (note or "Checkout canceled").strip()
+        self._add_event(OrderEvent.Type.CANCELED, msg)
+
+        _send_order_canceled_email(self)
+        return True
+
 
 class OrderItem(models.Model):
     class FulfillmentStatus(models.TextChoices):
@@ -620,6 +1001,7 @@ class OrderItem(models.Model):
 
         self.fulfillment_status = self.FulfillmentStatus.DELIVERED
         self.save(update_fields=["fulfillment_status", "updated_at"])
+        _send_review_request_email(self.order, self)
         return True
 
 
