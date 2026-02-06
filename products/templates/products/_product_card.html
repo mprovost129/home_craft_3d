@@ -117,9 +117,7 @@
           </button>
         {% endif %}
       {% endif %}
-      <a class="btn btn-sm btn-outline-secondary" href="{% url 'products:seller_shop' p.seller_id %}" aria-label="View seller storefront">
-        <i class="bi bi-shop me-1" aria-hidden="true"></i>Store
-      </a>
+      <!-- Store button removed from card. Only shown in product detail view. -->
       <a class="btn btn-sm btn-outline-dark" href="{% url 'products:go' p.pk p.slug %}" aria-label="View product details">View</a>
     </div>
   </div>
