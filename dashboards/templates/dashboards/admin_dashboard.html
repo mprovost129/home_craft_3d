@@ -156,8 +156,10 @@
               <option value="yesterday" {% if plausible_period == "yesterday" %}selected{% endif %}>Yesterday</option>
               <option value="custom" {% if plausible_period == "custom" %}selected{% endif %}>Custom range</option>
             </select>
-            <input class="form-control form-control-sm" type="date" name="from" value="{{ plausible_from }}" title="From date">
-            <input class="form-control form-control-sm" type="date" name="to" value="{{ plausible_to }}" title="To date">
+            {% if plausible_period == "custom" %}
+              <input class="form-control form-control-sm" type="date" name="from" value="{{ plausible_from }}" title="From date">
+              <input class="form-control form-control-sm" type="date" name="to" value="{{ plausible_to }}" title="To date">
+            {% endif %}
             <input class="form-control form-control-sm" type="text" name="page" value="{{ plausible_page_filter }}" placeholder="Page filter" style="min-width:160px;">
             <select class="form-select form-select-sm" name="limit" style="width:110px;">
               <option value="5" {% if plausible_top_limit == 5 %}selected{% endif %}>Top 5</option>

@@ -244,9 +244,19 @@ def admin_dashboard(request):
     if plausible_period not in allowed_periods:
         plausible_period = "30d"
 
+    selected_period = plausible_period
+
     plausible_from = (request.GET.get("from") or "").strip()
     plausible_to = (request.GET.get("to") or "").strip()
-    if plausible_period != "custom":
+
+    if plausible_period in {"today", "yesterday"}:
+        base_date = timezone.now().date()
+        if plausible_period == "yesterday":
+            base_date = base_date - timedelta(days=1)
+        plausible_from = base_date.isoformat()
+        plausible_to = base_date.isoformat()
+        plausible_period = "custom"
+    elif plausible_period != "custom":
         plausible_from = ""
         plausible_to = ""
 
@@ -278,9 +288,10 @@ def admin_dashboard(request):
         "yesterday": "Yesterday",
         "custom": "Custom range",
     }
-    plausible_period_label = labels.get(plausible_period, "Last 30 days")
+    plausible_period_label = labels.get(selected_period, "Last 30 days")
     if plausible_period == "custom" and (plausible_from or plausible_to):
-        plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
+        if selected_period == "custom":
+            plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
 
     plausible_api_enabled = plausible_is_configured()
     plausible_summary = {}
