@@ -38,7 +38,23 @@
             {% if user.is_authenticated %}
               {% with user_is_seller=user_is_seller|default:False user_is_owner=user_is_owner|default:False %}
                 {% if user_is_seller or user_is_owner %}
-                  <li class="nav-item"><a class="nav-link" href="{% url 'products:seller_list' %}">My Listings</a></li>
+                  <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="myStoreDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      My Store
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="myStoreDropdown">
+                      <li>
+                        <a class="dropdown-item" href="{% url 'products:seller_shop' user.id %}">
+                          <i class="bi bi-shop me-1"></i>Seller Storefront
+                        </a>
+                      </li>
+                      <li>
+                        <a class="dropdown-item" href="{% url 'products:seller_list' %}">
+                          <i class="bi bi-card-list me-1"></i>My Listings
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
                 {% endif %}
 
                 <li class="nav-item dropdown">

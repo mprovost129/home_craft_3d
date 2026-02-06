@@ -105,11 +105,23 @@ def consumer_dashboard(request):
 
 @login_required
 def seller_dashboard(request):
+
     user = request.user
 
     if not is_seller_user(user):
         messages.info(request, "You don’t have access to the seller dashboard.")
         return redirect("dashboards:consumer")
+
+    # Handle bulk activate/deactivate POST
+    if request.method == "POST":
+        action = request.POST.get("bulk_action")
+        selected_ids = request.POST.getlist("selected_ids")
+        if action in {"activate", "deactivate"} and selected_ids:
+            products = Product.objects.filter(seller=user, id__in=selected_ids)
+            new_status = action == "activate"
+            updated = products.update(is_active=new_status)
+            messages.success(request, f"{updated} listing(s) {'activated' if new_status else 'deactivated'}.")
+            return redirect("dashboards:seller")
 
     since = timezone.now() - timedelta(days=DASH_RECENT_DAYS)
 
@@ -118,6 +130,26 @@ def seller_dashboard(request):
 
     listings_total = Product.objects.filter(seller=user, is_active=True).count()
     listings_inactive = Product.objects.filter(seller=user, is_active=False).count()
+
+    # Fetch all listings for this seller for checklist and bulk actions
+    listings = Product.objects.filter(seller=user).prefetch_related("images", "digital_assets", "digital", "physical")
+
+    # Build completeness checklist for each listing
+    def get_listing_checklist(product):
+        return {
+            "has_image": product.images.exists(),
+            "has_specs": product.has_specs,
+            "has_assets": product.digital_assets.exists() if product.kind == product.Kind.FILE else True,
+            "is_active": product.is_active,
+        }
+
+    listings_with_checklist = [
+        {
+            "product": p,
+            "checklist": get_listing_checklist(p),
+        }
+        for p in listings
+    ]
 
     line_total_expr = ExpressionWrapper(
         F("quantity") * F("unit_price_cents"),
@@ -158,6 +190,7 @@ def seller_dashboard(request):
             "ready": stripe_obj.is_ready,
             "listings_total": listings_total,
             "listings_inactive": listings_inactive,
+            "listings_with_checklist": listings_with_checklist,
             "recent_sales": recent_sales,
             "gross_revenue": _cents_to_dollars(int(sales_totals.get("gross_cents") or 0)),
             "net_revenue": _cents_to_dollars(int(sales_totals.get("net_cents") or 0)),

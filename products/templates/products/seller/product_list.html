@@ -133,63 +133,51 @@
                 {% endif %}
               </td>
               <td class="text-end">
-                <div class="btn-group" role="group">
-                  {% if stripe_ready %}
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_preview' p.pk %}">
-                      <i class="bi bi-box-arrow-up-right me-1"></i>Preview
-                    </a>
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_edit' p.pk %}">
-                      <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_images' p.pk %}">
-                      <i class="bi bi-images me-1"></i>Images
-                    </a>
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_specs' p.pk %}">
-                      <i class="bi bi-rulers me-1"></i>Specs
-                    </a>
-                    {% if p.kind == "FILE" %}
-                      <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_assets' p.pk %}">
-                        <i class="bi bi-paperclip me-1"></i>Assets
-                      </a>
+                <div class="btn-group">
+                  <button class="btn btn-sm btn-outline-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <a class="dropdown-item" href="{% url 'products:seller_preview' p.pk %}"><i class="bi bi-box-arrow-up-right me-1"></i>Preview</a>
+                    </li>
+                    {% if stripe_ready %}
+                      <li><a class="dropdown-item" href="{% url 'products:seller_edit' p.pk %}"><i class="bi bi-pencil me-1"></i>Edit</a></li>
+                      <li><a class="dropdown-item" href="{% url 'products:seller_images' p.pk %}"><i class="bi bi-images me-1"></i>Images</a></li>
+                      <li><a class="dropdown-item" href="{% url 'products:seller_specs' p.pk %}"><i class="bi bi-rulers me-1"></i>Specs</a></li>
+                      {% if p.kind == "FILE" %}
+                        <li><a class="dropdown-item" href="{% url 'products:seller_assets' p.pk %}"><i class="bi bi-paperclip me-1"></i>Assets</a></li>
+                      {% endif %}
+                      <li>
+                        <form method="post" action="{% url 'products:seller_duplicate' p.pk %}" class="d-inline">
+                          {% csrf_token %}
+                          <button class="dropdown-item" type="submit"><i class="bi bi-files me-1"></i>Copy</button>
+                        </form>
+                      </li>
+                      <li>
+                        <form method="post" action="{% url 'products:seller_toggle_active' p.pk %}" class="d-inline">
+                          {% csrf_token %}
+                          <button class="dropdown-item" type="submit">
+                            {% if p.is_active %}
+                              <i class="bi bi-eye-slash me-1"></i>Deactivate
+                            {% else %}
+                              <i class="bi bi-eye me-1"></i>Activate
+                            {% endif %}
+                          </button>
+                        </form>
+                      </li>
+                    {% else %}
+                      <li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true"><i class="bi bi-pencil me-1"></i>Edit</a></li>
+                      <li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true"><i class="bi bi-images me-1"></i>Images</a></li>
+                      {% if p.kind == "FILE" %}
+                        <li><a class="dropdown-item disabled" href="#" tabindex="-1" aria-disabled="true"><i class="bi bi-paperclip me-1"></i>Assets</a></li>
+                      {% endif %}
+                      <li><a class="dropdown-item" href="{% url 'payments:connect_status' %}"><i class="bi bi-credit-card-2-front me-1"></i>Finish Stripe</a></li>
                     {% endif %}
-                    <form method="post" action="{% url 'products:seller_duplicate' p.pk %}" class="d-inline">
-                      {% csrf_token %}
-                      <button class="btn btn-sm btn-outline-dark" type="submit" title="Create a copy of this listing">
-                        <i class="bi bi-files me-1"></i>Copy
-                      </button>
-                    </form>
-                    <form method="post" action="{% url 'products:seller_toggle_active' p.pk %}" class="d-inline">
-                      {% csrf_token %}
-                      <button class="btn btn-sm btn-outline-dark" type="submit">
-                        {% if p.is_active %}
-                          <i class="bi bi-eye-slash me-1"></i>Deactivate
-                        {% else %}
-                          <i class="bi bi-eye me-1"></i>Activate
-                        {% endif %}
-                      </button>
-                    </form>
-                    <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteModal{{ p.pk }}">
-                      <i class="bi bi-trash me-1"></i>Delete
-                    </button>
-                  {% else %}
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_preview' p.pk %}">
-                      <i class="bi bi-box-arrow-up-right me-1"></i>Preview
-                    </a>
-                    <a class="btn btn-sm btn-outline-dark disabled" href="#" tabindex="-1" aria-disabled="true">
-                      <i class="bi bi-pencil me-1"></i>Edit
-                    </a>
-                    <a class="btn btn-sm btn-outline-dark disabled" href="#" tabindex="-1" aria-disabled="true">
-                      <i class="bi bi-images me-1"></i>Images
-                    </a>
-                    {% if p.kind == "FILE" %}
-                      <a class="btn btn-sm btn-outline-dark disabled" href="#" tabindex="-1" aria-disabled="true">
-                        <i class="bi bi-paperclip me-1"></i>Assets
-                      </a>
-                    {% endif %}
-                    <a class="btn btn-sm btn-outline-dark" href="{% url 'payments:connect_status' %}">
-                      <i class="bi bi-credit-card-2-front me-1"></i>Finish Stripe
-                    </a>
-                  {% endif %}
+                  </ul>
+                  <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#deleteModal{{ p.pk }}">
+                    <i class="bi bi-trash me-1"></i>Delete
+                  </button>
                 </div>
               </td>
             </tr>

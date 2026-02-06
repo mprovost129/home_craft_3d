@@ -45,13 +45,7 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Display last payout date if available.
 
 ## Legal
-- Fees & payouts now mention 7.5%. Consider adding a separate “Seller Fees” page with examples.
 - Add plain‑language TL;DR at top of Terms and Refund.
-
-## Performance & Technical
-- Ensure images are WebP where possible and lazy‑load below the fold.
-- Add CDN cache headers for static images/assets.
-- Consider server‑side caching for home page sections.
 
 ---
 ## Priority (Next 2–4 weeks)
