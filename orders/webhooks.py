@@ -10,6 +10,7 @@ from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 
 from payments.models import SellerBalanceEntry
+from payments.services import ensure_sale_balance_entries_for_paid_order
 
 from .models import Order, OrderEvent, StripeWebhookEvent, _send_order_failed_email
 from .stripe_service import create_transfers_for_paid_order, verify_and_parse_webhook
@@ -199,12 +200,18 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     updated_fields.append("updated_at")
                     order.save(update_fields=updated_fields)
 
+                # 1) Mark paid (this should also compute OrderItem snapshots/ledger fields)
                 order.mark_paid(payment_intent_id=payment_intent_id, session_id=session_id)
 
+                # 2) Save shipping snapshot if present
                 ship = _extract_shipping_from_session_obj(obj)
                 if any([ship["line1"], ship["city"], ship["postal_code"], ship["country"]]):
                     order.set_shipping_from_stripe(**ship)
 
+                # 3) IMPORTANT: record SALE credits in the seller ledger BEFORE payouts
+                ensure_sale_balance_entries_for_paid_order(order=order)
+
+                # 4) Create transfers/payouts (this is where your -PAYOUT entries are created)
                 create_transfers_for_paid_order(order=order, payment_intent_id=payment_intent_id)
                 return HttpResponse(status=200)
 

@@ -70,6 +70,7 @@ class SellerBalanceEntry(models.Model):
     """
 
     class Reason(models.TextChoices):
+        SALE = "sale", "Sale (order paid)"
         PAYOUT = "payout", "Payout"
         REFUND = "refund", "Refund"
         CHARGEBACK = "chargeback", "Chargeback"
@@ -114,6 +115,13 @@ class SellerBalanceEntry(models.Model):
             models.Index(fields=["reason", "-created_at"]),
         ]
         ordering = ("-created_at",)
+        # Optional but recommended: prevents duplicate SALE/PAYOUT rows on webhook retries.
+        constraints = [
+            models.UniqueConstraint(
+                fields=["seller", "order", "reason"],
+                name="uniq_seller_order_reason",
+            )
+        ]
 
     def __str__(self) -> str:
         return f"{self.seller_id}: {self.amount_cents} ({self.reason})"

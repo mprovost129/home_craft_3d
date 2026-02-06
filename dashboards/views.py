@@ -178,7 +178,8 @@ def seller_dashboard(request):
         sold_count=Sum("quantity"),
     )
 
-    payout_available_cents = max(0, int((sales_totals.get("net_cents") or 0) + balance_cents))
+    # ✅ When ledger includes SALE credits and PAYOUT debits, the ledger IS the source of truth.
+    payout_available_cents = max(0, int(balance_cents))
 
     ledger_entries = SellerBalanceEntry.objects.filter(seller=user).order_by("-created_at")[:10]
 
