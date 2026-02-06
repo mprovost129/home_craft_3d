@@ -34,25 +34,22 @@
     </li>
   </ul>
 
-  {# Filter input (wired by sidebar_filter.js) #}
-  <div class="mb-2">
-    <button class="btn btn-sm btn-outline-secondary w-100" type="button" data-bs-toggle="collapse" data-bs-target="#hc3SidebarFilterWrap" aria-expanded="false" aria-controls="hc3SidebarFilterWrap">
-      <i class="bi bi-funnel me-1"></i>Filter categories
-    </button>
-  </div>
-  <div class="collapse" id="hc3SidebarFilterWrap">
-    <div class="input-group input-group-sm mb-3">
-      <span class="input-group-text"><i class="bi bi-funnel"></i></span>
-      <input id="hc3SidebarFilter"
-             class="form-control"
-             type="search"
-             placeholder="Filter categories…"
-             aria-label="Filter categories">
-      <button class="btn btn-outline-secondary" type="button" id="hc3SidebarFilterClear" title="Clear">
-        <i class="bi bi-x-lg"></i>
-      </button>
-    </div>
-  </div>
+  {# Move the category filter/search input into the Filters section for a unified filter UI #}
+  <details class="mb-3">
+    <summary class="small text-secondary fw-semibold">Filters</summary>
+    <form class="mt-2 d-grid gap-2" method="get" action="{% if request.path|slice:':9' == '/products' %}{{ request.path }}{% else %}{% url 'products:list' %}{% endif %}">
+      <input class="form-control form-control-sm" name="q" value="{{ request.GET.q }}" placeholder="Search...">
+      <div class="input-group input-group-sm mb-2">
+        <span class="input-group-text"><i class="bi bi-funnel"></i></span>
+        <input id="hc3SidebarFilter"
+               class="form-control"
+               type="search"
+               placeholder="Filter categories…"
+               aria-label="Filter categories">
+        <button class="btn btn-outline-secondary" type="button" id="hc3SidebarFilterClear" title="Clear">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
 
   <details class="mb-3">
     <summary class="small text-secondary fw-semibold">Filters</summary>

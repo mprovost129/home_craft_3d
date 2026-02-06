@@ -122,7 +122,12 @@
                   {% endif %}
                 </td>
                 <td>
-                  {% with all_green=checklist.has_image and checklist.has_specs and checklist.has_assets and checklist.is_active %}
+                  {# Compute all_green using an if statement, since 'with' does not support 'and' logic #}
+                  {% if checklist.has_image and checklist.has_specs and checklist.has_assets and checklist.is_active %}
+                    {% with all_green=True %}
+                  {% else %}
+                    {% with all_green=False %}
+                  {% endif %}
                   <div class="d-flex align-items-center gap-2">
                     <span title="Checklist status">
                       <i class="bi bi-circle-fill {% if all_green %}text-success{% else %}text-secondary{% endif %}"></i>
