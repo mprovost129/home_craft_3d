@@ -40,6 +40,8 @@ class SiteConfigForm(forms.ModelForm):
         ),
         help_text="Shown under the hero title on the home page.",
     )
+    
+    
 
     class Meta:
         model = SiteConfig
@@ -49,6 +51,7 @@ class SiteConfigForm(forms.ModelForm):
             "platform_fee_cents",
             "default_currency",
             "allowed_shipping_countries_csv",
+            "plausible_shared_url",
 
             # Home page
             "home_hero_title",

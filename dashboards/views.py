@@ -1,3 +1,5 @@
+# dashboards/views.py
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -115,10 +117,7 @@ def seller_dashboard(request):
         0, int((sales_totals.get("net_cents") or 0) + balance_cents)
     )
 
-    ledger_entries = (
-        SellerBalanceEntry.objects.filter(seller=user)
-        .order_by("-created_at")[:10]
-    )
+    ledger_entries = SellerBalanceEntry.objects.filter(seller=user).order_by("-created_at")[:10]
 
     return render(
         request,
@@ -169,7 +168,6 @@ def admin_dashboard(request):
             paid_at__gte=since,
         ).aggregate(total=Sum("subtotal_cents"))
     ).get("total") or 0
-
     revenue_30 = _cents_to_dollars(int(revenue_cents))
 
     line_total_expr = ExpressionWrapper(
@@ -203,6 +201,10 @@ def admin_dashboard(request):
             }
         )
 
+    # ---- Plausible (shared dashboard link) ----
+    plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
+    plausible_embed_url = plausible_shared_url.replace("/share/", "/embed/") if plausible_shared_url else ""
+
     return render(
         request,
         "dashboards/admin_dashboard.html",
@@ -218,6 +220,8 @@ def admin_dashboard(request):
             "site_config_admin_url": site_config_admin_url,
             "marketplace_sales_percent": getattr(cfg, "marketplace_sales_percent", 0) or 0,
             "platform_fee_cents": int(getattr(cfg, "platform_fee_cents", 0) or 0),
+            "plausible_shared_url": plausible_shared_url,
+            "plausible_embed_url": plausible_embed_url,
         },
     )
 
@@ -244,10 +248,5 @@ def admin_settings(request):
     return render(
         request,
         "dashboards/admin_settings.html",
-        {
-            "form": form,
-        },
+        {"form": form},
     )
-
-
-

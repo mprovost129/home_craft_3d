@@ -56,6 +56,13 @@ class SiteConfig(models.Model):
         blank=True,
         help_text="List of allowed country codes for shipping (e.g. ['US']).",
     )
+    
+    plausible_shared_url = models.URLField(
+        blank=True,
+        default="",
+        help_text="Plausible shared dashboard URL (read-only). Example: https://plausible.io/share/<site>?auth=...",
+    )
+
 
     # -------------------------
     # Theme / Branding (Palette A + Light/Dark)
