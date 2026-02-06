@@ -12,6 +12,9 @@ urlpatterns = [
     path("models/", views.models_list, name="models"),
     path("files/", views.files_list, name="files"),
 
+    # Top sellers page
+    path("top-sellers/", views.top_sellers, name="top_sellers"),
+
     # Seller shop page
     path("shop/<int:seller_id>/", views.seller_shop, name="seller_shop"),
 

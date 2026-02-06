@@ -9,11 +9,13 @@ from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 
 from orders.models import Order,  OrderItem
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
 from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS
+from reviews.models import SellerReview
 
 
 MIN_REVIEWS_TOP_RATED = 3
@@ -548,3 +550,23 @@ def get_remaining_product_limit(product: Product, user) -> int | None:
     # Optionally, add in-cart quantity (handled in cart logic)
     remaining = max(0, limit - already)
     return remaining
+
+def top_sellers(request: HttpRequest) -> HttpResponse:
+    User = get_user_model()
+    # Only users with is_seller flag
+    sellers = (
+        User.objects.filter(profile__is_seller=True)
+        .annotate(
+            seller_review_count=Count("seller_reviews_received", distinct=True),
+            seller_avg_rating=Coalesce(Avg("seller_reviews_received__rating"), Value(0.0)),
+            product_count=Count("products", distinct=True),
+        )
+        .order_by("-seller_review_count", "-seller_avg_rating", "-date_joined")[:24]
+    )
+    # Prefetch profile for avatar/shop name
+    sellers = sellers.select_related("profile")
+    return render(
+        request,
+        "products/top_sellers.html",
+        {"top_sellers": sellers},
+    )
