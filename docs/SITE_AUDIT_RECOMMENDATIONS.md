@@ -18,7 +18,6 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 - Ensure above‑the‑fold content shows 1–2 real products with ratings to build trust.
 
 ## Product Listing Pages (All Products / Models / Files)
-- Consider hiding seller rating line when zero (reduces noise).
 - Add “Ships from” for physical models (if data exists) and lead time.
 - Add sort rationale tooltips (Trending vs Top Rated).
 
@@ -36,16 +35,14 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 ## Checkout
 - Add order preview with thumbnails.
 - Clarify that digital downloads are delivered instantly post‑payment.
-- Validate buyer notes length and show remaining character count.
 
 ## Buyer Orders / Purchases
-- Provide quick contact seller option from order detail.
+## Buyer Orders / Purchases
 
 ## Seller Dashboard / Listings
+## Seller Dashboard / Listings
 - Add a progress checklist per listing (Images ✓, Specs ✓, Assets ✓, Active ✓).
-- Add “Preview listing” button.
 - Add bulk actions for activate/deactivate.
-- Add a warning if specs are empty when listing is active.
 
 ## Seller Orders / Fulfillment
 ## Payments / Stripe Payouts
@@ -70,7 +67,7 @@ High‑level UX, content, and technical review across major user flows (buyer, s
 ## Priority (Next 2–4 weeks)
 1) Home hero CTA clarity + Top Sellers real cards
 2) Product detail “What you get” + license clarity
-3) Seller listing checklist + warnings
+3) Seller listing checklist
 4) Cart/checkout clarity for digital delivery
 
 ---

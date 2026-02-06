@@ -93,10 +93,13 @@
                       <input type="hidden" name="quantity" value="{{ line.quantity }}">
                       <div class="input-group input-group-sm">
                         <span class="input-group-text">Notes</span>
-                        <input class="form-control" name="buyer_notes" value="{{ line.buyer_notes }}" placeholder="Add a note for the seller (optional)">
+                        <input class="form-control buyer-notes-input" name="buyer_notes" value="{{ line.buyer_notes }}" placeholder="Add a note for the seller (optional)" maxlength="1000" data-maxlength="1000">
                         <button class="btn btn-outline-dark" type="submit">Save</button>
                       </div>
-                      <div class="form-text">Shown to the seller after purchase.</div>
+                      <div class="form-text d-flex justify-content-between">
+                        <span>Shown to the seller after purchase.</span>
+                        <span class="buyer-notes-remaining" data-maxlength="1000">1000 characters remaining</span>
+                      </div>
                     </form>
                   </div>
                 </div>
@@ -210,5 +213,26 @@
       })();
     </script>
   {% endif %}
+  <script>
+    (function () {
+      var inputs = document.querySelectorAll('.buyer-notes-input');
+      if (!inputs.length) return;
+
+      function updateRemaining(input) {
+        var max = parseInt(input.getAttribute('data-maxlength') || input.maxLength || '0', 10) || 0;
+        var value = input.value || '';
+        var remaining = Math.max(0, max - value.length);
+        var remainingEl = input.closest('form')?.querySelector('.buyer-notes-remaining');
+        if (remainingEl) {
+          remainingEl.textContent = remaining + ' characters remaining';
+        }
+      }
+
+      inputs.forEach(function (input) {
+        updateRemaining(input);
+        input.addEventListener('input', function () { updateRemaining(input); });
+      });
+    })();
+  </script>
 </div>
 {% endblock %}

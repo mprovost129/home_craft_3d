@@ -193,6 +193,47 @@ class Product(models.Model):
         return self.images.filter(is_primary=True).first() or self.images.order_by("sort_order", "id").first()
 
     @property
+    def has_specs(self) -> bool:
+        if self.kind == self.Kind.MODEL:
+            try:
+                physical = self.physical
+            except Exception:
+                return False
+
+            return any(
+                [
+                    (physical.material or "").strip(),
+                    (physical.color or "").strip(),
+                    physical.num_colors,
+                    physical.width_mm,
+                    physical.height_mm,
+                    physical.depth_mm,
+                    physical.weight_grams,
+                    bool(physical.support_required),
+                    (physical.specifications or "").strip(),
+                ]
+            )
+
+        if self.kind == self.Kind.FILE:
+            try:
+                digital = self.digital
+            except Exception:
+                return False
+
+            return any(
+                [
+                    (digital.software_requirements or "").strip(),
+                    (digital.compatible_software or "").strip(),
+                    (digital.license_type or "").strip(),
+                    (digital.requirements or "").strip(),
+                    (digital.license_text or "").strip(),
+                    digital.file_count,
+                ]
+            )
+
+        return False
+
+    @property
     def seller_public_name(self) -> str:
         try:
             profile = self.seller.profile

@@ -58,13 +58,13 @@
       </div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mt-1">
-      <div class="small text-secondary" style="white-space:nowrap;">
-        {% if p.seller_review_count and p.seller_review_count > 0 %}
+    {% if p.seller_review_count and p.seller_review_count > 0 %}
+      <div class="d-flex justify-content-between align-items-center mt-1">
+        <div class="small text-secondary" style="white-space:nowrap;">
           Seller ★ {{ p.seller_avg_rating|floatformat:1 }}/5 ({{ p.seller_review_count }})
-        {% endif %}
+        </div>
       </div>
-    </div>
+    {% endif %}
 
     {% if p.kind == "FILE" and p.file_types_display %}
       <div class="mt-2 d-flex flex-wrap gap-1">

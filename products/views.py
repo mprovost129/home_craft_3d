@@ -318,13 +318,18 @@ def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
 
 
 def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
-    product = get_object_or_404(
-        Product.objects.filter(is_active=True)
-        .select_related("category", "category__parent", "seller", "physical", "digital")
-        .prefetch_related("images", "digital_assets"),
-        pk=pk,
-        slug=slug,
+    qs = (
+        Product.objects.select_related("category", "category__parent", "seller", "physical", "digital")
+        .prefetch_related("images", "digital_assets")
     )
+
+    if request.user.is_authenticated:
+        if not is_owner_user(request.user):
+            qs = qs.filter(Q(is_active=True) | Q(seller=request.user))
+    else:
+        qs = qs.filter(is_active=True)
+
+    product = get_object_or_404(qs, pk=pk, slug=slug)
 
     _log_event_throttled(
         request,

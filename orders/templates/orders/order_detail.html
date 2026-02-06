@@ -83,6 +83,17 @@
                       {% endif %}
                     </div>
                   {% endif %}
+                  <div class="mt-2">
+                    {% if item.seller.email %}
+                      <a class="btn btn-sm btn-outline-secondary" href="mailto:{{ item.seller.email }}?subject=Order%20{{ order.id }}">
+                        Contact seller
+                      </a>
+                    {% else %}
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'products:seller_shop' item.seller.id %}">
+                        View seller
+                      </a>
+                    {% endif %}
+                  </div>
                 </td>
 
                 <td class="text-end">{{ item.quantity }}</td>
