@@ -322,19 +322,25 @@ def admin_dashboard(request):
 
             def _safe_int(value, default=0):
                 try:
-                    return int(value)
+                    if isinstance(value, dict) and "value" in value:
+                        value = value.get("value")
+                    return int(value)  # type: ignore[arg-type]
                 except (TypeError, ValueError):
                     return default
 
             def _safe_float(value, default=0.0):
                 try:
-                    return float(value)
+                    if isinstance(value, dict) and "value" in value:
+                        value = value.get("value")
+                    return float(value)  # type: ignore[arg-type]
                 except (TypeError, ValueError):
                     return default
 
             def _format_duration(seconds):
                 try:
-                    total_seconds = int(float(seconds or 0))
+                    if isinstance(seconds, dict) and "value" in seconds:
+                        seconds = seconds.get("value")
+                    total_seconds = int(float(seconds or 0))  # type: ignore[arg-type]
                 except (TypeError, ValueError):
                     total_seconds = 0
 
