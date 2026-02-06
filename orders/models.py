@@ -880,9 +880,22 @@ class Order(models.Model):
                 msg = msg or "Marked paid via FREE checkout"
             self._add_event(OrderEvent.Type.PAID, msg)
 
+            # --- Add SellerBalanceEntry for each seller in this order ---
+            from payments.models import SellerBalanceEntry
+            for item in self.items.all():
+                # Only add if not already present for this order item
+                if not SellerBalanceEntry.objects.filter(order_item=item, reason=SellerBalanceEntry.Reason.ADJUSTMENT).exists():
+                    SellerBalanceEntry.objects.create(
+                        seller=item.seller,
+                        amount_cents=item.seller_net_cents,
+                        reason=SellerBalanceEntry.Reason.ADJUSTMENT,
+                        order=self,
+                        order_item=item,
+                        note=f"Order paid: {self.pk} (item {item.pk})"
+                    )
+
             # Send confirmation email to buyer (guest or authenticated)
             _send_paid_order_email(self)
-            
             # Send notification to sellers with physical items
             _send_seller_new_order_email(self)
 

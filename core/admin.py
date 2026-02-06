@@ -1,9 +1,3 @@
-from .models_advert import AdvertisementBanner
-@admin.register(AdvertisementBanner)
-class AdvertisementBannerAdmin(admin.ModelAdmin):
-    list_display = ("title", "is_active", "start_date", "end_date", "created_at")
-    list_filter = ("is_active", "start_date", "end_date")
-    search_fields = ("title",)
 from __future__ import annotations
 
 from datetime import timedelta
@@ -18,6 +12,8 @@ from django.utils import timezone
 from .models import SiteConfig
 from orders.models import Order, OrderItem
 from products.models import ProductEngagementEvent
+from .models_advert import AdvertisementBanner
+
 
 
 # Extend the default admin site with analytics dashboard
@@ -190,3 +186,9 @@ class SiteConfigAdmin(admin.ModelAdmin):
                 {"redirect_url": url},
             )
         return super().changelist_view(request, extra_context=extra_context)
+    
+@admin.register(AdvertisementBanner)
+class AdvertisementBannerAdmin(admin.ModelAdmin):
+    list_display = ("title", "is_active", "start_date", "end_date", "created_at")
+    list_filter = ("is_active", "start_date", "end_date")
+    search_fields = ("title",)
