@@ -240,6 +240,9 @@ SENTRY_ENVIRONMENT = os.getenv("SENTRY_ENVIRONMENT", "production" if not DEBUG e
 SENTRY_TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
 SENTRY_PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.0"))
 
+PLAUSIBLE_API_KEY = os.getenv("PLAUSIBLE_API_KEY", "").strip()
+PLAUSIBLE_SITE_ID = os.getenv("PLAUSIBLE_SITE_ID", "").strip()
+
 if SENTRY_DSN:
     import sentry_sdk
     from sentry_sdk.integrations.django import DjangoIntegration

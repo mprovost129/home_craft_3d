@@ -157,6 +157,91 @@
         </div>
 
         <div class="card-body">
+          {% if plausible_api_enabled %}
+            <div class="row g-3 mb-3">
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Visitors</div>
+                  <div class="h5 mb-0">{{ plausible_summary.visitors|default:"0" }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Pageviews</div>
+                  <div class="h5 mb-0">{{ plausible_summary.pageviews|default:"0" }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Visits</div>
+                  <div class="h5 mb-0">{{ plausible_summary.visits|default:"0" }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Bounce</div>
+                  <div class="h5 mb-0">{{ plausible_summary.bounce_rate|default:"0" }}%</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Avg. Visit</div>
+                  <div class="h5 mb-0">{{ plausible_summary.visit_duration|default:"0s" }}</div>
+                </div>
+              </div>
+              <div class="col-6 col-md-4 col-xl-2">
+                <div class="border rounded p-3 h-100">
+                  <div class="text-secondary small">Period</div>
+                  <div class="h6 mb-0">Last {{ since_days }} days</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-lg-6">
+                <div class="border rounded h-100">
+                  <div class="px-3 py-2 border-bottom bg-light">
+                    <span class="fw-semibold">Top Pages</span>
+                  </div>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr class="text-secondary small">
+                          <th>Page</th>
+                          <th class="text-end">Views</th>
+                          <th class="text-end">Visitors</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row in plausible_top_pages %}
+                          <tr>
+                            <td class="text-truncate" style="max-width: 280px;">{{ row.page|default:row.name }}</td>
+                            <td class="text-end">{{ row.pageviews|default:"0" }}</td>
+                            <td class="text-end">{{ row.visitors|default:"0" }}</td>
+                          </tr>
+                        {% empty %}
+                          <tr>
+                            <td colspan="3" class="text-center text-secondary py-3">No data yet.</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% else %}
+            <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div>
+                <div class="fw-semibold">Plausible API not configured</div>
+                <div class="small">Set PLAUSIBLE_API_KEY and PLAUSIBLE_SITE_ID in your environment to enable API stats.</div>
+              </div>
+              <a class="btn btn-outline-dark btn-sm" href="https://plausible.io/docs/stats-api" target="_blank" rel="noopener">
+                Docs
+              </a>
+            </div>
+          {% endif %}
+
           {% if plausible_shared_url %}
             <div class="text-secondary small mb-2">
               Uses your Plausible shared dashboard link (read-only).

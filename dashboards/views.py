@@ -16,6 +16,9 @@ from django.utils import timezone
 
 from core.config import get_site_config
 from .forms import SiteConfigForm
+from .plausible import get_summary as plausible_get_summary
+from .plausible import get_top_pages as plausible_get_top_pages
+from .plausible import is_configured as plausible_is_configured
 from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount, SellerBalanceEntry
 from products.models import Product
@@ -228,12 +231,60 @@ def admin_dashboard(request):
             }
         )
 
-    # ---- Plausible (shared dashboard link) ----
+    # ---- Plausible (shared dashboard link + API stats) ----
     plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
 
     # Embed uses the SAME share URL + embed=true (+ theme)
     # NOTE: iframe can still be blocked by adblock/privacy; "Open Plausible" should always work.
     plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
+
+    plausible_api_enabled = plausible_is_configured()
+    plausible_summary = {}
+    plausible_top_pages = []
+    plausible_summary_display = {}
+
+    if plausible_api_enabled:
+        try:
+            plausible_summary = plausible_get_summary(period=f"{DASH_RECENT_DAYS}d")
+            plausible_top_pages = plausible_get_top_pages(period=f"{DASH_RECENT_DAYS}d", limit=8)
+
+            def _safe_int(value, default=0):
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return default
+
+            def _safe_float(value, default=0.0):
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return default
+
+            def _format_duration(seconds):
+                try:
+                    total_seconds = int(float(seconds or 0))
+                except (TypeError, ValueError):
+                    total_seconds = 0
+
+                mins, secs = divmod(total_seconds, 60)
+                hours, mins = divmod(mins, 60)
+                if hours:
+                    return f"{hours}h {mins}m"
+                if mins:
+                    return f"{mins}m {secs}s"
+                return f"{secs}s"
+
+            plausible_summary_display = {
+                "visitors": _safe_int(plausible_summary.get("visitors")),
+                "pageviews": _safe_int(plausible_summary.get("pageviews")),
+                "visits": _safe_int(plausible_summary.get("visits")),
+                "bounce_rate": round(_safe_float(plausible_summary.get("bounce_rate")), 1),
+                "visit_duration": _format_duration(plausible_summary.get("visit_duration")),
+            }
+        except Exception:
+            plausible_api_enabled = False
+            plausible_summary_display = {}
+            plausible_top_pages = []
 
     return render(
         request,
@@ -252,6 +303,9 @@ def admin_dashboard(request):
             "platform_fee_cents": int(getattr(cfg, "platform_fee_cents", 0) or 0),
             "plausible_shared_url": plausible_shared_url,
             "plausible_embed_url": plausible_embed_url,
+            "plausible_api_enabled": plausible_api_enabled,
+            "plausible_summary": plausible_summary_display,
+            "plausible_top_pages": plausible_top_pages,
         },
     )
 
