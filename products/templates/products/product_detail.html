@@ -165,6 +165,28 @@
             <div style="white-space: pre-wrap;">{{ product.description }}</div>
           {% endif %}
 
+          <hr>
+          <div class="fw-semibold mb-2">What you get</div>
+          {% if product.kind == "FILE" %}
+            <ul class="small text-secondary mb-2">
+              <li>Instant digital download after purchase.</li>
+              {% if product.file_types_display %}
+                <li>File formats: {{ product.file_types_display }}</li>
+              {% endif %}
+              {% if product.digital and product.digital.license_type %}
+                <li>License: {{ product.digital.get_license_type_display }}</li>
+              {% endif %}
+            </ul>
+            {% if product.digital and product.digital.license_text %}
+              <div class="text-secondary small" style="white-space: pre-wrap;">{{ product.digital.license_text }}</div>
+            {% endif %}
+          {% else %}
+            <ul class="small text-secondary mb-2">
+              <li>One physical 3D printed item per quantity.</li>
+              <li>Made to order by the seller.</li>
+            </ul>
+          {% endif %}
+
           {% if product.kind == "FILE" %}
             <hr>
             <div class="fw-semibold mb-1">Files included</div>
