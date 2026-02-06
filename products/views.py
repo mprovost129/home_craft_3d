@@ -170,6 +170,7 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
     if kind in (Product.Kind.MODEL, Product.Kind.FILE):
         qs = qs.filter(kind=kind)
 
+    kind_filter = ""
     if not kind:
         kind_filter = (request.GET.get("kind") or "").strip().upper()
         if kind_filter in (Product.Kind.MODEL, Product.Kind.FILE):
@@ -205,8 +206,47 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
     if complexity in dict(Product.ComplexityLevel.choices):
         qs = qs.filter(complexity_level=complexity)
 
-    sort = (request.GET.get("sort") or "new").strip().lower()
+    license_type = (request.GET.get("license_type") or "").strip().lower()
+    try:
+        from products.models import ProductDigital
+
+        if license_type in dict(ProductDigital.LicenseType.choices):
+            qs = qs.filter(digital__license_type=license_type)
+    except Exception:
+        pass
+
+    instant = (request.GET.get("instant") or "").strip()
+    if instant == "1":
+        qs = qs.filter(kind=Product.Kind.FILE)
+
     qs = _annotate_rating(qs)
+
+    rating_min_raw = (request.GET.get("rating_min") or "").strip()
+    rating_min = ""
+    if rating_min_raw:
+        try:
+            rating_min_val = float(rating_min_raw)
+            if 0 < rating_min_val <= 5:
+                qs = qs.filter(avg_rating__gte=rating_min_val)
+                rating_min = rating_min_raw
+        except Exception:
+            rating_min = ""
+
+    sort = (request.GET.get("sort") or "new").strip().lower()
+    filters_active = any(
+        [
+            q,
+            file_type,
+            price_min,
+            price_max,
+            complexity,
+            license_type,
+            (instant == "1"),
+            rating_min,
+            (sort and sort != "new"),
+            (kind_filter if not kind else ""),
+        ]
+    )
 
     trending_fallback = False
     top_fallback = False
@@ -260,9 +300,13 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
             "price_max": price_max,
             "complexity": complexity,
             "complexity_options": Product.ComplexityLevel.choices,
+            "license_type": license_type,
+            "rating_min": rating_min,
+            "instant": instant,
             "min_reviews_top_rated": MIN_REVIEWS_TOP_RATED,
             "trending_fallback": trending_fallback,
             "top_fallback": top_fallback,
+            "filters_active": filters_active,
         },
     )
 

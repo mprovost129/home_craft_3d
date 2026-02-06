@@ -6,6 +6,7 @@ from django.core.cache import cache
 from django.db.models import Prefetch
 
 from .models import Category
+from products.models import ALLOWED_ASSET_EXTS, Product, ProductDigital
 
 
 def sidebar_categories(request):
@@ -38,9 +39,17 @@ def sidebar_categories(request):
         .order_by("name")
     )
 
+    preferred = ["stl", "3mf", "obj", "zip"]
+    allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+        t for t in ALLOWED_ASSET_EXTS if t not in preferred
+    )
+
     payload = {
         "sidebar_model_categories": model_categories,
         "sidebar_file_categories": file_categories,
+        "sidebar_file_type_options": allowed,
+        "sidebar_complexity_options": Product.ComplexityLevel.choices,
+        "sidebar_license_type_options": ProductDigital.LicenseType.choices,
     }
     cache.set(cache_key, payload, 3600)
     return payload
