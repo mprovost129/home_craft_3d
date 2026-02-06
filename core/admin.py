@@ -13,6 +13,12 @@ from .models import SiteConfig
 from orders.models import Order, OrderItem
 from products.models import ProductEngagementEvent
 from .models_advert import AdvertisementBanner
+from .models_email import SiteEmailTemplate
+
+# SiteEmailTemplate admin
+from django.contrib import messages
+from django.core.mail import send_mass_mail
+from django.contrib.auth import get_user_model
 
 
 
@@ -192,3 +198,43 @@ class AdvertisementBannerAdmin(admin.ModelAdmin):
     list_display = ("title", "is_active", "start_date", "end_date", "created_at")
     list_filter = ("is_active", "start_date", "end_date")
     search_fields = ("title",)
+    
+@admin.register(SiteEmailTemplate)
+class SiteEmailTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "subject", "is_active", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "subject", "body")
+
+    actions = ["send_email_to_all_users", "send_email_to_all_staff"]
+
+    def send_email_to_all_users(self, request, queryset):
+        User = get_user_model()
+        users = User.objects.filter(is_active=True, email__isnull=False).exclude(email="")
+        for template in queryset:
+            messages_sent = 0
+            datatuple = []
+            for user in users:
+                subject = template.subject.replace("{{ user }}", user.get_full_name() or user.username)
+                body = template.body.replace("{{ user }}", user.get_full_name() or user.username)
+                datatuple.append((subject, body, None, [user.email]))
+            if datatuple:
+                send_mass_mail(datatuple, fail_silently=False)
+                messages_sent = len(datatuple)
+            self.message_user(request, f"Sent '{template.name}' to {messages_sent} users.", messages.SUCCESS)
+    send_email_to_all_users.short_description = "Send selected template to all users"
+
+    def send_email_to_all_staff(self, request, queryset):
+        User = get_user_model()
+        users = User.objects.filter(is_staff=True, is_active=True, email__isnull=False).exclude(email="")
+        for template in queryset:
+            messages_sent = 0
+            datatuple = []
+            for user in users:
+                subject = template.subject.replace("{{ user }}", user.get_full_name() or user.username)
+                body = template.body.replace("{{ user }}", user.get_full_name() or user.username)
+                datatuple.append((subject, body, None, [user.email]))
+            if datatuple:
+                send_mass_mail(datatuple, fail_silently=False)
+                messages_sent = len(datatuple)
+            self.message_user(request, f"Sent '{template.name}' to {messages_sent} staff members.", messages.SUCCESS)
+    send_email_to_all_staff.short_description = "Send selected template to all staff"
