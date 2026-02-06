@@ -245,11 +245,19 @@ def admin_dashboard(request):
         plausible_period = "30d"
 
     selected_period = plausible_period
+    api_period = plausible_period
 
     plausible_from = (request.GET.get("from") or "").strip()
     plausible_to = (request.GET.get("to") or "").strip()
 
-    if plausible_period != "custom":
+    if plausible_period in {"today", "yesterday"}:
+        base_date = timezone.now().date()
+        if plausible_period == "yesterday":
+            base_date = base_date - timedelta(days=1)
+        plausible_from = base_date.isoformat()
+        plausible_to = base_date.isoformat()
+        api_period = "custom"
+    elif plausible_period != "custom":
         plausible_from = ""
         plausible_to = ""
 
@@ -294,18 +302,18 @@ def admin_dashboard(request):
 
     if plausible_api_enabled:
         try:
-            if plausible_period == "custom" and not (plausible_from and plausible_to):
+            if api_period == "custom" and not (plausible_from and plausible_to):
                 plausible_api_error = "Select both From and To dates for a custom range."
                 plausible_top_pages_raw = []
             else:
                 plausible_summary = plausible_get_summary(
-                    period=plausible_period,
+                    period=api_period,
                     from_date=plausible_from or None,
                     to_date=plausible_to or None,
                     filters=plausible_filters or None,
                 )
                 plausible_top_pages_raw = plausible_get_top_pages(
-                    period=plausible_period,
+                    period=api_period,
                     limit=plausible_top_limit,
                     from_date=plausible_from or None,
                     to_date=plausible_to or None,
