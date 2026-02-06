@@ -73,7 +73,7 @@
               <tr>
                 <td>{{ a.id }}</td>
                 <td>{{ a.original_filename|default:"(not set)" }}</td>
-                <td>{% if a.file_type %}.{{ a.file_type }}{% else %}—{% endif %}</td>
+                <td>{% if a.file_type %}.{{ a.file_type }}{% else %}N/A{% endif %}</td>
                 <td class="small text-secondary">
                   {% if a.file_type == "zip" and a.zip_contents %}
                     <ul class="mb-0">
@@ -85,7 +85,7 @@
                       {% endif %}
                     </ul>
                   {% else %}
-                    —
+                    N/A
                   {% endif %}
                 </td>
                 <td class="text-secondary small">{{ a.file.name }}</td>

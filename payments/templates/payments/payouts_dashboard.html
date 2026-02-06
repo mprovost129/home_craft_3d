@@ -102,10 +102,10 @@
                 {% if e.order %}
                   <a href="{% url 'orders:detail' e.order.id %}">Order {{ e.order.id }}</a>
                 {% else %}
-                  —
+                  N/A
                 {% endif %}
               </td>
-              <td class="small text-muted">{{ e.note|default:"—" }}</td>
+              <td class="small text-muted">{{ e.note|default:"N/A" }}</td>
             </tr>
           {% empty %}
             <tr>
