@@ -7,18 +7,12 @@
 
 <div class="card h-100">
   {% if p.primary_image %}
-      <picture>
-          <source srcset="{% static 'images/hero.webp' %}" type="image/webp">
-          <source srcset="{% static 'images/hero.jpg' %}" type="image/jpeg">
-          <source srcset="{% static 'images/hero.png' %}" type="image/png">
-        <img
-          src="{{ p.primary_image.image.url }}"
-          class="card-img-top"
-          alt="{{ p.primary_image.alt_text|default:p.title }}"
-          style="height:{{ image_height|default:'180px' }}; object-fit:cover;"
-          loading="lazy"
-        >
-      </picture>
+    <img
+      src="{{ p.primary_image.image.url }}"
+      class="card-img-top"
+      alt="{{ p.primary_image.alt_text|default:p.title }}"
+      style="height:{{ image_height|default:'180px' }}; object-fit:cover;"
+    >
   {% else %}
     <div class="bg-light d-flex align-items-center justify-content-center" style="height:{{ image_height|default:'180px' }};">
       <span class="text-secondary small">No image</span>
