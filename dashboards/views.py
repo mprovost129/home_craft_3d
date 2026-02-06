@@ -182,6 +182,8 @@ def seller_dashboard(request):
 
     ledger_entries = SellerBalanceEntry.objects.filter(seller=user).order_by("-created_at")[:10]
 
+    balance_dollars = _cents_to_dollars(balance_cents)
+    payout_available_dollars = _cents_to_dollars(payout_available_cents)
     return render(
         request,
         "dashboards/seller_dashboard.html",
@@ -194,8 +196,10 @@ def seller_dashboard(request):
             "recent_sales": recent_sales,
             "gross_revenue": _cents_to_dollars(int(sales_totals.get("gross_cents") or 0)),
             "net_revenue": _cents_to_dollars(int(sales_totals.get("net_cents") or 0)),
-            "balance": _cents_to_dollars(balance_cents),
-            "payout_available": _cents_to_dollars(payout_available_cents),
+            "balance": balance_dollars,
+            "balance_abs": abs(balance_dollars),
+            "payout_available": payout_available_dollars,
+            "payout_available_abs": abs(payout_available_dollars),
             "ledger_entries": ledger_entries,
             "sold_count": sales_totals.get("sold_count") or 0,
             "order_count": sales_totals.get("order_count") or 0,

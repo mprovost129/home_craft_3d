@@ -21,7 +21,7 @@
           <div class="text-secondary small">Available for payout</div>
           <div class="h4 mb-0">
             {% if payout_available < 0 %}
-              <span class="text-danger">-${{ payout_available|abs }}</span>
+              <span class="text-danger">-${{ payout_available_abs }}</span>
             {% else %}
               ${{ payout_available }}
             {% endif %}
@@ -29,7 +29,7 @@
           <div class="text-secondary small mt-1">
             Balance:
             {% if balance < 0 %}
-              <span class="text-danger">-${{ balance|abs }}</span>
+              <span class="text-danger">-${{ balance_abs }}</span>
             {% else %}
               ${{ balance }}
             {% endif %}
