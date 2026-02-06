@@ -135,6 +135,7 @@ class ProductForm(forms.ModelForm):
             "category",
             "is_free",
             "price",
+            "max_purchases_per_buyer",
             "is_active",
         ]
         widgets = {
@@ -144,6 +145,7 @@ class ProductForm(forms.ModelForm):
             "short_description": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"class": "form-control", "rows": 6}),
             "price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+            "max_purchases_per_buyer": forms.NumberInput(attrs={"class": "form-control", "min": "1", "placeholder": "Leave blank for no limit"}),
             "is_free": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "slug": forms.TextInput(attrs={"class": "form-control"}),

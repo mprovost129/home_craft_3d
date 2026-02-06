@@ -3,13 +3,14 @@ from __future__ import annotations
 from datetime import timedelta
 from decimal import Decimal
 
+from django.db import models
 from django.db.models import Avg, Count, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from orders.models import Order
+from orders.models import Order,  OrderItem
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
 from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS
@@ -445,6 +446,7 @@ def _render_product_detail(
     qa_threads_list = list(qa_threads[:20])
     qa_thread_count = ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True).count()
 
+    remaining_limit = get_remaining_product_limit(product, request.user)
     return render(
         request,
         "products/product_detail.html",
@@ -463,6 +465,8 @@ def _render_product_detail(
             # Q&A
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
+            # Purchase limit
+            "remaining_limit": remaining_limit,
         },
     )
 
@@ -520,3 +524,27 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
             "profile": profile,
         },
     )
+    
+# --- Purchase Limit Helper ---
+def get_remaining_product_limit(product: Product, user) -> int | None:
+    """
+    Returns the number of additional times this user can purchase this product, or None for unlimited.
+    """
+    limit = getattr(product, "max_purchases_per_buyer", None)
+    if not limit:
+        return None
+    if not user or not user.is_authenticated:
+        return limit
+    # Count all PAID orders for this user for this product
+    purchased = (
+        OrderItem.objects.filter(
+            product=product,
+            order__buyer=user,
+            order__status=Order.Status.PAID,
+        ).aggregate(total=models.Sum("quantity"))
+        or {}
+    )
+    already = purchased.get("total") or 0
+    # Optionally, add in-cart quantity (handled in cart logic)
+    remaining = max(0, limit - already)
+    return remaining

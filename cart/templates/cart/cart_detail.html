@@ -120,6 +120,11 @@
                     <button class="btn btn-sm btn-outline-dark" type="submit">Update</button>
                   </form>
                   <div class="form-text">Use the remove button to delete an item.</div>
+                                  {% if line.product.max_purchases_per_buyer %}
+                                    <div class="small text-secondary mt-1">
+                                      Limit: {{ line.product.max_purchases_per_buyer }} per buyer.
+                                    </div>
+                                  {% endif %}
                 {% endif %}
               </td>
 

@@ -33,6 +33,7 @@ class ProductAdmin(admin.ModelAdmin):
         "is_active",
         "is_featured",
         "is_trending",
+        "max_purchases_per_buyer",
         "created_at",
     )
     list_filter = ("kind", "is_active", "is_featured", "is_trending", "category")

@@ -11,6 +11,7 @@ from core.throttle import ThrottleRule, throttle
 from payments.utils import seller_is_stripe_ready
 from products.models import Product, ProductEngagementEvent
 from products.permissions import is_owner_user
+from products.views import get_remaining_product_limit
 
 from .cart import Cart
 
@@ -200,10 +201,26 @@ def cart_add(request):
         quantity = forced
         messages.info(request, "Digital items are limited to 1 per cart.")
 
-    cart.add(product, quantity=quantity, buyer_notes=buyer_notes)
-    _log_add_to_cart_throttled(request, product=product)
+    # Enforce purchase limit
+    remaining_limit = get_remaining_product_limit(product, request.user)
+    # Get in-cart quantity for this product
+    in_cart_qty = 0
+    for line in cart.lines():
+        if line.product.pk == product.pk:
+            in_cart_qty = line.quantity
+            break
+    allowed = None if remaining_limit is None else max(0, remaining_limit - in_cart_qty)
+    if allowed is not None and quantity > allowed:
+        if allowed <= 0:
+            messages.error(request, "You have reached the purchase limit for this product.")
+            return redirect(product.get_absolute_url())
+        quantity = allowed
+        messages.warning(request, f"You can only add {allowed} more of this product due to the purchase limit.")
 
-    messages.success(request, "Added to cart.")
+    if quantity > 0:
+        cart.add(product, quantity=quantity, buyer_notes=buyer_notes)
+        _log_add_to_cart_throttled(request, product=product)
+        messages.success(request, "Added to cart.")
 
     next_url = (request.POST.get("next") or "").strip()
     if next_url:
@@ -249,10 +266,31 @@ def cart_update(request):
         quantity = forced
         messages.info(request, "Digital items are limited to 1 per cart.")
 
-    cart.set_quantity(product, quantity)
-    if buyer_notes or "buyer_notes" in request.POST:
-        cart.set_notes(product, buyer_notes)
-    messages.success(request, "Cart updated.")
+    # Enforce purchase limit
+    remaining_limit = get_remaining_product_limit(product, request.user)
+    # Get in-cart quantity for this product (excluding this update)
+    in_cart_qty = 0
+    for line in cart.lines():
+        if line.product.pk == product.pk:
+            in_cart_qty = line.quantity
+            break
+    allowed = None if remaining_limit is None else max(0, remaining_limit - in_cart_qty)
+    if allowed is not None and quantity > allowed:
+        if allowed <= 0:
+            messages.error(request, "You have reached the purchase limit for this product.")
+            cart.set_quantity(product, 0)
+            return redirect("cart:detail")
+        quantity = allowed
+        messages.warning(request, f"You can only have {allowed} of this product due to the purchase limit.")
+
+    if quantity > 0:
+        cart.set_quantity(product, quantity)
+        if buyer_notes or "buyer_notes" in request.POST:
+            cart.set_notes(product, buyer_notes)
+        messages.success(request, "Cart updated.")
+    else:
+        cart.set_quantity(product, 0)
+        messages.info(request, "Item removed (purchase limit reached).")
     return redirect("cart:detail")
 
 

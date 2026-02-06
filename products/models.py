@@ -127,6 +127,13 @@ class Product(models.Model):
     )
     is_free = models.BooleanField(default=False)
 
+
+    max_purchases_per_buyer = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum number of times a single buyer can purchase this product. Leave blank for no limit."
+    )
+
     # Draft-first default:
     is_active = models.BooleanField(default=False)
 
@@ -180,6 +187,9 @@ class Product(models.Model):
             self.price = Decimal("0.00")
         if not self.is_free and self.price <= Decimal("0.00"):
             raise ValidationError({"price": "Price must be greater than $0.00 unless the item is marked free."})
+
+        if self.max_purchases_per_buyer is not None and self.max_purchases_per_buyer < 1:
+            raise ValidationError({"max_purchases_per_buyer": "If set, must be at least 1."})
 
     @property
     def display_price(self) -> str:

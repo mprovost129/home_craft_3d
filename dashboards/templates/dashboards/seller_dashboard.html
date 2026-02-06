@@ -19,9 +19,20 @@
       <div class="card h-100">
         <div class="card-body">
           <div class="text-secondary small">Available for payout</div>
-          <div class="h4 mb-0">${{ payout_available }}</div>
+          <div class="h4 mb-0">
+            {% if payout_available < 0 %}
+              <span class="text-danger">-${{ payout_available|abs }}</span>
+            {% else %}
+              ${{ payout_available }}
+            {% endif %}
+          </div>
           <div class="text-secondary small mt-1">
-            Balance: ${{ balance }}
+            Balance:
+            {% if balance < 0 %}
+              <span class="text-danger">-${{ balance|abs }}</span>
+            {% else %}
+              ${{ balance }}
+            {% endif %}
           </div>
         </div>
       </div>
@@ -56,7 +67,7 @@
               <td class="small">{{ e.created_at|date:"Y-m-d" }}</td>
               <td class="small">{{ e.get_reason_display }}</td>
               <td class="text-end {% if e.amount_cents < 0 %}text-danger{% else %}text-success{% endif %}">
-                ${{ e.amount_cents|floatformat:2 }}
+                ${{ e.amount_cents|divisibleby:100|yesno:'0,1' }}{{ e.amount_cents|abs|stringformat:'d'|slice:':-2' }}.{{ e.amount_cents|abs|stringformat:'d'|slice:'-2:' }}
               </td>
             </tr>
           {% empty %}
@@ -109,24 +120,27 @@
                   {% endif %}
                 </td>
                 <td>
-                  <ul class="list-unstyled mb-0 small">
-                    <li>
-                      <i class="bi {% if checklist.has_image %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i>
-                      Image
-                    </li>
-                    <li>
-                      <i class="bi {% if checklist.has_specs %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i>
-                      Specs
-                    </li>
-                    <li>
-                      <i class="bi {% if checklist.has_assets %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i>
-                      Digital Asset
-                    </li>
-                    <li>
-                      <i class="bi {% if checklist.is_active %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i>
-                      Active
-                    </li>
-                  </ul>
+                  {% with all_green=checklist.has_image and checklist.has_specs and checklist.has_assets and checklist.is_active %}
+                  <div class="d-flex align-items-center gap-2">
+                    <span title="Checklist status">
+                      <i class="bi bi-circle-fill {% if all_green %}text-success{% else %}text-secondary{% endif %}"></i>
+                    </span>
+                    <div class="d-flex flex-row gap-3 small">
+                      <span title="Image">
+                        <i class="bi {% if checklist.has_image %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i> Image
+                      </span>
+                      <span title="Specs">
+                        <i class="bi {% if checklist.has_specs %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i> Specs
+                      </span>
+                      <span title="Digital Asset">
+                        <i class="bi {% if checklist.has_assets %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i> Digital Asset
+                      </span>
+                      <span title="Active">
+                        <i class="bi {% if checklist.is_active %}bi-check-circle-fill text-success{% else %}bi-x-circle-fill text-danger{% endif %}"></i> Active
+                      </span>
+                    </div>
+                  </div>
+                  {% endwith %}
                 </td>
               </tr>
               {% endwith %}

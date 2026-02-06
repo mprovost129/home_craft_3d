@@ -128,7 +128,20 @@
           {% endif %}
 
           <div class="mt-3">
+
             <div class="h5 mb-2">{{ product.display_price }}</div>
+            {% if product.max_purchases_per_buyer %}
+              <div class="small text-secondary mb-2">
+                Purchase limit: {{ product.max_purchases_per_buyer }} per buyer.
+                {% if remaining_limit is not None %}
+                  {% if remaining_limit > 0 %}
+                    (You can purchase {{ remaining_limit }} more)
+                  {% else %}
+                    <span class="text-danger">You have reached the purchase limit for this product.</span>
+                  {% endif %}
+                {% endif %}
+              </div>
+            {% endif %}
 
             {% if can_buy %}
               <form method="post" action="{% url 'cart:add' %}">
