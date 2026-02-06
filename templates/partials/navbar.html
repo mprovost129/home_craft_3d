@@ -12,14 +12,14 @@
       </a>
 
       <button class="btn btn-sm btn-outline-secondary d-lg-none" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
-              aria-controls="sidebarOffcanvas" aria-label="Toggle sidebar">
-        <i class="bi bi-list"></i>
+          data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas"
+          aria-controls="sidebarOffcanvas" aria-label="Open sidebar menu">
+        <i class="bi bi-list" aria-hidden="true"></i>
       </button>
 
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
-              aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
+          aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle main navigation">
+        <span class="navbar-toggler-icon" aria-hidden="true"></span>
       </button>
     </div>
 
@@ -160,8 +160,8 @@
           {% endif %}
 
           <button id="hcThemeToggle" class="btn btn-sm btn-outline-secondary" type="button"
-                  aria-pressed="false" title="Toggle theme">
-            <i class="bi bi-moon-stars"></i>
+                  aria-pressed="false" aria-label="Toggle dark/light theme" title="Toggle theme">
+            <i class="bi bi-moon-stars" aria-hidden="true"></i>
           </button>
 
         </div>

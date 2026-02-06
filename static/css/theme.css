@@ -1,3 +1,16 @@
+/* Accessibility: Focus outlines for interactive elements */
+button:focus, a:focus, input:focus, select:focus {
+  outline: 2px solid #005fcc !important;
+  outline-offset: 2px;
+}
+
+/* Badge color contrast improvements */
+.badge.text-bg-dark, .badge.text-bg-secondary, .badge.text-bg-success, .badge.text-bg-warning, .badge.text-bg-info {
+  color: #fff !important;
+}
+.badge.text-bg-light {
+  color: #222 !important;
+}
 /* static/css/theme.css */
 
 /* Light */

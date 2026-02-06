@@ -346,18 +346,22 @@ def _log_event_throttled(request: HttpRequest, *, product: Product, event_type: 
 
 
 def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
-    product = get_object_or_404(
-        Product.objects.filter(is_active=True).select_related("category", "seller"),
-        pk=pk,
-        slug=slug,
-    )
+    base_qs = Product.objects.select_related("category", "seller")
+    if request.user.is_authenticated and (
+        is_owner_user(request.user) or base_qs.filter(pk=pk, slug=slug, seller=request.user).exists()
+    ):
+        product = get_object_or_404(base_qs, pk=pk, slug=slug)
+    else:
+        product = get_object_or_404(base_qs.filter(is_active=True), pk=pk, slug=slug)
 
-    _log_event_throttled(
-        request,
-        product=product,
-        event_type=ProductEngagementEvent.EventType.CLICK,
-        minutes=5,
-    )
+    if product.is_active:
+        _log_event_throttled(
+            request,
+            product=product,
+            event_type=ProductEngagementEvent.EventType.CLICK,
+            minutes=5,
+        )
+
     return redirect("products:detail", pk=product.pk, slug=product.slug)
 
 
@@ -367,7 +371,7 @@ def _render_product_detail(
     product: Product,
     log_event: bool = True,
 ) -> HttpResponse:
-    if log_event:
+    if log_event and product.is_active:
         _log_event_throttled(
             request,
             product=product,
@@ -375,7 +379,8 @@ def _render_product_detail(
             minutes=10,
         )
 
-    can_buy = _seller_can_sell(product)
+    can_buy = product.is_active and _seller_can_sell(product)
+    is_preview = not product.is_active
 
     from reviews.models import Review, SellerReview
 
@@ -452,6 +457,7 @@ def _render_product_detail(
             "seller_avg_rating": seller_avg_rating,
             "seller_review_count": seller_review_count,
             "can_buy": can_buy,
+            "is_preview": is_preview,
             "related_same_seller": related_same_seller,
             "related_same_category": related_same_category,
             # Q&A
@@ -462,13 +468,17 @@ def _render_product_detail(
 
 
 def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
-    product = get_object_or_404(
-        Product.objects.filter(is_active=True)
-        .select_related("category", "category__parent", "seller", "physical", "digital")
-        .prefetch_related("images", "digital_assets"),
-        pk=pk,
-        slug=slug,
+    base_qs = (
+        Product.objects.select_related("category", "category__parent", "seller", "physical", "digital")
+        .prefetch_related("images", "digital_assets")
     )
+
+    if request.user.is_authenticated and (
+        is_owner_user(request.user) or base_qs.filter(pk=pk, slug=slug, seller=request.user).exists()
+    ):
+        product = get_object_or_404(base_qs, pk=pk, slug=slug)
+    else:
+        product = get_object_or_404(base_qs.filter(is_active=True), pk=pk, slug=slug)
 
     return _render_product_detail(request=request, product=product, log_event=True)
 
