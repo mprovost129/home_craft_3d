@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from django.db.models.functions import Coalesce
 from django.shortcuts import render, redirect
 from django.utils import timezone
+from django.views.decorators.cache import cache_page
 
 from catalog.models import Category
 from orders.models import Order
@@ -159,8 +160,6 @@ def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int
     for p in products:
         p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
 
-
-from django.views.decorators.cache import cache_page
 
 @cache_page(60 * 15)  # Cache for 15 minutes
 def home(request):
@@ -318,3 +317,18 @@ def sitemap_xml(request):
     content = "\n".join(xml_lines)
     cache.set(cache_key, content, getattr(settings, "SITEMAP_CACHE_SECONDS", 3600))
     return HttpResponse(content, content_type="application/xml")
+
+
+def coming_soon(request):
+    feature = request.GET.get("feature", "")
+    context = {}
+    if feature == "blog":
+        context["feature_title"] = "Blog"
+        context["feature_desc"] = "Our blog will inspire, inform, and connect the Home Craft 3D community!"
+    elif feature == "community":
+        context["feature_title"] = "Community Chat Board"
+        context["feature_desc"] = "Our chat board will be the go-to place for collaboration, support, and fun challenges."
+    else:
+        context["feature_title"] = None
+        context["feature_desc"] = None
+    return render(request, "coming_soon.html", context)
