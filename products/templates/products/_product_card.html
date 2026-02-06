@@ -10,6 +10,7 @@
       <picture>
         {% if p.primary_image.image.url|lower|endswith:'.jpg' or p.primary_image.image.url|lower|endswith:'.jpeg' or p.primary_image.image.url|lower|endswith:'.png' %}
           <source srcset="{{ p.primary_image.image.url|replace:'.jpg','.webp'|replace:'.jpeg','.webp'|replace:'.png','.webp' }}" type="image/webp">
+          <source srcset="{{ p.primary_image.image.url|replace:'.webp','.jpg' }}" type="image/jpeg">
         {% endif %}
         <img
           src="{{ p.primary_image.image.url }}"
