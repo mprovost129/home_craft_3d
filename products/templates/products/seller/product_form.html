@@ -32,23 +32,21 @@
             <label class="form-label fw-semibold">Kind <span class="text-danger">*</span></label>
             {{ form.kind }}
             {% if form.kind.errors %}<div class="text-danger small mt-1">{{ form.kind.errors }}</div>{% endif %}
-            <div class="form-text">What type of product is this?</div>
+            <div class="form-text">File (digital download) or Model (physical print).</div>
           </div>
 
           <div class="col-12">
             <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
             {{ form.category }}
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
-            <div class="form-text">Choose a main category.</div>
+            <div class="form-text">Choose a main category (filtered by Kind).</div>
           </div>
 
           <div class="col-12">
             <label class="form-label fw-semibold">Subcategory</label>
-            <select name="subcategory" id="subcategory-select" class="form-select" disabled>
-              <option value="">Select a subcategory</option>
-            </select>
+            {{ form.subcategory }}
             {% if form.subcategory.errors %}<div class="text-danger small mt-1">{{ form.subcategory.errors }}</div>{% endif %}
-            <div class="form-text">Choose a subcategory under the selected category.</div>
+            <div class="form-text">Locked until you pick a Category.</div>
           </div>
 
           <div class="col-12">
@@ -158,7 +156,7 @@
               </a>
             {% endif %}
           {% endif %}
-          
+
           <a class="btn btn-outline-secondary ms-auto" href="{% url 'products:seller_list' %}">
             Cancel
           </a>
@@ -177,112 +175,105 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const kindSelect = document.querySelector('[name="kind"]');
-  const categorySelect = document.querySelector('[name="category"]');
-  const subcategorySelect = document.getElementById('subcategory-select');
+document.addEventListener("DOMContentLoaded", function () {
+  const kindSelect = document.querySelector('select[name="kind"]');
+  const categorySelect = document.querySelector('select[name="category"]');
+  const subcategorySelect = document.querySelector('select[name="subcategory"]');
 
-  // Build mapping of categories to subcategories from Django context
-  const categoryMap = {
-    {% for cat in form.category.field.queryset %}
-      '{{ cat.id }}': [
-        {% for sub in cat.children.all %}
-          { id: '{{ sub.id }}', name: '{{ sub.name }}' },
-        {% endfor %}
-      ],
-    {% endfor %}
-  };
+  if (!kindSelect || !categorySelect || !subcategorySelect) return;
 
-  function updateSubcategoryDropdown() {
-    const selectedCat = categorySelect.value;
-    subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
-    if (selectedCat && categoryMap[selectedCat] && categoryMap[selectedCat].length > 0) {
-      subcategorySelect.disabled = false;
-      categoryMap[selectedCat].forEach(function(sub) {
-        const opt = document.createElement('option');
-        opt.value = sub.id;
-        opt.textContent = sub.name;
-        subcategorySelect.appendChild(opt);
-      });
+  // Preserve existing selections (edit mode / postback)
+  const initialCategory = categorySelect.value || "";
+  const initialSubcategory = subcategorySelect.value || "";
+
+  function setSubcategoryDisabled(disabled) {
+    subcategorySelect.disabled = disabled;
+    if (disabled) {
+      subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
+      subcategorySelect.value = "";
+    }
+  }
+
+  async function loadCategories(kind, keepCategoryId) {
+    categorySelect.innerHTML = '<option value="">Select a category</option>';
+    setSubcategoryDisabled(true);
+
+    if (!kind) return;
+
+    const url = "{% url 'catalog:api_categories' %}" + "?kind=" + encodeURIComponent(kind);
+    const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+    const data = await resp.json();
+
+    const cats = (data && data.categories) ? data.categories : [];
+    for (const c of cats) {
+      const opt = document.createElement("option");
+      opt.value = String(c.id);
+      opt.textContent = c.name;
+      categorySelect.appendChild(opt);
+    }
+
+    if (keepCategoryId) {
+      categorySelect.value = keepCategoryId;
     } else {
-      subcategorySelect.disabled = true;
+      categorySelect.value = "";
+    }
+
+    // If we have a selected category, load its subcats
+    if (categorySelect.value) {
+      await loadSubcategories(categorySelect.value, initialSubcategory);
     }
   }
 
-  categorySelect.addEventListener('change', updateSubcategoryDropdown);
-  updateSubcategoryDropdown();
+  async function loadSubcategories(categoryId, keepSubId) {
+    setSubcategoryDisabled(true);
+
+    if (!categoryId) return;
+
+    const url = "{% url 'catalog:api_subcategories' %}" + "?category_id=" + encodeURIComponent(categoryId);
+    const resp = await fetch(url, { headers: { "Accept": "application/json" } });
+    const data = await resp.json();
+
+    const subs = (data && data.subcategories) ? data.subcategories : [];
+
+    subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
+
+    if (subs.length === 0) {
+      // no subcats; remain disabled
+      setSubcategoryDisabled(true);
+      return;
     }
-    
-    const selectedKind = kindSelect.value;
-    
-    if (selectedKind === 'MODEL') {
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-info mt-3 mb-3';
-      alertDiv.innerHTML = `
-        <i class="bi bi-lightbulb me-2"></i>
-        <strong>3D Model Specifications:</strong> After creating this listing, you'll be able to add material, color, dimensions, weight, and support requirements in the Specs section.
-      `;
-      kindSelect.closest('.row').after(alertDiv);
-      kindAlert = alertDiv;
-    } else if (selectedKind === 'FILE') {
-      const alertDiv = document.createElement('div');
-      alertDiv.className = 'alert alert-info mt-3 mb-3';
-      alertDiv.innerHTML = `
-        <i class="bi bi-lightbulb me-2"></i>
-        <strong>Digital File Specifications:</strong> After creating this listing, you'll be able to add software requirements, compatible platforms, license type, and additional requirements in the Specs section.
-      `;
-      kindSelect.closest('.row').after(alertDiv);
-      kindAlert = alertDiv;
+
+    for (const s of subs) {
+      const opt = document.createElement("option");
+      opt.value = String(s.id);
+      opt.textContent = s.name;
+      subcategorySelect.appendChild(opt);
     }
-  }
-  
-  // Update on change
-  kindSelect.addEventListener('change', updateKindInfo);
-  
-  // Update on page load if kind is pre-selected
-  if (kindSelect.value) {
-    updateKindInfo();
-  }
 
-  const categorySelect = document.querySelector('[name="category"]');
+    subcategorySelect.disabled = false;
 
-  function filterCategoriesByKind(kind) {
-    if (!categorySelect) return;
-    const groups = Array.from(categorySelect.querySelectorAll('optgroup'));
-    let hasVisibleSelection = false;
-
-    groups.forEach(function (group) {
-      const label = (group.getAttribute('label') || '').toLowerCase();
-      const isFileGroup = label.includes('(files)');
-      const showGroup = kind === 'FILE' ? isFileGroup : !isFileGroup;
-
-      group.disabled = !showGroup;
-      group.style.display = showGroup ? '' : 'none';
-
-      Array.from(group.querySelectorAll('option')).forEach(function (opt) {
-        opt.disabled = !showGroup;
-        if (showGroup && opt.selected) {
-          hasVisibleSelection = true;
-        }
-      });
-    });
-
-    if (!hasVisibleSelection) {
-      const firstVisible = Array.from(categorySelect.querySelectorAll('option')).find(function (opt) {
-        return !opt.disabled;
-      });
-      if (firstVisible) {
-        categorySelect.value = firstVisible.value;
-      }
+    if (keepSubId) {
+      subcategorySelect.value = keepSubId;
     }
   }
 
-  if (kindSelect && categorySelect) {
-    filterCategoriesByKind(kindSelect.value || 'FILE');
-    kindSelect.addEventListener('change', function () {
-      filterCategoriesByKind(kindSelect.value);
-    });
-  }
+  kindSelect.addEventListener("change", async function () {
+    const kind = (kindSelect.value || "").trim();
+    await loadCategories(kind, "");
+  });
+
+  categorySelect.addEventListener("change", async function () {
+    const catId = (categorySelect.value || "").trim();
+    await loadSubcategories(catId, "");
+  });
+
+  // Initial load:
+  // If kind is blank, pick FILE by default (feel free to change default)
+  const initialKind = (kindSelect.value || "FILE").trim();
+  if (!kindSelect.value) kindSelect.value = initialKind;
+
+  // Load categories for kind, then restore category/subcategory if present
+  loadCategories(initialKind, initialCategory);
 });
 </script>
 {% endblock %}

@@ -6,6 +6,7 @@ from typing import Iterable, List, Tuple
 
 from django import forms
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 from catalog.models import Category
 from .models import Product, ProductImage, DigitalAsset, ProductPhysical, ProductDigital
@@ -128,93 +129,94 @@ class ProductForm(forms.ModelForm):
         model = Product
         fields = [
             "kind",
-            "title",
-            "slug",
-            "short_description",
-            "description",
             "category",
             "subcategory",
-            "is_free",
+            "title",
+            "short_description",
+            "description",
             "price",
-            "max_purchases_per_buyer",
+            "is_free",
             "is_active",
+            "slug",
         ]
         widgets = {
             "kind": forms.Select(attrs={"class": "form-select"}),
-            "category": forms.Select(attrs={"class": "form-select"}),
-            "subcategory": forms.Select(attrs={"class": "form-select"}),
+            "category": forms.Select(attrs={"class": "form-select", "id": "category-select"}),
+            "subcategory": forms.Select(attrs={"class": "form-select", "id": "subcategory-select"}),
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "short_description": forms.TextInput(attrs={"class": "form-control"}),
-            "description": forms.Textarea(attrs={"class": "form-control", "rows": 6}),
-            "price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
-            "max_purchases_per_buyer": forms.NumberInput(attrs={"class": "form-control", "min": "1", "placeholder": "Leave blank for no limit"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+            "price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
             "is_free": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "slug": forms.TextInput(attrs={"class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        # Base queryset (active only, ordered for stable optgroups)
-        base_qs = Category.objects.filter(is_active=True).order_by("type", "parent_id", "sort_order", "name", "id")
+        # Category dropdown should only show ROOT categories (parent is null)
+        self.fields["category"].queryset = (
+            Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
+        )
 
-        # Kind-specific filtering (models vs files)
-        if self.instance and self.instance.pk:
-            kind_value = self.instance.kind
-        else:
-            kind_value = self.data.get("kind") or self.initial.get("kind") or Product.Kind.FILE
-            if not self.data:
-                self.fields["kind"].initial = kind_value
+        # Subcategory dropdown should only show CHILD categories (but we’ll restrict by selected category during clean)
+        # Start empty; JS will load options. On edit/postback, we populate if possible.
+        self.fields["subcategory"].queryset = Category.objects.none()
+        self.fields["subcategory"].required = False
 
-        if kind_value in (Product.Kind.MODEL, Product.Kind.FILE):
-            expected_type = Category.CategoryType.MODEL if kind_value == Product.Kind.MODEL else Category.CategoryType.FILE
-            base_qs = base_qs.filter(type=expected_type)
+        # If editing an existing product and it already has a category, preload valid subcategories
+        initial_cat = None
+        try:
+            if self.instance and self.instance.pk and self.instance.category_id:
+                initial_cat = self.instance.category
+        except Exception:
+            initial_cat = None
 
-        # Only root categories (parent=None)
-        root_categories = base_qs.filter(parent__isnull=True)
-        self.fields["category"].queryset = root_categories
-        self.fields["category"].choices = [(c.id, c.name) for c in root_categories]
+        # If this is a POST and category was submitted, prefer that
+        posted_cat_id = (self.data.get("category") or "").strip()
+        if posted_cat_id:
+            try:
+                initial_cat = Category.objects.filter(pk=int(posted_cat_id), parent__isnull=True).first()
+            except Exception:
+                pass
 
-        # Subcategories (parent=selected category)
-        selected_category = self.data.get("category") or self.initial.get("category")
-        if selected_category:
-            subcategories = base_qs.filter(parent_id=selected_category)
-        else:
-            subcategories = base_qs.none()
-        self.fields["subcategory"].queryset = subcategories
-        self.fields["subcategory"].choices = [(c.id, c.name) for c in subcategories]
-
-        self.fields["slug"].required = False
-
-        # Nice-to-have: bootstrap classes for other fields if not already set in templates
-        for name, f in self.fields.items():
-            if name == "category":
-                continue
-            if isinstance(f.widget, (forms.TextInput, forms.Textarea, forms.NumberInput)):
-                f.widget.attrs.setdefault("class", "form-control")
-            elif isinstance(f.widget, (forms.Select,)):
-                f.widget.attrs.setdefault("class", "form-select")
-            elif isinstance(f.widget, (forms.CheckboxInput,)):
-                f.widget.attrs.setdefault("class", "form-check-input")
+        if initial_cat:
+            self.fields["subcategory"].queryset = (
+                Category.objects.filter(parent=initial_cat, is_active=True).order_by("sort_order", "name")
+            )
 
     def clean(self):
         cleaned = super().clean()
-        is_free = cleaned.get("is_free")
-        price = cleaned.get("price")
 
-        if is_free:
-            cleaned["price"] = 0
-        else:
-            if price is None:
-                self.add_error("price", "Price is required unless the item is marked free.")
-            else:
-                try:
-                    if price <= 0:
-                        self.add_error("price", "Price must be greater than $0.00 unless the item is marked free.")
-                except TypeError:
-                    self.add_error("price", "Enter a valid price.")
+        kind = (cleaned.get("kind") or "").strip().upper()
+        category: Category | None = cleaned.get("category")
+        subcategory: Category | None = cleaned.get("subcategory")
+
+        if category:
+            # category must be root
+            if category.parent_id is not None:
+                raise ValidationError({"category": "Category must be a top-level category (not a subcategory)."})
+
+            # category.type must match product.kind
+            if kind == Product.Kind.MODEL and category.type != Category.CategoryType.MODEL:
+                raise ValidationError({"category": "Model products must use a 3D Models category."})
+            if kind == Product.Kind.FILE and category.type != Category.CategoryType.FILE:
+                raise ValidationError({"category": "File products must use a 3D Files category."})
+
+        if subcategory:
+            # subcategory must be a child
+            if subcategory.parent_id is None:
+                raise ValidationError({"subcategory": "Subcategory must be a child of a Category."})
+
+            # must match selected category
+            if category and subcategory.parent_id != category.id:
+                raise ValidationError({"subcategory": "Subcategory must belong to the selected Category."})
+
+            # must match type
+            if category and subcategory.type != category.type:
+                raise ValidationError({"subcategory": "Subcategory type must match the Category type."})
+
         return cleaned
 
 

@@ -1,6 +1,7 @@
+# catalog/views.py
 from __future__ import annotations
 
-from django.db.models import Prefetch
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .models import Category
@@ -44,12 +45,11 @@ def category_detail(request, pk: int):
 
     products_qs = (
         Product.objects.filter(is_active=True, category_id__in=category_ids)
-        .select_related("category", "seller")
+        .select_related("category", "category__parent", "seller")
         .prefetch_related("images")
         .order_by("-created_at")
     )
 
-    # For page sidebar / nav: show children as quick chips
     children = category.children.filter(is_active=True).order_by("sort_order", "name")
 
     return render(
@@ -61,3 +61,45 @@ def category_detail(request, pk: int):
             "products": products_qs,
         },
     )
+
+
+def api_categories(request):
+    """
+    Returns root categories for the given kind/type.
+
+    GET /catalog/api/categories/?kind=MODEL|FILE
+    """
+    kind = (request.GET.get("kind") or "").strip().upper()
+    if kind not in (Category.CategoryType.MODEL, Category.CategoryType.FILE):
+        return JsonResponse({"ok": True, "categories": []})
+
+    roots = (
+        Category.objects.filter(type=kind, parent__isnull=True, is_active=True)
+        .order_by("sort_order", "name")
+        .values("id", "name")
+    )
+    return JsonResponse({"ok": True, "categories": list(roots)})
+
+
+def api_subcategories(request):
+    """
+    Returns subcategories (children) for a given root category.
+
+    GET /catalog/api/subcategories/?category_id=<id>
+    """
+    raw = (request.GET.get("category_id") or "").strip()
+    try:
+        category_id = int(raw)
+    except Exception:
+        return JsonResponse({"ok": True, "subcategories": []})
+
+    parent = Category.objects.filter(pk=category_id, parent__isnull=True, is_active=True).first()
+    if not parent:
+        return JsonResponse({"ok": True, "subcategories": []})
+
+    children = (
+        Category.objects.filter(parent=parent, is_active=True)
+        .order_by("sort_order", "name")
+        .values("id", "name")
+    )
+    return JsonResponse({"ok": True, "subcategories": list(children)})
