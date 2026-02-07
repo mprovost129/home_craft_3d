@@ -1,159 +1,55 @@
+# catalog/context_processors.py
+
 from __future__ import annotations
 
-from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.core.cache import cache
+from django.db.models import Prefetch
 
-from catalog.models import Category
-
-
-CATEGORY_TREE = [
-    {
-        "name": "Automotive",
-        "children": [
-            "Interior",
-            "Exterior",
-            "Tools",
-            "Accessories",
-        ],
-    },
-    {
-        "name": "Educational",
-        "children": [
-            "STEM",
-            "Learning Aids",
-            "Models",
-        ],
-    },
-    {
-        "name": "Figurines",
-        "children": [
-            "Fantasy",
-            "Sci-Fi",
-            "Animals",
-            "People",
-        ],
-    },
-    {
-        "name": "Games & Toys",
-        "children": [
-            "Board Games",
-            "Tabletop",
-            "Puzzles",
-            "Toys",
-        ],
-    },
-    {
-        "name": "Home & Decor",
-        "children": [
-            "Wall Art",
-            "Lighting",
-            "Furniture",
-            "Kitchen",
-        ],
-    },
-    {
-        "name": "Miniatures",
-        "children": [
-            "Scale Models",
-            "Architecture",
-            "Vehicles",
-        ],
-    },
-    {
-        "name": "Organizers",
-        "children": [
-            "Office",
-            "Garage",
-            "Workshop",
-            "Storage",
-        ],
-    },
-    {
-        "name": "Props & Cosplay",
-        "children": [
-            "Armor",
-            "Weapons",
-            "Accessories",
-        ],
-    },
-    {
-        "name": "Terrain & Diorama",
-        "children": [
-            "Buildings",
-            "Landscape",
-            "Scatter",
-        ],
-    },
-    {
-        "name": "Tools & Fixtures",
-        "children": [
-            "Jigs",
-            "Holders",
-            "Calibration",
-        ],
-    },
-    {
-        "name": "Art & Sculptures",
-        "children": [
-            "Abstract",
-            "Busts",
-            "Relief",
-        ],
-    },
-    {
-        "name": "Bundles",
-        "children": [],
-    },
-]
+from .models import Category
+from products.models import ALLOWED_ASSET_EXTS, Product, ProductDigital
 
 
-class Command(BaseCommand):
-    help = "Seed symmetric category trees for MODEL and FILE products."
+def sidebar_categories(request):
+    """
+    Provides two separate category trees for the global sidebar:
+      - sidebar_model_categories: roots (type=MODEL)
+      - sidebar_file_categories:  roots (type=FILE)
 
-    @transaction.atomic
-    def handle(self, *args, **options):
-        self.stdout.write("Seeding categories…")
+    Children are prefetched as active-only and ordered alphabetically.
+    """
+    cache_key = "sidebar_categories_v2"  # bump to invalidate old cached payload
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
 
-        for category_type, label in [
-            (Category.CategoryType.MODEL, "3D Models"),
-            (Category.CategoryType.FILE, "3D Files"),
-        ]:
-            self.stdout.write(f"  → {label}")
+    active_children = Prefetch(
+        "children",
+        queryset=Category.objects.filter(is_active=True).order_by("name"),
+    )
 
-            for sort_index, root_def in enumerate(CATEGORY_TREE):
-                root, root_created = Category.objects.get_or_create(
-                    type=category_type,
-                    parent=None,
-                    slug=root_def["name"].lower().replace(" ", "-"),
-                    defaults={
-                        "name": root_def["name"],
-                        "sort_order": sort_index,
-                        "is_active": True,
-                    },
-                )
+    model_categories = (
+        Category.objects.filter(type=Category.CategoryType.MODEL, parent__isnull=True, is_active=True)
+        .prefetch_related(active_children)
+        .order_by("name")
+    )
 
-                if not root_created:
-                    root.name = root_def["name"]
-                    root.sort_order = sort_index
-                    root.is_active = True
-                    root.save(update_fields=["name", "sort_order", "is_active"])
+    file_categories = (
+        Category.objects.filter(type=Category.CategoryType.FILE, parent__isnull=True, is_active=True)
+        .prefetch_related(active_children)
+        .order_by("name")
+    )
 
-                for child_index, child_name in enumerate(root_def.get("children", [])):
-                    child, child_created = Category.objects.get_or_create(
-                        type=category_type,
-                        parent=root,
-                        slug=child_name.lower().replace(" ", "-"),
-                        defaults={
-                            "name": child_name,
-                            "sort_order": child_index,
-                            "is_active": True,
-                        },
-                    )
+    preferred = ["stl", "3mf", "obj", "zip"]
+    allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+        t for t in ALLOWED_ASSET_EXTS if t not in preferred
+    )
 
-                    if not child_created:
-                        child.name = child_name
-                        child.sort_order = child_index
-                        child.is_active = True
-                        child.save(update_fields=["name", "sort_order", "is_active"])
-
-        self.stdout.write(self.style.SUCCESS("✔ Categories seeded successfully"))
+    payload = {
+        "sidebar_model_categories": model_categories,
+        "sidebar_file_categories": file_categories,
+        "sidebar_file_type_options": allowed,
+        "sidebar_complexity_options": Product.ComplexityLevel.choices,
+        "sidebar_license_type_options": ProductDigital.LicenseType.choices,
+    }
+    cache.set(cache_key, payload, 3600)
+    return payload
