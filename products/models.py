@@ -118,6 +118,14 @@ class Product(models.Model):
         on_delete=models.PROTECT,
         related_name="products",
     )
+    subcategory = models.ForeignKey(
+        "catalog.Category",
+        on_delete=models.PROTECT,
+        related_name="products_subcategory",
+        null=True,
+        blank=True,
+        help_text="Subcategory under the main category."
+    )
 
     price = models.DecimalField(
         max_digits=10,

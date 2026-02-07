@@ -133,6 +133,7 @@ class ProductForm(forms.ModelForm):
             "short_description",
             "description",
             "category",
+            "subcategory",
             "is_free",
             "price",
             "max_purchases_per_buyer",
@@ -140,7 +141,8 @@ class ProductForm(forms.ModelForm):
         ]
         widgets = {
             "kind": forms.Select(attrs={"class": "form-select"}),
-            "category": forms.Select(attrs={"class": "form-select", "size": 10}),
+            "category": forms.Select(attrs={"class": "form-select"}),
+            "subcategory": forms.Select(attrs={"class": "form-select"}),
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "short_description": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"class": "form-control", "rows": 6}),
@@ -170,14 +172,19 @@ class ProductForm(forms.ModelForm):
             expected_type = Category.CategoryType.MODEL if kind_value == Product.Kind.MODEL else Category.CategoryType.FILE
             base_qs = base_qs.filter(type=expected_type)
 
-        # Reduce scrolling: optgroup categories by parent and indent children
-        # (Still uses a normal <select>, just organized better.)
-        self.fields["category"].queryset = base_qs
-        self.fields["category"].choices = _category_choices_for_form(base_qs)
+        # Only root categories (parent=None)
+        root_categories = base_qs.filter(parent__isnull=True)
+        self.fields["category"].queryset = root_categories
+        self.fields["category"].choices = [(c.id, c.name) for c in root_categories]
 
-        # Optional: make it a bit easier to scan (bigger dropdown) without being obnoxious
-        self.fields["category"].widget.attrs.setdefault("class", "form-select")
-        self.fields["category"].widget.attrs.setdefault("size", "10")  # shows more rows; still a dropdown
+        # Subcategories (parent=selected category)
+        selected_category = self.data.get("category") or self.initial.get("category")
+        if selected_category:
+            subcategories = base_qs.filter(parent_id=selected_category)
+        else:
+            subcategories = base_qs.none()
+        self.fields["subcategory"].queryset = subcategories
+        self.fields["subcategory"].choices = [(c.id, c.name) for c in subcategories]
 
         self.fields["slug"].required = False
 

@@ -28,9 +28,6 @@ class SubCategoryAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Present "parent" as "Category" in the UI
-        self.fields["parent"].label = "Category"
-
         # Limit selectable parents to ROOT categories
         qs = Category.objects.filter(parent__isnull=True)
 
@@ -44,7 +41,12 @@ class SubCategoryAdminForm(forms.ModelForm):
         if chosen_type:
             qs = qs.filter(type=chosen_type)
 
-        self.fields["parent"].queryset = qs.order_by("type", "sort_order", "name")
+        # Explicitly set parent as a ModelChoiceField to support queryset assignment
+        self.fields["parent"] = forms.ModelChoiceField(
+            queryset=qs.order_by("type", "sort_order", "name"),
+            label="Category",
+            required=True
+        )
 
     def clean_parent(self):
         parent = self.cleaned_data.get("parent")

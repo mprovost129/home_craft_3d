@@ -47,9 +47,11 @@ class Category(models.Model):
         ordering = ["type", "parent_id", "name"]
 
     def __str__(self) -> str:
+        type_key = self.CategoryType(self.type)
+        type_display = dict(self.CategoryType.choices).get(type_key, self.type)
         if self.parent:
-            return f"{self.get_type_display()} :: {self.parent.name} > {self.name}"
-        return f"{self.get_type_display()} :: {self.name}"
+            return f"{type_display} :: {self.parent.name} > {self.name}"
+        return f"{type_display} :: {self.name}"
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -58,7 +60,7 @@ class Category(models.Model):
 
     @property
     def is_root(self) -> bool:
-        return self.parent_id is None
+        return self.parent is None
 
     def get_absolute_url(self) -> str:
         return reverse("catalog:category_detail", kwargs={"pk": self.pk})
@@ -71,7 +73,6 @@ class Category(models.Model):
 
 class RootCategory(Category):
     class Meta:
-        proxy = True
         verbose_name = "Category"
         verbose_name_plural = "Categories"
 

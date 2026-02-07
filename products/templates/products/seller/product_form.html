@@ -27,6 +27,7 @@
         <!-- Basic Information -->
         <h5 class="border-bottom pb-2 mb-3">Basic Information</h5>
         <div class="row g-3 mb-4">
+
           <div class="col-12">
             <label class="form-label fw-semibold">Kind <span class="text-danger">*</span></label>
             {{ form.kind }}
@@ -38,7 +39,19 @@
             <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
             {{ form.category }}
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
-            <div class="form-text">Categories are filtered by kind.</div>
+            <div class="form-text">Choose a main category.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Subcategory</label>
+            <select name="subcategory" id="subcategory-select" class="form-select" disabled>
+              <option value="">Select a subcategory</option>
+              {% for c in form.subcategory.field.queryset %}
+                <option value="{{ c.id }}" {% if form.subcategory.value == c.id %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+            {% if form.subcategory.errors %}<div class="text-danger small mt-1">{{ form.subcategory.errors }}</div>{% endif %}
+            <div class="form-text">Choose a subcategory under the selected category.</div>
           </div>
 
           <div class="col-12">
@@ -169,15 +182,34 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const kindSelect = document.querySelector('[name="kind"]');
-  const formContainer = kindSelect.closest('form');
-  
+  const categorySelect = document.querySelector('[name="category"]');
+  const subcategorySelect = document.getElementById('subcategory-select');
+
   // Info alert for kind selection
   let kindAlert = null;
-  
+
   function updateKindInfo() {
     // Remove existing alert if present
     if (kindAlert) {
       kindAlert.remove();
+    }
+  }
+
+  // Enable/disable subcategory dropdown
+  function updateSubcategoryDropdown() {
+    if (categorySelect.value) {
+      subcategorySelect.disabled = false;
+      // Optionally, fetch subcategories via AJAX here
+    } else {
+      subcategorySelect.disabled = true;
+      subcategorySelect.value = '';
+    }
+  }
+
+  // Update on category change
+  categorySelect.addEventListener('change', updateSubcategoryDropdown);
+  // Initial state
+  updateSubcategoryDropdown();
     }
     
     const selectedKind = kindSelect.value;

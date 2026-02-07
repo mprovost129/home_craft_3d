@@ -40,7 +40,7 @@ def category_detail(request, pk: int):
 
     # Include this category + direct children (MVP)
     child_ids = list(category.children.filter(is_active=True).values_list("id", flat=True))
-    category_ids = [category.id] + child_ids
+    category_ids = [category.pk] + child_ids
 
     products_qs = (
         Product.objects.filter(is_active=True, category_id__in=category_ids)
