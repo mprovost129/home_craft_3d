@@ -1,3 +1,4 @@
+{# templates/dashboards/admin_settings.html #}
 {% extends "base.html" %}
 {% block title %}Admin Settings · Home Craft 3D{% endblock %}
 
@@ -77,20 +78,20 @@
           </div>
         </div>
 
-        <div class="col-12">
+        <div class="col-12 mt-3">
           <label class="form-label">Plausible shared dashboard URL</label>
           {{ form.plausible_shared_url }}
           {% if form.plausible_shared_url.help_text %}
-          <div class="form-text">{{ form.plausible_shared_url.help_text }}</div>
+            <div class="form-text">{{ form.plausible_shared_url.help_text }}</div>
           {% else %}
-          <div class="form-text">
+            <div class="form-text">
               Paste your Plausible shared link (ex: https://plausible.io/share/homecraft3d.com?auth=...).
-          </div>
+            </div>
           {% endif %}
           {% if form.plausible_shared_url.errors %}
-          <div class="text-danger small mt-1">{{ form.plausible_shared_url.errors }}</div>
-            {% endif %}
-          </div>
+            <div class="text-danger small mt-1">{{ form.plausible_shared_url.errors }}</div>
+          {% endif %}
+        </div>
 
         <hr class="my-4">
 
@@ -122,7 +123,7 @@
 
         <hr class="my-4">
 
-        <h5 class="mb-3">Promo Banner</h5>
+        <h5 class="mb-3">Promo Banner (sitewide above navbar)</h5>
 
         <div class="mb-3 form-check">
           {{ form.promo_banner_enabled }}
@@ -139,27 +140,33 @@
           <div class="form-text">
             Example: Sellers pay 0% marketplace fees for their first 30 days!
           </div>
+          {% if form.promo_banner_text.errors %}
+            <div class="text-danger small mt-1">{{ form.promo_banner_text.errors }}</div>
+          {% endif %}
         </div>
 
         <hr class="my-4">
 
-        <h5 class="mb-3">Home Page Banner</h5>
+        <h5 class="mb-3">Home Page Banner (home page only)</h5>
 
         <div class="mb-3 form-check">
-          {{ form.promo_banner_enabled }}
-          <label class="form-check-label" for="{{ form.promo_banner_enabled.id_for_label }}">
-            Enable banner in Home Page
+          {{ form.home_banner_enabled }}
+          <label class="form-check-label" for="{{ form.home_banner_enabled.id_for_label }}">
+            Enable home page banner
           </label>
         </div>
 
         <div class="mb-3">
-          <label class="form-label" for="{{ form.promo_banner_text.id_for_label }}">
+          <label class="form-label" for="{{ form.home_banner_text.id_for_label }}">
             Home page banner text
           </label>
-          {{ form.promo_banner_text }}
+          {{ form.home_banner_text }}
           <div class="form-text">
-            Example: <em>Sellers pay 0% marketplace fees for their first 30 days!</em>
+            Example: <em>First 30 days FREE!</em>
           </div>
+          {% if form.home_banner_text.errors %}
+            <div class="text-danger small mt-1">{{ form.home_banner_text.errors }}</div>
+          {% endif %}
         </div>
 
         <hr class="my-4">

@@ -29,7 +29,11 @@ class SiteConfigForm(forms.ModelForm):
     home_hero_subtitle = forms.CharField(
         required=False,
         widget=forms.Textarea(
-            attrs={"class": "form-control", "rows": 3, "placeholder": "Describe what buyers can do on your marketplace…"}
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "Describe what buyers can do on your marketplace…",
+            }
         ),
         help_text="Shown under the hero title on the home page.",
     )
@@ -37,9 +41,13 @@ class SiteConfigForm(forms.ModelForm):
     class Meta:
         model = SiteConfig
         fields = [
-            # Promo banner
+            # Promo banner (sitewide above navbar)
             "promo_banner_enabled",
             "promo_banner_text",
+
+            # Home page banner (home page only)
+            "home_banner_enabled",
+            "home_banner_text",
 
             # Seller waiver promo
             "seller_fee_waiver_enabled",
@@ -83,16 +91,36 @@ class SiteConfigForm(forms.ModelForm):
         ]
 
         widgets = {
+            # Promo banner (sitewide)
             "promo_banner_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "promo_banner_text": forms.TextInput(attrs={"class": "form-control", "placeholder": "Example: Sellers pay 0% fees for 30 days!"}),
+            "promo_banner_text": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Example: Sellers pay 0% fees for 30 days!",
+                }
+            ),
 
+            # Home page banner (home only)
+            "home_banner_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "home_banner_text": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Example: First 30 days FREE!",
+                }
+            ),
+
+            # Waiver
             "seller_fee_waiver_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "seller_fee_waiver_days": forms.NumberInput(attrs={"class": "form-control", "min": 0, "max": 365}),
+            "seller_fee_waiver_days": forms.NumberInput(
+                attrs={"class": "form-control", "min": 0, "max": 365}
+            ),
 
+            # Marketplace
             "marketplace_sales_percent": forms.NumberInput(attrs={"class": "form-control"}),
             "platform_fee_cents": forms.NumberInput(attrs={"class": "form-control"}),
             "default_currency": forms.TextInput(attrs={"class": "form-control"}),
 
+            # Theme
             "theme_default_mode": forms.Select(attrs={"class": "form-select"}),
 
             "theme_primary": forms.TextInput(attrs={"class": "form-control", "placeholder": "#F97316"}),
@@ -112,6 +140,7 @@ class SiteConfigForm(forms.ModelForm):
             "theme_dark_text_muted": forms.TextInput(attrs={"class": "form-control"}),
             "theme_dark_border": forms.TextInput(attrs={"class": "form-control"}),
 
+            # Social
             "facebook_url": forms.URLInput(attrs={"class": "form-control"}),
             "instagram_url": forms.URLInput(attrs={"class": "form-control"}),
             "tiktok_url": forms.URLInput(attrs={"class": "form-control"}),
@@ -143,15 +172,21 @@ class SiteConfigForm(forms.ModelForm):
     def save(self, commit: bool = True) -> SiteConfig:
         obj: SiteConfig = super().save(commit=False)
 
+        # Countries
         obj.allowed_shipping_countries = self.cleaned_data.get("allowed_shipping_countries_csv") or ["US"]
 
+        # Home hero fields (non-model fields)
         obj.home_hero_title = (self.cleaned_data.get("home_hero_title") or "").strip()
         obj.home_hero_subtitle = (self.cleaned_data.get("home_hero_subtitle") or "").strip()
 
-        # Banner housekeeping
+        # Banner housekeeping (both banners)
         obj.promo_banner_text = (obj.promo_banner_text or "").strip()
         if not obj.promo_banner_text:
             obj.promo_banner_enabled = False
+
+        obj.home_banner_text = (obj.home_banner_text or "").strip()
+        if not obj.home_banner_text:
+            obj.home_banner_enabled = False
 
         if commit:
             obj.save()

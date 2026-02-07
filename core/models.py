@@ -17,7 +17,7 @@ class SiteConfig(models.Model):
     """
 
     # -------------------------
-    # Site-wide Promo Banner (above navbar)
+    # Site-wide Promo Banner (above navbar, sitewide)
     # -------------------------
     promo_banner_enabled = models.BooleanField(
         default=False,
@@ -28,6 +28,20 @@ class SiteConfig(models.Model):
         blank=True,
         default="",
         help_text="Text shown in the promo banner. Keep it short.",
+    )
+
+    # -------------------------
+    # Home Page Banner (home page only)
+    # -------------------------
+    home_banner_enabled = models.BooleanField(
+        default=False,
+        help_text="If enabled, show a banner on the home page (only).",
+    )
+    home_banner_text = models.CharField(
+        max_length=240,
+        blank=True,
+        default="",
+        help_text="Text shown in the home page banner. Keep it short.",
     )
 
     # -------------------------
@@ -244,9 +258,14 @@ class SiteConfig(models.Model):
         elif d > 365:
             self.seller_fee_waiver_days = 365
 
-        # Banner: disable if empty
-        if not (self.promo_banner_text or "").strip():
+        # Banner housekeeping: disable if empty text
+        self.promo_banner_text = (self.promo_banner_text or "").strip()
+        if not self.promo_banner_text:
             self.promo_banner_enabled = False
+
+        self.home_banner_text = (self.home_banner_text or "").strip()
+        if not self.home_banner_text:
+            self.home_banner_enabled = False
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()
