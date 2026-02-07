@@ -91,3 +91,56 @@ textarea {
   background-color: #fff !important;
   color: #212529;
 }
+
+/* Home page banner */
+.hc3-home-banner {
+  background: linear-gradient(
+    90deg,
+    rgba(249,115,22,0.95),
+    rgba(249,115,22,0.85)
+  );
+  color: #fff;
+  padding: 14px 10px;
+  font-size: 1.05rem;
+  letter-spacing: .3px;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.15);
+}
+
+.hc3-home-banner .fw-bold {
+  text-shadow: 0 1px 1px rgba(0,0,0,.25);
+}
+
+/* Site-wide promo banner */
+.hc3-promo-banner {
+  background: #fff7ed;
+  border-bottom: 2px solid #f97316;
+  padding: 8px 10px;
+  font-size: .9rem;
+}
+
+.hc3-promo-badge {
+  display: inline-block;
+  background: #f97316;
+  color: #fff;
+  font-weight: 700;
+  font-size: .7rem;
+  letter-spacing: .5px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.hc3-promo-text {
+  font-weight: 600;
+  color: #7c2d12;
+}
+
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .85; }
+}
+
+.hc3-home-banner {
+  animation: softPulse 6s ease-in-out infinite;
+}

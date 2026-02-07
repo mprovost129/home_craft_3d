@@ -131,52 +131,35 @@ class SiteConfigAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("Promo Banner", {"fields": ("promo_banner_enabled", "promo_banner_text")}),
+        ("Home Page Banner", {"fields": ("home_banner_enabled", "home_banner_text")}),
         ("Seller Promo (Fee Waiver)", {"fields": ("seller_fee_waiver_enabled", "seller_fee_waiver_days")}),
         ("Commerce", {"fields": ("marketplace_sales_percent", "platform_fee_cents", "default_currency")}),
         ("Shipping", {"fields": ("allowed_shipping_countries",)}),
-        (
-            "Theme",
-            {
-                "fields": (
-                    "theme_default_mode",
-                    "theme_primary",
-                    "theme_accent",
-                    "theme_success",
-                    "theme_danger",
-                )
-            },
-        ),
-        (
-            "Theme (Light Mode)",
-            {
-                "fields": (
-                    "theme_light_bg",
-                    "theme_light_surface",
-                    "theme_light_text",
-                    "theme_light_text_muted",
-                    "theme_light_border",
-                )
-            },
-        ),
-        (
-            "Theme (Dark Mode)",
-            {
-                "fields": (
-                    "theme_dark_bg",
-                    "theme_dark_surface",
-                    "theme_dark_text",
-                    "theme_dark_text_muted",
-                    "theme_dark_border",
-                )
-            },
-        ),
-        (
-            "Social Links",
-            {
-                "fields": (
-                    "facebook_url",
-                    "instagram_url",
-                    "tiktok_url",
+        ("Theme", {"fields": (
+            "theme_default_mode",
+            "theme_primary",
+            "theme_accent",
+            "theme_success",
+            "theme_danger",
+        )}),
+        ("Theme (Light Mode)", {"fields": (
+            "theme_light_bg",
+            "theme_light_surface",
+            "theme_light_text",
+            "theme_light_text_muted",
+            "theme_light_border",
+        )}),
+        ("Theme (Dark Mode)", {"fields": (
+            "theme_dark_bg",
+            "theme_dark_surface",
+            "theme_dark_text",
+            "theme_dark_text_muted",
+            "theme_dark_border",
+        )}),
+        ("Social Links", {"fields": (
+            "facebook_url",
+            "instagram_url",
+            "tiktok_url",
                     "youtube_url",
                     "x_url",
                     "linkedin_url",

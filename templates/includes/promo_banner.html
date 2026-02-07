@@ -1,11 +1,9 @@
-{% load static %}
 {% with cfg=site_config %}
   {% if cfg and cfg.promo_banner_enabled and cfg.promo_banner_text %}
-    <div class="w-100" style="background: rgba(249,115,22,.10); border-bottom: 1px solid rgba(0,0,0,.08);">
-      <div class="container-fluid py-2 d-flex align-items-center justify-content-center">
-        <div class="small fw-semibold text-center">
-          {{ cfg.promo_banner_text }}
-        </div>
+    <div class="hc3-promo-banner">
+      <div class="container-fluid text-center">
+        <span class="hc3-promo-badge">PROMO</span>
+        <span class="hc3-promo-text">{{ cfg.promo_banner_text }}</span>
       </div>
     </div>
   {% endif %}

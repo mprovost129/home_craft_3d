@@ -236,6 +236,14 @@ def home(request):
     from core.models_advert import AdvertisementBanner
     ad_banner = AdvertisementBanner.objects.filter(is_active=True).order_by("-created_at").first()
 
+    user_is_seller = False
+    user_is_owner = False
+    if request.user.is_authenticated:
+        user_is_owner = request.user.is_superuser
+        user_is_seller = hasattr(request.user, "profile") and getattr(request.user.profile, "is_seller", False)
+
+    from core.config import get_site_config
+    site_config = get_site_config()
     return render(
         request,
         "core/home.html",
@@ -247,6 +255,9 @@ def home(request):
             "recently_purchased": recently_purchased_list,
             "most_downloaded": most_downloaded_list,
             "ad_banner": ad_banner,
+            "user_is_seller": user_is_seller,
+            "user_is_owner": user_is_owner,
+            "site_config": site_config,
         },
     )
 

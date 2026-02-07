@@ -258,14 +258,14 @@ class SiteConfig(models.Model):
         elif d > 365:
             self.seller_fee_waiver_days = 365
 
-        # Banner housekeeping: disable if empty text
+        # Banner housekeeping: clear text if checkbox is not checked
         self.promo_banner_text = (self.promo_banner_text or "").strip()
-        if not self.promo_banner_text:
-            self.promo_banner_enabled = False
+        if not self.promo_banner_enabled:
+            self.promo_banner_text = ""
 
         self.home_banner_text = (self.home_banner_text or "").strip()
-        if not self.home_banner_text:
-            self.home_banner_enabled = False
+        if not self.home_banner_enabled:
+            self.home_banner_text = ""
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()

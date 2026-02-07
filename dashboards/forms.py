@@ -181,12 +181,12 @@ class SiteConfigForm(forms.ModelForm):
 
         # Banner housekeeping (both banners)
         obj.promo_banner_text = (obj.promo_banner_text or "").strip()
-        if not obj.promo_banner_text:
-            obj.promo_banner_enabled = False
+        if not obj.promo_banner_enabled:
+            obj.promo_banner_text = ""
 
         obj.home_banner_text = (obj.home_banner_text or "").strip()
-        if not obj.home_banner_text:
-            obj.home_banner_enabled = False
+        if not obj.home_banner_enabled:
+            obj.home_banner_text = ""
 
         if commit:
             obj.save()
