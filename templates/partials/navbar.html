@@ -6,7 +6,8 @@
 
     <!-- BOX 1: LEFT (brand + mobile buttons) -->
     <div class="d-flex align-items-center gap-2">
-      <a class="navbar-brand py-0 m-0" href="{% url 'core:home' %}">
+      {# Send logo to the store list (safe for logged-in and logged-out users) #}
+      <a class="navbar-brand py-0 m-0" href="{% url 'products:list' %}">
         <img src="{% static 'images/homecraft3d_navbar.svg' %}" alt="Home Craft 3D"
              style="height:70px !important;width:auto;max-height:70px;">
       </a>
@@ -30,7 +31,8 @@
         <!-- BOX 2: CENTER (menu items) -->
         <div class="flex-grow-1 d-flex justify-content-lg-center">
           <ul class="navbar-nav mb-2 mb-lg-0 hc3-nav-center">
-            <li class="nav-item"><a class="nav-link" href="{% url 'core:home' %}">Store</a></li>
+            {# "Store" should be the store, not the marketing home #}
+            <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">Store</a></li>
             <li class="nav-item"><a class="nav-link" href="{% url 'products:list' %}">All Products</a></li>
             <li class="nav-item"><a class="nav-link" href="{% url 'products:models' %}">3D Models</a></li>
             <li class="nav-item"><a class="nav-link" href="{% url 'products:files' %}">3D Files</a></li>

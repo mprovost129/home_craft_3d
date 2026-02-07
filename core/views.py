@@ -6,11 +6,10 @@ from urllib.parse import urljoin
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Avg, Count, F, FloatField, Q, Value
-from django.http import HttpResponse
 from django.db.models.functions import Coalesce
-from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.shortcuts import render
 from django.utils import timezone
-from django.views.decorators.cache import cache_page
 
 from catalog.models import Category
 from orders.models import Order
@@ -21,6 +20,10 @@ from products.permissions import is_owner_user
 
 HOME_BUCKET_SIZE = 8
 TRENDING_WINDOW_DAYS = 30
+
+# Cache only the fully-rendered anonymous home HTML
+HOME_ANON_CACHE_SECONDS = 60 * 15
+HOME_ANON_CACHE_KEY = "home_html_anon_v2"
 
 
 def _base_home_qs():
@@ -161,8 +164,7 @@ def _apply_trending_badge_flag(products: list[Product], *, computed_ids: set[int
         p.trending_badge = bool(getattr(p, "is_trending", False) or (p.id in computed_ids))
 
 
-@cache_page(60 * 15)  # Cache for 15 minutes
-def home(request):
+def _build_home_context(request):
     qs = _base_home_qs()
     qs = _annotate_rating(qs)
 
@@ -178,11 +180,9 @@ def home(request):
 
     if trending_needed > 0:
         trending_qs = _annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS).exclude(id__in=manual_ids)
-
         computed_trending = list(
             trending_qs.order_by("-trending_score", "-avg_rating", "-created_at")[:trending_needed]
         )
-
         computed_ids = {p.id for p in computed_trending if getattr(p, "trending_score", 0) > 0}
 
     trending = manual_trending + computed_trending
@@ -239,27 +239,48 @@ def home(request):
     user_is_seller = False
     user_is_owner = False
     if request.user.is_authenticated:
-        user_is_owner = request.user.is_superuser
-        user_is_seller = hasattr(request.user, "profile") and getattr(request.user.profile, "is_seller", False)
+        user_is_owner = bool(request.user.is_superuser)
+        user_is_seller = bool(hasattr(request.user, "profile") and getattr(request.user.profile, "is_seller", False))
 
     from core.config import get_site_config
     site_config = get_site_config()
-    return render(
-        request,
-        "core/home.html",
-        {
-            "featured": featured,
-            "trending": trending,
-            "new_items": new_items,
-            "misc": misc,
-            "recently_purchased": recently_purchased_list,
-            "most_downloaded": most_downloaded_list,
-            "ad_banner": ad_banner,
-            "user_is_seller": user_is_seller,
-            "user_is_owner": user_is_owner,
-            "site_config": site_config,
-        },
-    )
+
+    return {
+        "featured": featured,
+        "trending": trending,
+        "new_items": new_items,
+        "misc": misc,
+        "recently_purchased_list": recently_purchased_list,
+        "most_downloaded_list": most_downloaded_list,
+        "ad_banner": ad_banner,
+        "user_is_seller": user_is_seller,
+        "user_is_owner": user_is_owner,
+        "site_config": site_config,
+    }
+
+
+def home(request):
+    """
+    IMPORTANT:
+    Do NOT cache the full page for authenticated users.
+    Otherwise an anonymous cached navbar gets served to logged-in users.
+    """
+    if not request.user.is_authenticated:
+        cached_html = cache.get(HOME_ANON_CACHE_KEY)
+        if cached_html:
+            return HttpResponse(cached_html)
+
+        context = _build_home_context(request)
+        response = render(request, "core/home.html", context)
+        try:
+            cache.set(HOME_ANON_CACHE_KEY, response.content.decode("utf-8"), HOME_ANON_CACHE_SECONDS)
+        except Exception:
+            pass
+        return response
+
+    # Authenticated: always render fresh
+    context = _build_home_context(request)
+    return render(request, "core/home.html", context)
 
 
 def error_400(request, exception=None):
