@@ -2,6 +2,8 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title }} · Home Craft 3D{% endblock %}
 {% block meta_title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block og_title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block og_description %}{{ product.short_description }}{% endblock %}
 {% block meta_description %}
   {% if product.short_description %}
     {{ product.short_description }}

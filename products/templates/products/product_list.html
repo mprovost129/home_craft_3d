@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title }} · Home Craft 3D{% endblock %}
 {% block meta_title %}{{ page_title }} · Home Craft 3D{% endblock %}
+{% block og_title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block og_description %}{{ product.short_description }}{% endblock %}
 {% block meta_description %}
   {% if kind == "MODEL" %}
     Browse 3D printed models shipped by sellers on Home Craft 3D.
