@@ -1,7 +1,8 @@
+# core/config.py
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Optional
+from typing import Any
 
 from django.core.cache import cache
 
@@ -44,7 +45,7 @@ def get_marketplace_sales_rate() -> Decimal:
     # 10.00 -> 0.10
     pct = get_marketplace_sales_percent()
     try:
-        return (pct / Decimal("100"))
+        return pct / Decimal("100")
     except Exception:
         return Decimal("0")
 
@@ -60,3 +61,17 @@ def get_platform_fee_cents() -> int:
 def get_allowed_shipping_countries() -> list[str]:
     cfg = get_site_config()
     return cfg.allowed_shipping_countries
+
+
+def get_affiliate_sidebar_links() -> dict[str, Any]:
+    """
+    Convenience accessor for templates.
+    Returns: {enabled, title, disclosure, links:[{label,url,note}]}
+    """
+    cfg = get_site_config()
+    return {
+        "enabled": bool(getattr(cfg, "affiliate_links_enabled", False)),
+        "title": str(getattr(cfg, "affiliate_links_title", "") or "").strip() or "Recommended Filament & Gear",
+        "disclosure": str(getattr(cfg, "affiliate_disclosure_text", "") or "").strip(),
+        "links": list(getattr(cfg, "affiliate_links", []) or []),
+    }

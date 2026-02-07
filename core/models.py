@@ -56,6 +56,35 @@ class SiteConfig(models.Model):
         help_text="Length of new-seller fee waiver window in days.",
     )
 
+    # -------------------------
+    # Affiliate / Amazon Associates (sitewide)
+    # -------------------------
+    affiliate_links_enabled = models.BooleanField(
+        default=False,
+        help_text="If enabled, show affiliate product links (e.g., Amazon Associates) in the store sidebar.",
+    )
+    affiliate_links_title = models.CharField(
+        max_length=80,
+        blank=True,
+        default="Recommended Filament & Gear",
+        help_text="Sidebar section heading for affiliate links.",
+    )
+    affiliate_disclosure_text = models.CharField(
+        max_length=240,
+        blank=True,
+        default="As an Amazon Associate I earn from qualifying purchases.",
+        help_text="Short disclosure shown under the affiliate links (recommended).",
+    )
+    affiliate_links = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "List of links shown in the sidebar. Example item: "
+            "{'label':'SUNLU PLA 1kg','url':'https://...','note':'Budget PLA+'} "
+            "(label+url required; note optional)."
+        ),
+    )
+
     # Home page hero (marketing copy)
     home_hero_title = models.CharField(
         max_length=120,
@@ -266,6 +295,31 @@ class SiteConfig(models.Model):
         self.home_banner_text = (self.home_banner_text or "").strip()
         if not self.home_banner_enabled:
             self.home_banner_text = ""
+
+        # Affiliate links normalization
+        self.affiliate_links_title = (self.affiliate_links_title or "").strip() or "Recommended Filament & Gear"
+        self.affiliate_disclosure_text = (self.affiliate_disclosure_text or "").strip()
+
+        cleaned_links: list[dict[str, str]] = []
+        try:
+            raw = self.affiliate_links or []
+            if isinstance(raw, list):
+                for item in raw:
+                    if not isinstance(item, dict):
+                        continue
+                    label = str(item.get("label", "") or "").strip()
+                    url = str(item.get("url", "") or "").strip()
+                    note = str(item.get("note", "") or "").strip()
+                    if not label or not url:
+                        continue
+                    cleaned_links.append({"label": label, "url": url, "note": note})
+        except Exception:
+            cleaned_links = []
+
+        self.affiliate_links = cleaned_links
+
+        # If disabled, keep data but ensure title is sane; you can decide later to blank it.
+        # We won't auto-clear links so you can toggle on/off without losing work.
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()

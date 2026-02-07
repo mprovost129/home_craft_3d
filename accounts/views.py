@@ -38,7 +38,7 @@ def _login_post(request):
         user = form.get_user()
         login(request, user)
         messages.success(request, "Welcome back.")
-        next_url = request.GET.get("next") or reverse("accounts:profile")
+        next_url = request.GET.get("next") or reverse("core:home")
         return redirect(next_url)
 
     # Optional: generic message to avoid hinting “user exists”

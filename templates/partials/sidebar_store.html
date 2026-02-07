@@ -61,7 +61,6 @@
           <option value="MODEL" {% if request.GET.kind == 'MODEL' %}selected{% endif %}>3D Models</option>
           <option value="FILE" {% if request.GET.kind == 'FILE' %}selected{% endif %}>3D Files</option>
         </select>
-
       {% endif %}
 
       {% if request.path|slice:':15' != '/products/models' %}
@@ -235,6 +234,36 @@
         </ul>
       </details>
   {% endif %}
+
+  {# -------------------- AMAZON / AFFILIATE LINKS -------------------- #}
+  {% if site_config.affiliate_links_enabled and site_config.affiliate_links %}
+    <hr class="my-3">
+
+    <div class="text-uppercase small text-secondary fw-semibold mb-2">
+      <i class="bi bi-bag-check me-1"></i>{{ site_config.affiliate_links_title|default:"Recommended Filament & Gear" }}
+    </div>
+
+    <ul class="list-unstyled mb-2">
+      {% for item in site_config.affiliate_links %}
+        <li class="mb-1">
+          <a class="hc3-side-link" href="{{ item.url }}" target="_blank" rel="nofollow sponsored noopener">
+            <i class="bi bi-box-arrow-up-right"></i>
+            <span>{{ item.label }}</span>
+          </a>
+          {% if item.note %}
+            <div class="small text-secondary ms-4">{{ item.note }}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+
+    {% if site_config.affiliate_disclosure_text %}
+      <div class="small text-secondary">
+        {{ site_config.affiliate_disclosure_text }}
+      </div>
+    {% endif %}
+  {% endif %}
+
   <br>
   <br>
 
