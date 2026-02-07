@@ -46,9 +46,6 @@
             <label class="form-label fw-semibold">Subcategory</label>
             <select name="subcategory" id="subcategory-select" class="form-select" disabled>
               <option value="">Select a subcategory</option>
-              {% for c in form.subcategory.field.queryset %}
-                <option value="{{ c.id }}" {% if form.subcategory.value == c.id %}selected{% endif %}>{{ c.name }}</option>
-              {% endfor %}
             </select>
             {% if form.subcategory.errors %}<div class="text-danger small mt-1">{{ form.subcategory.errors }}</div>{% endif %}
             <div class="form-text">Choose a subcategory under the selected category.</div>
@@ -185,30 +182,34 @@ document.addEventListener('DOMContentLoaded', function() {
   const categorySelect = document.querySelector('[name="category"]');
   const subcategorySelect = document.getElementById('subcategory-select');
 
-  // Info alert for kind selection
-  let kindAlert = null;
+  // Build mapping of categories to subcategories from Django context
+  const categoryMap = {
+    {% for cat in form.category.field.queryset %}
+      '{{ cat.id }}': [
+        {% for sub in cat.children.all %}
+          { id: '{{ sub.id }}', name: '{{ sub.name }}' },
+        {% endfor %}
+      ],
+    {% endfor %}
+  };
 
-  function updateKindInfo() {
-    // Remove existing alert if present
-    if (kindAlert) {
-      kindAlert.remove();
-    }
-  }
-
-  // Enable/disable subcategory dropdown
   function updateSubcategoryDropdown() {
-    if (categorySelect.value) {
+    const selectedCat = categorySelect.value;
+    subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
+    if (selectedCat && categoryMap[selectedCat] && categoryMap[selectedCat].length > 0) {
       subcategorySelect.disabled = false;
-      // Optionally, fetch subcategories via AJAX here
+      categoryMap[selectedCat].forEach(function(sub) {
+        const opt = document.createElement('option');
+        opt.value = sub.id;
+        opt.textContent = sub.name;
+        subcategorySelect.appendChild(opt);
+      });
     } else {
       subcategorySelect.disabled = true;
-      subcategorySelect.value = '';
     }
   }
 
-  // Update on category change
   categorySelect.addEventListener('change', updateSubcategoryDropdown);
-  // Initial state
   updateSubcategoryDropdown();
     }
     
