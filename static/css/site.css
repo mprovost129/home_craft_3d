@@ -96,10 +96,10 @@ textarea {
 .hc3-home-banner {
   background: linear-gradient(
     90deg,
-    rgba(249,115,22,0.95),
-    rgba(249,115,22,0.85)
+    rgba(22, 203, 249, 0.95),
+    rgba(22,203,249,0.85)
   );
-  color: #fff;
+  color: white;
   padding: 14px 10px;
   font-size: 1.05rem;
   letter-spacing: .3px;
@@ -112,16 +112,16 @@ textarea {
 
 /* Site-wide promo banner */
 .hc3-promo-banner {
-  background: #fff7ed;
-  border-bottom: 2px solid #f97316;
+  background: rgba(209, 235, 241, 0.952);
+  border-bottom: 2px solid rgba(22, 203, 249, 0.95);
   padding: 8px 10px;
   font-size: .9rem;
 }
 
 .hc3-promo-badge {
   display: inline-block;
-  background: #f97316;
-  color: #fff;
+  background: rgba(22, 203, 249, 0.95);
+  color: white;
   font-weight: 700;
   font-size: .7rem;
   letter-spacing: .5px;
@@ -133,7 +133,7 @@ textarea {
 
 .hc3-promo-text {
   font-weight: 600;
-  color: #7c2d12;
+  color: black;
 }
 
 @keyframes softPulse {
