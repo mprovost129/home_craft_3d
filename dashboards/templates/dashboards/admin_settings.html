@@ -122,30 +122,43 @@
 
         <hr class="my-4">
 
-        <h2 class="h6 mb-3">Home Page Banner</h2>
-        <div class="row g-3">
-          <div class="col-12">
-            <div class="form-check">
-              {{ form.home_banner_enabled }}
-              <label class="form-check-label ms-1">Enable banner above navbar (home page)</label>
-            </div>
-            {% if form.home_banner_enabled.help_text %}
-              <div class="form-text">{{ form.home_banner_enabled.help_text }}</div>
-            {% endif %}
-            {% if form.home_banner_enabled.errors %}
-              <div class="text-danger small mt-1">{{ form.home_banner_enabled.errors }}</div>
-            {% endif %}
-          </div>
+        <h5 class="mb-3">Promo Banner</h5>
 
-          <div class="col-12">
-            <label class="form-label">Banner text</label>
-            {{ form.home_banner_text }}
-            {% if form.home_banner_text.help_text %}
-              <div class="form-text">{{ form.home_banner_text.help_text }}</div>
-            {% endif %}
-            {% if form.home_banner_text.errors %}
-              <div class="text-danger small mt-1">{{ form.home_banner_text.errors }}</div>
-            {% endif %}
+        <div class="mb-3 form-check">
+          {{ form.promo_banner_enabled }}
+          <label class="form-check-label" for="{{ form.promo_banner_enabled.id_for_label }}">
+            Enable promo banner
+          </label>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.promo_banner_text.id_for_label }}">
+            Promo banner text
+          </label>
+          {{ form.promo_banner_text }}
+          <div class="form-text">
+            Example: Sellers pay 0% marketplace fees for their first 30 days!
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <h5 class="mb-3">Home Page Banner</h5>
+
+        <div class="mb-3 form-check">
+          {{ form.promo_banner_enabled }}
+          <label class="form-check-label" for="{{ form.promo_banner_enabled.id_for_label }}">
+            Enable banner in Home Page
+          </label>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.promo_banner_text.id_for_label }}">
+            Home page banner text
+          </label>
+          {{ form.promo_banner_text }}
+          <div class="form-text">
+            Example: <em>Sellers pay 0% marketplace fees for their first 30 days!</em>
           </div>
         </div>
 
