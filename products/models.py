@@ -124,7 +124,7 @@ class Product(models.Model):
         related_name="products_subcategory",
         null=True,
         blank=True,
-        help_text="Subcategory under the main category."
+        help_text="Subcategory under the main category.",
     )
 
     price = models.DecimalField(
@@ -135,11 +135,10 @@ class Product(models.Model):
     )
     is_free = models.BooleanField(default=False)
 
-
     max_purchases_per_buyer = models.PositiveIntegerField(
         null=True,
         blank=True,
-        help_text="Maximum number of times a single buyer can purchase this product. Leave blank for no limit."
+        help_text="Maximum number of times a single buyer can purchase this product. Leave blank for no limit.",
     )
 
     # Draft-first default:
@@ -174,13 +173,78 @@ class Product(models.Model):
         ]
         ordering = ["-created_at"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Track what the object looked like when loaded from DB.
+        self._original_title = getattr(self, "title", None)
+        self._original_slug = getattr(self, "slug", None)
+
     def __str__(self) -> str:
         return f"{self.title} ({self.get_kind_display()})"  # type: ignore[attr-defined]
 
+    @staticmethod
+    def _unique_slug_for_seller(*, seller_id: int, base: str, max_len: int = 180, exclude_pk: int | None = None) -> str:
+        """
+        Generate a unique slug for this seller:
+          base, base-2, base-3, ...
+        Respects max_len and avoids collisions.
+        """
+        base = (base or "").strip("-")
+        if not base:
+            base = "item"
+
+        base = base[:max_len].strip("-")
+        candidate = base
+
+        qs = Product.objects.filter(seller_id=seller_id)
+        if exclude_pk is not None:
+            qs = qs.exclude(pk=exclude_pk)
+
+        if not qs.filter(slug=candidate).exists():
+            return candidate
+
+        counter = 2
+        while True:
+            suffix = f"-{counter}"
+            cut = max_len - len(suffix)
+            candidate = f"{base[:cut].strip('-')}{suffix}"
+            if not qs.filter(slug=candidate).exists():
+                return candidate
+            counter += 1
+
     def save(self, *args, **kwargs):
-        if not self.slug:
-            self.slug = slugify(self.title)[:180]
+        """
+        Slug rules:
+        - If slug is blank -> auto-generate from current title.
+        - If editing and title changed AND slug hasn't been manually changed (still equals original slug),
+          then regenerate slug from the *new* title.
+          This makes: "cup" (slug cup) -> rename title to "rock" => slug becomes "rock".
+        - If user manually edited slug, we respect it and do not auto-change on title edits.
+        """
+        current_slug = (self.slug or "").strip()
+        title_changed = (self._original_title is not None and self.title != self._original_title)
+        slug_unchanged = (self._original_slug is not None and current_slug == (self._original_slug or "").strip())
+
+        should_regen = False
+        if not current_slug:
+            should_regen = True
+        elif self.pk and title_changed and slug_unchanged:
+            should_regen = True
+
+        if should_regen:
+            base = slugify(self.title)[:180]
+            self.slug = self._unique_slug_for_seller(
+                seller_id=self.seller_id,
+                base=base,
+                max_len=180,
+                exclude_pk=self.pk,
+            )
+
         super().save(*args, **kwargs)
+
+        # Refresh originals after save so subsequent saves behave correctly.
+        self._original_title = self.title
+        self._original_slug = self.slug
 
     def clean(self):
         from catalog.models import Category
@@ -319,11 +383,11 @@ class ProductDigital(models.Model):
         COMMERCIAL = "commercial", "Commercial Use Allowed"
         EDUCATIONAL = "educational", "Educational Use"
         OPEN_SOURCE = "open_source", "Open Source / CC License"
-    
+
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="digital")
     license_text = models.TextField(blank=True)
     file_count = models.PositiveIntegerField(default=0)
-    
+
     # Digital specs
     software_requirements = models.CharField(max_length=255, blank=True, help_text="e.g., Fusion 360, FreeCAD, Blender")
     compatible_software = models.CharField(max_length=255, blank=True, help_text="e.g., Windows, macOS, Linux")

@@ -11,11 +11,17 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.text import slugify
 
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
-from .forms import ProductForm, ProductImageUploadForm, ProductImageBulkUploadForm, DigitalAssetUploadForm, ProductPhysicalForm, ProductDigitalForm
+from .forms import (
+    ProductForm,
+    ProductImageUploadForm,
+    ProductImageBulkUploadForm,
+    DigitalAssetUploadForm,
+    ProductPhysicalForm,
+    ProductDigitalForm,
+)
 from .models import Product, ProductImage, DigitalAsset, ALLOWED_ASSET_EXTS
 from .permissions import seller_required, is_owner_user
 from .views import _render_product_detail
@@ -70,7 +76,6 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
     location = (getattr(storage, "location", "") or "").strip("/")
 
     if bucket is not None:
-        # Build a CopySource that matches the actual object key.
         src_key = f"{location}/{name}".lstrip("/") if location else name
         try:
             bucket.copy(
@@ -79,10 +84,9 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
             )
             return new_name
         except Exception:
-            # Fall through to stream copy.
             pass
 
-    # Fallback: open and re-save (can be slower for large files, but safe).
+    # Fallback: open and re-save.
     try:
         source_field.open("rb")
         storage.save(new_name, File(source_field))
@@ -149,9 +153,7 @@ def seller_product_create(request, *args, **kwargs):
     """
     Draft-first create:
     - Create listing with is_active=False by default.
-    - Redirect flow:
-        FILE -> Assets page first
-        MODEL -> Images page first
+    - Slug generation is handled by Product.save() (unique per seller).
     """
     if request.method == "POST":
         form = ProductForm(request.POST, user=request.user)
@@ -162,9 +164,9 @@ def seller_product_create(request, *args, **kwargs):
             # Draft-first
             product.is_active = False
 
-            # Generate slug before validation if not provided
-            if not product.slug:
-                product.slug = slugify(product.title)[:180]
+            # Force clean slug generation unless user explicitly provided one.
+            if not (product.slug or "").strip():
+                product.slug = ""
 
             product.full_clean()
             product.save()
@@ -196,9 +198,9 @@ def seller_product_edit(request, pk: int):
         if form.is_valid():
             obj = form.save(commit=False)
 
-            # Keep existing slug if blank on form submission
-            if not obj.slug:
-                obj.slug = slugify(obj.title)[:180]
+            # If slug is blank, let Product.save() regenerate a clean unique slug from title.
+            if not (obj.slug or "").strip():
+                obj.slug = ""
 
             obj.full_clean()
             obj.save()
@@ -219,12 +221,12 @@ def seller_product_edit(request, pk: int):
 def seller_product_specs(request, pk: int):
     """Edit product specifications (different forms for MODEL vs FILE)."""
     product = _get_owned_product_or_404(request, pk)
-    
+
     if product.kind == Product.Kind.MODEL:
-        # Get or create ProductPhysical
         from .models import ProductPhysical
+
         physical, created = ProductPhysical.objects.get_or_create(product=product)
-        
+
         if request.method == "POST":
             form = ProductPhysicalForm(request.POST, instance=physical)
             if form.is_valid():
@@ -233,18 +235,18 @@ def seller_product_specs(request, pk: int):
                 return redirect("products:seller_list")
         else:
             form = ProductPhysicalForm(instance=physical)
-        
+
         return render(
             request,
             "products/seller/product_specs_form.html",
             {"form": form, "product": product, "kind": "MODEL"},
         )
-    
-    elif product.kind == Product.Kind.FILE:
-        # Get or create ProductDigital
+
+    if product.kind == Product.Kind.FILE:
         from .models import ProductDigital
+
         digital, created = ProductDigital.objects.get_or_create(product=product)
-        
+
         if request.method == "POST":
             form = ProductDigitalForm(request.POST, instance=digital)
             if form.is_valid():
@@ -253,16 +255,15 @@ def seller_product_specs(request, pk: int):
                 return redirect("products:seller_list")
         else:
             form = ProductDigitalForm(instance=digital)
-        
+
         return render(
             request,
             "products/seller/product_specs_form.html",
             {"form": form, "product": product, "kind": "FILE"},
         )
-    
-    else:
-        messages.warning(request, "Product kind not recognized.")
-        return redirect("products:seller_list")
+
+    messages.warning(request, "Product kind not recognized.")
+    return redirect("products:seller_list")
 
 
 @seller_required
@@ -281,13 +282,11 @@ def seller_product_images(request, pk: int):
 
     if request.method == "POST":
         form = ProductImageUploadForm(request.POST, request.FILES)
-
         if form.is_valid():
             with transaction.atomic():
                 img: ProductImage = form.save(commit=False)
                 img.product = product
 
-                # Default sort_order if user left it blank
                 if img.sort_order is None:
                     img.sort_order = _next_sort_order()
 
@@ -297,7 +296,6 @@ def seller_product_images(request, pk: int):
                 if img.is_primary:
                     ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
 
-                # If no primary exists, make this one primary
                 if not ProductImage.objects.filter(product=product, is_primary=True).exists():
                     img.is_primary = True
                     img.save(update_fields=["is_primary"])
@@ -454,13 +452,13 @@ def seller_product_delete(request, pk: int):
     Note: This will cascade delete related images, assets, specs, etc.
     """
     product = _get_owned_product_or_404(request, pk)
-    
+
     if request.method == "POST":
         product_title = product.title
         product.delete()
         messages.success(request, f"Product '{product_title}' has been deleted.")
         return redirect("products:seller_list")
-    
+
     return redirect("products:seller_list")
 
 
@@ -470,12 +468,9 @@ def seller_product_duplicate(request, pk: int):
     """
     Create a copy of a product with the same details but as a new listing (draft).
 
-    IMPORTANT:
-    - This performs a SAFE copy of file blobs:
-      - On S3 (django-storages), attempts server-side copy (fast).
-      - Otherwise falls back to open()+save().
-
-    - The duplicate starts as inactive (draft).
+    Slug rules:
+    - DO NOT build slugs from old slug with "-copy".
+    - Set slug="" and let Product.save() generate base/base-2/base-3 cleanly from title.
     """
     original = _get_owned_product_or_404(request, pk)
 
@@ -487,37 +482,30 @@ def seller_product_duplicate(request, pk: int):
             seller=request.user,
             kind=original.kind,
             title=f"{original.title} (Copy)",
-            slug="",  # will be set below
+            slug="",  # IMPORTANT: triggers clean unique slug generation in Product.save()
             short_description=original.short_description,
             description=original.description,
             category=original.category,
+            subcategory=original.subcategory,
             price=original.price,
             is_free=original.is_free,
             is_active=False,  # draft
             complexity_level=original.complexity_level,
             print_time_hours=original.print_time_hours,
+            max_purchases_per_buyer=original.max_purchases_per_buyer,
         )
-
-        base_slug = slugify(f"{original.slug}-copy")[:180] or f"{original.pk}-copy"
-        candidate = base_slug
-        counter = 1
-        while Product.objects.filter(seller=request.user, slug=candidate).exists():
-            candidate = slugify(f"{base_slug}-{counter}")[:180]
-            counter += 1
-        new_product.slug = candidate
 
         new_product.full_clean()
         new_product.save()
 
-        # Copy images (safe storage copy)
+        # Copy images
         for img in original.images.all().order_by("sort_order", "id"):
             new_name = _safe_storage_copy(source_field=img.image, dest_prefix="product_images")
             if not new_name:
-                # If copy fails, skip rather than breaking the whole duplicate.
                 continue
             ProductImage.objects.create(
                 product=new_product,
-                image=new_name,  # storage path
+                image=new_name,
                 alt_text=img.alt_text,
                 is_primary=img.is_primary,
                 sort_order=img.sort_order,
@@ -530,7 +518,7 @@ def seller_product_duplicate(request, pk: int):
                 first.is_primary = True
                 first.save(update_fields=["is_primary"])
 
-        # Copy digital assets if applicable (safe storage copy)
+        # Copy digital assets if applicable
         if original.kind == Product.Kind.FILE:
             for asset in original.digital_assets.all().order_by("id"):
                 new_asset_name = _safe_storage_copy(source_field=asset.file, dest_prefix="digital_assets")
@@ -544,8 +532,5 @@ def seller_product_duplicate(request, pk: int):
                     zip_contents=asset.zip_contents,
                 )
 
-    messages.success(
-        request,
-        "Product duplicated as a draft. Edit files, images, and specs from My Listings.",
-    )
+    messages.success(request, "Product duplicated as a draft. Edit files, images, and specs from My Listings.")
     return redirect("products:seller_list")
