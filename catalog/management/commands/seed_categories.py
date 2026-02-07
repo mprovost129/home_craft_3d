@@ -5,7 +5,7 @@ from __future__ import annotations
 from django.core.cache import cache
 from django.db.models import Prefetch
 
-from .models import Category
+from catalog.models import Category
 from products.models import ALLOWED_ASSET_EXTS, Product, ProductDigital
 
 
