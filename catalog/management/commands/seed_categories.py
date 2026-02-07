@@ -1,117 +1,443 @@
 from __future__ import annotations
 
-from django.core.cache import cache
+from dataclasses import dataclass
+from typing import Iterable
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.utils.text import slugify
 
 from catalog.models import Category
 
 
-MODEL_TREE = [
-    ("Art & Sculptures", ["Busts & Statues", "Abstract", "Animals", "Mythical Creatures", "Mini Sculptures", "Wall Art (3D)"]),
-    ("Home & Decor", ["Vases & Planters", "Lamps & Shades", "Wall Hooks & Hangers", "Signs & Nameplates", "Picture Frames", "Coasters & Trays", "Bathroom Accessories"]),
-    ("Household & Organization", ["Drawer Organizers", "Cable Management", "Kitchen Organizers", "Pantry & Spice Racks", "Storage Boxes", "Closet & Hangers", "Cleaning & Utility"]),
-    ("Tools & Workshop", ["Tool Holders", "Drill / Bit Organizers", "Jigs & Guides", "Clamps & Mounts", "Bench Accessories", "Hardware Bins", "Measuring / Layout"]),
-    ("Automotive", ["Interior Accessories", "Phone Mounts", "Console Organizers", "Cup Holders", "Dash Clips", "Key / FOB Holders"]),
-    ("Electronics & Tech", ["Phone Stands", "Tablet Stands", "Headphone Stands", "Controller Stands", "Desk Accessories", "Raspberry Pi / SBC Cases", "Cable Clips"]),
-    ("Gaming & Toys", ["Board Game Accessories", "Dice Towers & Trays", "Card Holders", "Puzzle Toys", "Educational Toys", "Fidget Toys"]),
-    ("Miniatures & Terrain", ["Terrain Pieces", "Buildings & Scenery", "Scatter Terrain", "Bases & Base Toppers", "Storage & Transport"]),
-    ("Cosplay & Props", ["Wearable Props", "Helmets & Masks", "Armor Parts", "Prop Weapons (Non-functional)", "Costume Accessories", "Display Stands"]),
-    ("Jewelry & Accessories", ["Earrings", "Pendants", "Rings", "Keychains", "Hair Accessories", "Display & Holders"]),
-    ("Pets", ["Food Scoops", "Leash Hooks", "Toy Storage", "Pet Tag Holders", "Small Pet Accessories"]),
-    ("Seasonal & Holiday", ["Ornaments", "Decorations", "Gift Tags / Toppers", "Halloween", "Christmas", "Easter", "Valentine’s"]),
+@dataclass(frozen=True)
+class SeedNode:
+    name: str
+    children: list[str]
+
+
+# ---------------------------------------------------------------------
+# CATEGORY TREE (shared by MODEL + FILE)
+# ---------------------------------------------------------------------
+# NOTE:
+# - These are "root categories" with subcategories.
+# - They will be duplicated for type=MODEL and type=FILE.
+# ---------------------------------------------------------------------
+CATEGORY_TREE: list[SeedNode] = [
+    SeedNode("Art & Sculptures", [
+        "Statues & Figurative",
+        "Busts",
+        "Abstract Art",
+        "Wall Art / Reliefs",
+        "Mini Sculptures",
+        "Masks",
+        "Vases & Decor Sculptures",
+        "Articulated Art Pieces",
+    ]),
+    SeedNode("Miniatures & Terrain", [
+        "Dungeon / Tiles",
+        "Buildings & Ruins",
+        "Scatter Terrain",
+        "Trees & Foliage",
+        "Bases",
+        "Vehicles (Mini Scale)",
+        "Sci-Fi Terrain",
+        "Fantasy Terrain",
+        "Modern / Urban Terrain",
+    ]),
+    SeedNode("Tabletop Gaming", [
+        "RPG Accessories",
+        "Dice Towers",
+        "Dice Trays",
+        "Dice Vaults / Boxes",
+        "Mini Holders / Stands",
+        "Token Trays",
+        "Card Holders",
+        "Game Inserts / Organizers",
+        "Terrain Accessories",
+    ]),
+    SeedNode("Cosplay & Props", [
+        "Helmets",
+        "Armor Pieces",
+        "Weapons (Prop)",
+        "Gadgets / Sci-Fi Props",
+        "Masks",
+        "Wearables / Accessories",
+        "Emblems & Badges",
+        "Display Stands",
+        "Foam / Pepakura Helpers",
+    ]),
+    SeedNode("Jewelry & Accessories", [
+        "Rings",
+        "Earrings",
+        "Pendants",
+        "Bracelets",
+        "Necklaces",
+        "Charms",
+        "Brooches / Pins",
+        "Keychains",
+    ]),
+    SeedNode("Household & Organization", [
+        "Kitchen Helpers",
+        "Bathroom Accessories",
+        "Cable Management",
+        "Storage Bins",
+        "Hooks & Hangers",
+        "Closet Organizers",
+        "Desk Organizers",
+        "Tool Organization",
+        "Labeling / Tags",
+    ]),
+    SeedNode("Tools & Workshop", [
+        "Jigs & Fixtures",
+        "Tool Holders",
+        "Drill Guides",
+        "Measuring Tools",
+        "Clamps & Aids",
+        "Sanding / Finishing Tools",
+        "Shop Storage",
+        "3D Printer Tools",
+    ]),
+    SeedNode("3D Printer Upgrades", [
+        "Spool Holders",
+        "Filament Guides",
+        "Cable Chains",
+        "Fan Ducts",
+        "Toolhead Accessories",
+        "Bed Leveling Tools",
+        "Enclosure Parts",
+        "Raspberry Pi / Camera Mounts",
+    ]),
+    SeedNode("Electronics & Tech", [
+        "Raspberry Pi Cases",
+        "Arduino / Microcontroller Cases",
+        "Sensor Housings",
+        "Cable Glands / Grommets",
+        "Mounts & Brackets",
+        "Phone Accessories",
+        "Tablet / Laptop Stands",
+        "Remote / Controller Holders",
+    ]),
+    SeedNode("Automotive", [
+        "Interior Accessories",
+        "Exterior Accessories",
+        "Phone / Dash Mounts",
+        "Organization / Storage",
+        "Gauges / Panels",
+        "Replacement Clips",
+        "Cable / Wire Guides",
+        "Key Fob Accessories",
+    ]),
+    SeedNode("Sports & Outdoors", [
+        "Bike Accessories",
+        "Camping Gear",
+        "Hiking Accessories",
+        "Fishing Accessories",
+        "Fitness Accessories",
+        "Water Bottle Holders",
+        "Outdoor Hooks / Clips",
+        "Gear Mounts",
+    ]),
+    SeedNode("Toys & Games", [
+        "Educational Toys",
+        "Puzzles",
+        "Board Game Accessories",
+        "Construction Toys",
+        "Fidget Toys",
+        "Marble Runs",
+        "Toy Vehicles",
+        "Play Sets",
+    ]),
+    SeedNode("Educational", [
+        "STEM Models",
+        "Science Demonstrations",
+        "Math Aids",
+        "Anatomy Models",
+        "Geography / Maps",
+        "Classroom Tools",
+        "Engineering Models",
+    ]),
+    SeedNode("Robotics", [
+        "Chassis & Frames",
+        "Wheels & Tracks",
+        "Servo Mounts",
+        "Sensor Mounts",
+        "Gearboxes",
+        "Grippers",
+        "Cable Management",
+        "Controller Cases",
+    ]),
+    SeedNode("Home & Decor", [
+        "Vases",
+        "Planters",
+        "Wall Hooks",
+        "Decorative Signs",
+        "Ornaments",
+        "Photo Frames",
+        "Lamp Shades",
+        "Seasonal Decor",
+    ]),
+    SeedNode("Functional Parts", [
+        "Brackets",
+        "Clips",
+        "Spacers / Shims",
+        "Caps / Covers",
+        "Knobs / Handles",
+        "Hinges",
+        "Adapters",
+        "Replacement Parts",
+    ]),
+    SeedNode("Office & Desk", [
+        "Pen Holders",
+        "Document Trays",
+        "Cable Organizers",
+        "Monitor Stands",
+        "Phone Stands",
+        "Headphone Hangers",
+        "Drawer Organizers",
+        "Nameplates",
+    ]),
+    SeedNode("Photography & Video", [
+        "Camera Mounts",
+        "Tripod Accessories",
+        "Light Modifiers",
+        "GoPro / Action Cam Mounts",
+        "Cable Management",
+        "Battery Holders",
+        "Lens Caps / Holders",
+    ]),
+    SeedNode("Music & Audio", [
+        "Instrument Accessories",
+        "Guitar Picks / Holders",
+        "Headphone Stands",
+        "Cable Winders",
+        "Speaker Stands",
+        "Microphone Mounts",
+        "Pedalboard Accessories",
+    ]),
+    SeedNode("Pets", [
+        "Food / Water Accessories",
+        "Toys",
+        "Leash / Collar Accessories",
+        "Grooming Helpers",
+        "Enclosures / Doors",
+        "Pet Tags",
+        "Storage / Organization",
+    ]),
+    SeedNode("Medical & Accessibility", [
+        "Grip Aids",
+        "Assistive Tools",
+        "Pill Organizers",
+        "Mobility Accessories",
+        "Ergonomic Helpers",
+        "Adaptive Mounts",
+    ]),
+    SeedNode("Hobby & RC", [
+        "RC Car Parts",
+        "Drone Accessories",
+        "Plane / Boat Parts",
+        "Battery Mounts",
+        "Servo Mounts",
+        "Camera Mounts",
+        "Field Tools",
+    ]),
+    SeedNode("Garden", [
+        "Plant Labels",
+        "Planters",
+        "Irrigation Helpers",
+        "Tool Hooks",
+        "Garden Decor",
+        "Seed Starters",
+    ]),
+    SeedNode("Architecture & Models", [
+        "Scale Buildings",
+        "Terrain / Landscaping",
+        "Model Details",
+        "Presentation Bases",
+        "Structural Mockups",
+        "Site Models",
+    ]),
+    SeedNode("Holiday & Seasonal", [
+        "Christmas",
+        "Halloween",
+        "Easter",
+        "Thanksgiving",
+        "Valentine’s Day",
+        "Birthdays",
+        "Wedding Decor",
+    ]),
+    SeedNode("Signs & Tags", [
+        "Door Signs",
+        "Desk Signs",
+        "Nameplates",
+        "Warning Labels",
+        "QR / NFC Holders",
+        "Custom Tags",
+    ]),
+    SeedNode("Stands & Displays", [
+        "Model Stands",
+        "Phone Stands",
+        "Controller Stands",
+        "Headphone Stands",
+        "Retail Displays",
+        "Wall Mount Displays",
+        "Shelf Displays",
+    ]),
+    SeedNode("Bundles", [
+        "Starter Packs",
+        "Theme Packs",
+        "Mega Bundles",
+        "Creator Collections",
+        "Seasonal Bundles",
+    ]),
 ]
 
-FILE_TREE = [
-    ("Functional Parts", ["Brackets & Mounts", "Hooks & Hangers", "Replacement Parts", "Clips & Fasteners", "Enclosures / Cases", "Workshop Jigs"]),
-    ("Household & Organization (Files)", ["Drawer Organizers", "Kitchen Organization", "Bathroom Accessories", "Storage Boxes", "Labels / Tags", "Cable Management"]),
-    ("Home & Decor (Files)", ["Vases & Planters", "Lamps & Shades", "Wall Art", "Signs & Nameplates", "Decorative Sculptures", "Planter Accessories"]),
-    ("Toys & Games (Files)", ["Fidget Toys", "Puzzle Toys", "Board Game Accessories", "Dice Towers & Trays", "Card Accessories", "Educational"]),
-    ("Miniatures & Terrain (Files)", ["Terrain", "Buildings", "Scatter", "Bases", "Modular Systems", "RPG / Wargaming"]),
-    ("Cosplay & Props (Files)", ["Helmets & Masks", "Armor", "Accessories", "Prop Parts", "Display Stands", "Pattern / Sizing Tools"]),
-    ("Figures & Characters (Files)", ["Fantasy", "Sci-Fi", "Creatures", "Robots / Mechs", "Busts"]),
-    ("Automotive (Files)", ["Interior Accessories", "Mounts & Brackets", "Console Inserts", "Clips & Fasteners", "Custom Emblems (generic)"]),
-    ("Electronics & Tech (Files)", ["Phone / Tablet Stands", "Controller Stands", "Headphone Stands", "Raspberry Pi / SBC Cases", "Cable Management", "Adapter Plates"]),
-    ("Jewelry & Accessories (Files)", ["Earrings", "Pendants", "Rings", "Keychains", "Display Stands"]),
-    ("RC / Hobby (Files)", ["RC Parts", "Drone Accessories", "Model Accessories", "Scale Details", "Mounts & Clips"]),
-    ("Bundles", ["Value Packs", "Themed Collections", "Starter Packs", "Terrain Bundles", "Organizer Bundles"]),
-]
+
+# ---------------------------------------------------------------------
+# SEED HELPERS
+# ---------------------------------------------------------------------
+def _slug(name: str) -> str:
+    s = slugify(name)[:140]
+    return s or "category"
 
 
-def _upsert(*, type_: str, name: str, parent: Category | None, sort_order: int) -> tuple[Category, bool]:
-    obj = Category.objects.filter(type=type_, parent=parent, name=name).first()
-    created = False
-    if not obj:
-        obj = Category(type=type_, parent=parent, name=name, slug="")
-        created = True
+def _upsert_root(*, ctype: str, name: str, sort_order: int) -> Category:
+    obj, _created = Category.objects.get_or_create(
+        type=ctype,
+        parent=None,
+        slug=_slug(name),
+        defaults={
+            "name": name,
+            "description": "",
+            "is_active": True,
+            "sort_order": sort_order,
+        },
+    )
+    changed = False
 
-    obj.is_active = True
-    obj.sort_order = int(sort_order)
-    obj.save()
-    return obj, created
+    if obj.name != name:
+        obj.name = name
+        changed = True
+
+    # Keep slug stable for idempotency (don’t rewrite unless empty)
+    if not obj.slug:
+        obj.slug = _slug(name)
+        changed = True
+
+    if obj.is_active is not True:
+        obj.is_active = True
+        changed = True
+
+    if obj.sort_order != sort_order:
+        obj.sort_order = sort_order
+        changed = True
+
+    if changed:
+        obj.save(update_fields=["name", "slug", "is_active", "sort_order", "updated_at"])
+
+    return obj
+
+
+def _upsert_child(*, ctype: str, parent: Category, name: str, sort_order: int) -> Category:
+    obj, _created = Category.objects.get_or_create(
+        type=ctype,
+        parent=parent,
+        slug=_slug(name),
+        defaults={
+            "name": name,
+            "description": "",
+            "is_active": True,
+            "sort_order": sort_order,
+        },
+    )
+    changed = False
+
+    if obj.name != name:
+        obj.name = name
+        changed = True
+
+    if not obj.slug:
+        obj.slug = _slug(name)
+        changed = True
+
+    if obj.is_active is not True:
+        obj.is_active = True
+        changed = True
+
+    if obj.sort_order != sort_order:
+        obj.sort_order = sort_order
+        changed = True
+
+    if changed:
+        obj.save(update_fields=["name", "slug", "is_active", "sort_order", "updated_at"])
+
+    return obj
 
 
 class Command(BaseCommand):
-    help = "Seed MODEL + FILE categories/subcategories (idempotent) and clear sidebar cache."
+    help = "Seed marketplace categories + subcategories for both MODEL and FILE."
 
     def add_arguments(self, parser):
-        parser.add_argument("--dry-run", action="store_true", help="Do not write changes.")
         parser.add_argument(
-            "--deactivate-missing",
+            "--wipe",
             action="store_true",
-            help="Deactivate active categories not present in this seed set.",
+            help="Delete ALL categories before seeding (use if you accidentally removed/duplicated categories).",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Show what would happen without writing changes.",
         )
 
     @transaction.atomic
     def handle(self, *args, **options):
-        dry_run = bool(options["dry_run"])
-        deactivate_missing = bool(options["deactivate_missing"])
+        wipe: bool = bool(options.get("wipe"))
+        dry_run: bool = bool(options.get("dry_run"))
 
-        created = 0
-        updated = 0
-        seed_keys: set[tuple[str, int | None, str]] = set()
+        if wipe:
+            if dry_run:
+                self.stdout.write(self.style.WARNING("DRY RUN: would delete all Category rows."))
+            else:
+                Category.objects.all().delete()
+                self.stdout.write(self.style.WARNING("Deleted all categories."))
 
-        def process(type_: str, tree: list[tuple[str, list[str]]]):
-            nonlocal created, updated
-            root_sort = 0
-            for root_name, children in tree:
-                root_sort += 10
+        created_count = 0
+        updated_count = 0
+        # We track changes by counting objects before/after and re-fetching
+        # (Django's get_or_create doesn't tell us about updates we apply).
+        before_total = Category.objects.count()
+
+        types: list[str] = [Category.CategoryType.MODEL, Category.CategoryType.FILE]
+
+        if dry_run:
+            self.stdout.write(self.style.WARNING("DRY RUN: no changes written."))
+
+        for ctype in types:
+            for i, node in enumerate(CATEGORY_TREE, start=1):
                 if dry_run:
-                    self.stdout.write(f"[DRY] ROOT {type_}: {root_name}")
-                    root_obj = None
-                else:
-                    root_obj, was_created = _upsert(type_=type_, name=root_name, parent=None, sort_order=root_sort)
-                    seed_keys.add((type_, None, root_name))
-                    created += 1 if was_created else 0
-                    updated += 0 if was_created else 1
+                    continue
 
-                child_sort = 0
-                for child_name in children:
-                    child_sort += 10
-                    if dry_run:
-                        self.stdout.write(f"   [DRY] - {child_name}")
-                        continue
-                    assert root_obj is not None
-                    _, was_created = _upsert(type_=type_, name=child_name, parent=root_obj, sort_order=child_sort)
-                    seed_keys.add((type_, root_obj.id, child_name))
-                    created += 1 if was_created else 0
-                    updated += 0 if was_created else 1
+                root = _upsert_root(ctype=ctype, name=node.name, sort_order=i)
 
-        process(Category.CategoryType.MODEL, MODEL_TREE)
-        process(Category.CategoryType.FILE, FILE_TREE)
+                # children
+                for j, child_name in enumerate(node.children, start=1):
+                    _upsert_child(ctype=ctype, parent=root, name=child_name, sort_order=j)
 
-        if (not dry_run) and deactivate_missing:
-            deactivated = 0
-            for c in Category.objects.filter(is_active=True).iterator():
-                key = (c.type, c.parent_id, c.name)
-                if key not in seed_keys:
-                    c.is_active = False
-                    c.save(update_fields=["is_active", "updated_at"])
-                    deactivated += 1
-            self.stdout.write(self.style.WARNING(f"Deactivated {deactivated} categories not in seed set."))
+        after_total = Category.objects.count()
 
-        if not dry_run:
-            cache.delete("sidebar_categories_v2")
-            self.stdout.write(self.style.SUCCESS("Cleared cache key sidebar_categories_v2."))
+        # Rough reporting:
+        # - If wipe was used, everything is "created".
+        # - Otherwise, after_total - before_total is new rows created.
+        if dry_run:
+            # estimate would require simulating existence checks; keep it simple
+            self.stdout.write(self.style.SUCCESS("Done. (dry-run)"))
+            return
 
-        self.stdout.write(self.style.SUCCESS(f"Done. created={created} updated={updated} dry_run={dry_run}"))
+        if wipe:
+            created_count = after_total
+        else:
+            created_count = max(0, after_total - before_total)
+
+        self.stdout.write(self.style.SUCCESS(
+            f"Seed complete. wipe={wipe} created~={created_count} total={after_total}"
+        ))
