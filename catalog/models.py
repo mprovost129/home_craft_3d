@@ -1,3 +1,4 @@
+# catalog/models.py
 from __future__ import annotations
 
 from django.db import models
@@ -40,15 +41,10 @@ class Category(models.Model):
             models.Index(fields=["parent", "is_active", "sort_order"]),
             models.Index(fields=["slug"]),
         ]
-        # Alphabetical-first:
-        # - groups by type (Models vs Files)
-        # - groups by parent so children are grouped under their parent in general queries
-        # - alphabetizes by name
         ordering = ["type", "parent_id", "name"]
 
     def __str__(self) -> str:
-        type_key = self.CategoryType(self.type)
-        type_display = dict(self.CategoryType.choices).get(type_key, self.type)
+        type_display = dict(self.CategoryType.choices).get(self.type, self.type)
         if self.parent:
             return f"{type_display} :: {self.parent.name} > {self.name}"
         return f"{type_display} :: {self.name}"
@@ -60,7 +56,7 @@ class Category(models.Model):
 
     @property
     def is_root(self) -> bool:
-        return self.parent is None
+        return self.parent_id is None
 
     def get_absolute_url(self) -> str:
         return reverse("catalog:category_detail", kwargs={"pk": self.pk})
@@ -73,6 +69,7 @@ class Category(models.Model):
 
 class RootCategory(Category):
     class Meta:
+        proxy = True
         verbose_name = "Category"
         verbose_name_plural = "Categories"
 
