@@ -23,6 +23,24 @@
   <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_navbar.svg' %}">
   {% endblock %}
 
+  {# --- Open Graph / Facebook --- #}
+  <meta property="og:site_name" content="Home Craft 3D">
+  <meta property="og:title" content="{% block og_title %}Home Craft 3D – 3D Prints & Digital Files{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Marketplace for 3D printed models and digital STL files.{% endblock %}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta property="og:image" content="https://www.homecraft3d.com/static/images/homecraft3d_facebook.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Home Craft 3D – 3D Prints & Digital Files">
+
+  {# --- Twitter/X fallback (uses same image) --- #}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{% block twitter_title %}Home Craft 3D – 3D Prints & Digital Files{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}Marketplace for 3D printed models and digital STL files.{% endblock %}">
+  <meta name="twitter:image" content="https://www.homecraft3d.com/static/images/homecraft3d_facebook.png">
+
+
   {% if ga_measurement_id %}
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_measurement_id }}"></script>
     <script>
