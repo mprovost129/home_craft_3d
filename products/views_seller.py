@@ -9,10 +9,11 @@ from django.contrib import messages
 from django.core.files import File
 from django.db import transaction
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.text import slugify
 
+from catalog.models import Category
 from core.throttle import ThrottleRule, throttle
 from payments.models import SellerStripeAccount
 from .forms import (
@@ -31,6 +32,7 @@ from .views import _render_product_detail
 SELLER_PRODUCT_MUTATE_RULE = ThrottleRule(key_prefix="seller_product_mutate", limit=20, window_seconds=60)
 SELLER_UPLOAD_RULE = ThrottleRule(key_prefix="seller_upload", limit=12, window_seconds=60)
 SELLER_DELETE_RULE = ThrottleRule(key_prefix="seller_delete", limit=20, window_seconds=60)
+SELLER_CATEGORY_AJAX_RULE = ThrottleRule(key_prefix="seller_category_ajax", limit=60, window_seconds=60)
 
 
 def _file_type_options() -> list[str]:
@@ -103,6 +105,37 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
             pass
 
 
+# -------------------------
+# Seller AJAX endpoint
+# -------------------------
+@seller_required
+@throttle(SELLER_CATEGORY_AJAX_RULE)
+def seller_subcategories_for_category(request):
+    """
+    Seller-only JSON endpoint for dependent dropdown:
+    Category -> Subcategory options.
+
+    Returns active child categories under the given parent category.
+    Also enforces matching 'type' to prevent cross-type mixing.
+    """
+    raw_id = (request.GET.get("category_id") or "").strip()
+    try:
+        category_id = int(raw_id)
+    except Exception:
+        return JsonResponse({"results": []})
+
+    parent = Category.objects.filter(pk=category_id).only("id", "type").first()
+    if not parent:
+        return JsonResponse({"results": []})
+
+    qs = (
+        Category.objects.filter(parent_id=parent.id, is_active=True, type=parent.type)
+        .only("id", "name")
+        .order_by("sort_order", "name")
+    )
+    return JsonResponse({"results": [{"id": c.id, "text": c.name} for c in qs]})
+
+
 @seller_required
 def seller_product_list(request, *args, **kwargs):
     """
@@ -111,9 +144,16 @@ def seller_product_list(request, *args, **kwargs):
 
     NOTE: This is NOT gated by Stripe readiness. Sellers can still create drafts pre-onboarding.
     """
+    from django.db.models import Sum, Q
     qs = (
         Product.objects.select_related("category", "category__parent", "seller", "digital", "physical")
         .prefetch_related("images", "digital_assets")
+        .annotate(
+            units_sold=Sum(
+                "order_items__quantity",
+                filter=Q(order_items__order__status="PAID", order_items__order__paid_at__isnull=False)
+            )
+        )
         .order_by("-created_at")
     )
     if not is_owner_user(request.user):

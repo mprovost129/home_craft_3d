@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 from django.contrib import admin
+from django.http import JsonResponse
+from django.urls import path
+from django.utils.html import format_html
+
+from catalog.models import Category
 
 from .models import (
     Product,
@@ -33,6 +38,7 @@ class ProductAdmin(admin.ModelAdmin):
         "kind",
         "seller",
         "category",
+        "subcategory",
         "is_active",
         "is_featured",
         "is_trending",
@@ -45,6 +51,94 @@ class ProductAdmin(admin.ModelAdmin):
 
     # IMPORTANT: remove prepopulated_fields so it doesn't fight our model policy
     prepopulated_fields = {}
+
+    class Media:
+        # Loaded only in Django admin for this ModelAdmin.
+        js = ("products/admin/product_category_subcategory.js",)
+
+    # -------------------------
+    # Dependent dropdown support
+    # -------------------------
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "subcategories-for-category/",
+                self.admin_site.admin_view(self.subcategories_for_category),
+                name="products_product_subcategories_for_category",
+            ),
+        ]
+        return custom + urls
+
+    def subcategories_for_category(self, request):
+        """
+        Admin-only JSON endpoint.
+        Returns the child categories (subcategories) for a given parent category.
+        """
+        raw_id = (request.GET.get("category_id") or "").strip()
+        try:
+            category_id = int(raw_id)
+        except Exception:
+            return JsonResponse({"results": []})
+
+        parent = Category.objects.filter(pk=category_id).only("id", "type").first()
+        if not parent:
+            return JsonResponse({"results": []})
+
+        qs = (
+            Category.objects.filter(parent_id=parent.id, is_active=True, type=parent.type)
+            .only("id", "name")
+            .order_by("sort_order", "name")
+        )
+
+        results = [{"id": c.id, "text": c.name} for c in qs]
+        return JsonResponse({"results": results})
+
+    # -------------------------
+    # Better initial queryset
+    # -------------------------
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """
+        Server-side filtering so initial render isn't a huge list.
+
+        - On add page: keep subcategory empty until category selected.
+        - On change page: restrict subcategory to children of the object's category.
+        - If ?category=<id> is present (rare), also respects that.
+        """
+        if db_field.name == "subcategory":
+            # Default: no subcategories until we know category
+            kwargs["queryset"] = Category.objects.none()
+
+            # If editing an existing object, we can restrict based on its category
+            obj_id = request.resolver_match.kwargs.get("object_id") if request.resolver_match else None
+            if obj_id:
+                try:
+                    obj = Product.objects.select_related("category").only("id", "category_id").get(pk=obj_id)
+                    if obj.category_id:
+                        kwargs["queryset"] = Category.objects.filter(
+                            parent_id=obj.category_id,
+                            is_active=True,
+                        ).order_by("sort_order", "name")
+                except Exception:
+                    pass
+            else:
+                # Add view: if admin is re-rendering due to validation errors,
+                # Django will keep POSTed values; JS will also re-populate.
+                # We keep queryset none here intentionally.
+
+                # Optional: allow filtering if the admin is opened with ?category=<id>
+                raw = (request.GET.get("category") or "").strip()
+                try:
+                    cat_id = int(raw)
+                except Exception:
+                    cat_id = None
+                if cat_id:
+                    kwargs["queryset"] = Category.objects.filter(
+                        parent_id=cat_id,
+                        is_active=True,
+                    ).order_by("sort_order", "name")
+
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
         """

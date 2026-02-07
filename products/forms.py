@@ -7,6 +7,7 @@ from typing import Iterable, List, Tuple
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.urls import reverse_lazy
 
 from catalog.models import Category
 from .models import Product, ProductImage, DigitalAsset, ProductPhysical, ProductDigital
@@ -82,8 +83,9 @@ class ProductForm(forms.ModelForm):
         ]
         widgets = {
             "kind": forms.Select(attrs={"class": "form-select"}),
-            "category": forms.Select(attrs={"class": "form-select", "id": "category-select"}),
-            "subcategory": forms.Select(attrs={"class": "form-select", "id": "subcategory-select"}),
+            # IMPORTANT: let Django generate default ids: id_category / id_subcategory
+            "category": forms.Select(attrs={"class": "form-select"}),
+            "subcategory": forms.Select(attrs={"class": "form-select"}),
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "short_description": forms.TextInput(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
@@ -102,17 +104,31 @@ class ProductForm(forms.ModelForm):
             Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
         )
 
-        # Subcategory dropdown: start empty; JS will populate. On edit/postback, we populate if possible.
+        # Subcategory dropdown: default empty; JS will populate.
         self.fields["subcategory"].queryset = Category.objects.none()
         self.fields["subcategory"].required = False
 
+        # Provide the seller endpoint on the widget so templates don't need special casing.
+        # This URL exists after updating products/urls.py below.
+        try:
+            self.fields["subcategory"].widget.attrs["data-subcategory-endpoint"] = reverse_lazy(
+                "products:seller_subcategories_for_category"
+            )
+        except Exception:
+            # If URLs aren't loaded in some context, harmless.
+            pass
+
+        # Determine which category should control the subcategory queryset
         initial_cat = None
+
+        # Edit view: instance.category
         try:
             if self.instance and self.instance.pk and self.instance.category_id:
                 initial_cat = self.instance.category
         except Exception:
             initial_cat = None
 
+        # Postback: use posted category id
         posted_cat_id = (self.data.get("category") or "").strip()
         if posted_cat_id:
             try:
@@ -120,6 +136,7 @@ class ProductForm(forms.ModelForm):
             except Exception:
                 pass
 
+        # If we have a category, show only its children
         if initial_cat:
             self.fields["subcategory"].queryset = (
                 Category.objects.filter(parent=initial_cat, is_active=True).order_by("sort_order", "name")

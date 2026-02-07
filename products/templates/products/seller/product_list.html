@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Seller · Listings · Home Craft 3D{% endblock %}
 
 {% block content %}
@@ -87,6 +88,7 @@
             <th>Category</th>
             <th>Price</th>
             <th>Status</th>
+            <th>Units Sold</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -131,6 +133,9 @@
                 {% else %}
                   <span class="badge text-bg-secondary">Inactive</span>
                 {% endif %}
+              </td>
+              <td>
+                {{ p.units_sold|default:0 }}
               </td>
               <td class="text-end">
                 <div class="btn-group">
