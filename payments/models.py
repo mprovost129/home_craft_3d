@@ -1,8 +1,8 @@
 # payments/models.py
-
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
@@ -20,9 +20,7 @@ class SellerStripeAccount(models.Model):
         related_name="stripe_connect",
     )
 
-    stripe_account_id = models.CharField(
-        max_length=255, blank=True, default="", db_index=True
-    )
+    stripe_account_id = models.CharField(max_length=255, blank=True, default="", db_index=True)
 
     details_submitted = models.BooleanField(default=False)
     charges_enabled = models.BooleanField(default=False)
@@ -37,9 +35,7 @@ class SellerStripeAccount(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["stripe_account_id"]),
-            models.Index(
-                fields=["details_submitted", "charges_enabled", "payouts_enabled"]
-            ),
+            models.Index(fields=["details_submitted", "charges_enabled", "payouts_enabled"]),
         ]
 
     def __str__(self) -> str:
@@ -58,6 +54,52 @@ class SellerStripeAccount(models.Model):
         if self.is_ready and not self.onboarding_completed_at:
             self.onboarding_completed_at = timezone.now()
             self.save(update_fields=["onboarding_completed_at", "updated_at"])
+
+
+class SellerFeeWaiver(models.Model):
+    """
+    Per-seller marketplace fee waiver window.
+    During the window, marketplace cut is 0% (seller still pays Stripe fees).
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="fee_waiver",
+    )
+
+    starts_at = models.DateTimeField(default=timezone.now)
+    ends_at = models.DateTimeField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["ends_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"SellerFeeWaiver<{self.user_id}> {self.starts_at.date()} → {self.ends_at.date()}"
+
+    @property
+    def is_active(self) -> bool:
+        now = timezone.now()
+        return self.starts_at <= now < self.ends_at
+
+    @classmethod
+    def ensure_for_seller(cls, *, user, waiver_days: int) -> "SellerFeeWaiver":
+        """
+        Create waiver if missing. Never shortens an existing waiver.
+        """
+        waiver_days = max(0, min(int(waiver_days or 0), 365))
+        obj = cls.objects.filter(user=user).first()
+        if obj:
+            return obj
+
+        starts = timezone.now()
+        ends = starts + timedelta(days=waiver_days)
+        return cls.objects.create(user=user, starts_at=starts, ends_at=ends)
 
 
 class SellerBalanceEntry(models.Model):
@@ -115,7 +157,6 @@ class SellerBalanceEntry(models.Model):
             models.Index(fields=["reason", "-created_at"]),
         ]
         ordering = ("-created_at",)
-        # Optional but recommended: prevents duplicate SALE/PAYOUT rows on webhook retries.
         constraints = [
             models.UniqueConstraint(
                 fields=["seller", "order", "reason"],

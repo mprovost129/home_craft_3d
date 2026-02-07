@@ -122,6 +122,35 @@
 
         <hr class="my-4">
 
+        <h2 class="h6 mb-3">Home Page Banner</h2>
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.home_banner_enabled }}
+              <label class="form-check-label ms-1">Enable banner above navbar (home page)</label>
+            </div>
+            {% if form.home_banner_enabled.help_text %}
+              <div class="form-text">{{ form.home_banner_enabled.help_text }}</div>
+            {% endif %}
+            {% if form.home_banner_enabled.errors %}
+              <div class="text-danger small mt-1">{{ form.home_banner_enabled.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Banner text</label>
+            {{ form.home_banner_text }}
+            {% if form.home_banner_text.help_text %}
+              <div class="form-text">{{ form.home_banner_text.help_text }}</div>
+            {% endif %}
+            {% if form.home_banner_text.errors %}
+              <div class="text-danger small mt-1">{{ form.home_banner_text.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <hr class="my-4">
+
         <h2 class="h6 mb-3">Theme</h2>
 
         <div class="row g-3">

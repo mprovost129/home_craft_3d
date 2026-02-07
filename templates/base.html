@@ -18,10 +18,10 @@
   <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_navbar.svg' %}">
 
   <meta name="twitter:card" content="summary_large_image">
-  {% block meta_title %}<meta name="twitter:title" content="Home Craft 3D">{% endblock %}>
+  {% block meta_title %}<meta name="twitter:title" content="Home Craft 3D">{% endblock %}
   <meta name="twitter:description" content="{{ block.super }}">
   <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_navbar.svg' %}">
-  {% endblock %}>
+  {% endblock %}
 
   {% if ga_measurement_id %}
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_measurement_id }}"></script>
@@ -68,6 +68,8 @@
 </head>
 
 <body class="bg-body">
+
+  {% include "includes/promo_banner.html" %}
 
   {% include "partials/navbar.html" %}
 

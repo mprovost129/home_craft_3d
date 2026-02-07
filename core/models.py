@@ -1,3 +1,4 @@
+# core/models.py
 from __future__ import annotations
 
 from decimal import Decimal
@@ -14,6 +15,32 @@ class SiteConfig(models.Model):
     - Any site setting MUST live here (so it's editable via Django admin/dashboard).
     - No "settings.py constants" for runtime-tunable business rules.
     """
+
+    # -------------------------
+    # Site-wide Promo Banner (above navbar)
+    # -------------------------
+    promo_banner_enabled = models.BooleanField(
+        default=False,
+        help_text="If enabled, show a promo banner above the navbar sitewide.",
+    )
+    promo_banner_text = models.CharField(
+        max_length=240,
+        blank=True,
+        default="",
+        help_text="Text shown in the promo banner. Keep it short.",
+    )
+
+    # -------------------------
+    # Seller fee waiver (on platform cut only; Stripe fees still apply)
+    # -------------------------
+    seller_fee_waiver_enabled = models.BooleanField(
+        default=True,
+        help_text="If enabled, new sellers receive a temporary 0% marketplace cut.",
+    )
+    seller_fee_waiver_days = models.PositiveIntegerField(
+        default=30,
+        help_text="Length of new-seller fee waiver window in days.",
+    )
 
     # Home page hero (marketing copy)
     home_hero_title = models.CharField(
@@ -56,13 +83,12 @@ class SiteConfig(models.Model):
         blank=True,
         help_text="List of allowed country codes for shipping (e.g. ['US']).",
     )
-    
+
     plausible_shared_url = models.URLField(
         blank=True,
         default="",
         help_text="Plausible shared dashboard URL (read-only). Example: https://plausible.io/share/<site>?auth=...",
     )
-
 
     # -------------------------
     # Theme / Branding (Palette A + Light/Dark)
@@ -207,6 +233,20 @@ class SiteConfig(models.Model):
             self.marketplace_sales_percent = Decimal("0.00")
         elif pct > 100:
             self.marketplace_sales_percent = Decimal("100.00")
+
+        # Clamp waiver days to sane bounds
+        try:
+            d = int(self.seller_fee_waiver_days or 0)
+        except Exception:
+            d = 0
+        if d < 0:
+            self.seller_fee_waiver_days = 0
+        elif d > 365:
+            self.seller_fee_waiver_days = 365
+
+        # Banner: disable if empty
+        if not (self.promo_banner_text or "").strip():
+            self.promo_banner_enabled = False
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()

@@ -1,3 +1,4 @@
+# products/admin.py
 from __future__ import annotations
 
 from django.contrib import admin
@@ -27,6 +28,8 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "title",
+        "slug",
+        "slug_is_manual",
         "kind",
         "seller",
         "category",
@@ -36,10 +39,31 @@ class ProductAdmin(admin.ModelAdmin):
         "max_purchases_per_buyer",
         "created_at",
     )
-    list_filter = ("kind", "is_active", "is_featured", "is_trending", "category")
+    list_filter = ("kind", "is_active", "is_featured", "is_trending", "category", "slug_is_manual")
     search_fields = ("title", "slug", "seller__username", "short_description", "description")
-    prepopulated_fields = {"slug": ("title",)}
     inlines = [ProductImageInline, DigitalAssetInline]
+
+    # IMPORTANT: remove prepopulated_fields so it doesn't fight our model policy
+    prepopulated_fields = {}
+
+    def save_model(self, request, obj, form, change):
+        """
+        Admin slug policy:
+        - If user typed slug -> mark manual
+        - If blank -> auto (model generates)
+        """
+        try:
+            raw_slug = (request.POST.get("slug") or "").strip()
+            if raw_slug:
+                obj.slug_is_manual = True
+                obj.slug = raw_slug
+            else:
+                obj.slug_is_manual = False
+                obj.slug = ""
+        except Exception:
+            pass
+
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(ProductDigital)

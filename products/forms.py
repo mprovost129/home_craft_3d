@@ -56,72 +56,13 @@ def _validate_upload(file_obj, *, allowed_exts: set[str], max_mb: int) -> None:
 
 
 class MultiFileInput(forms.FileInput):
-    """
-    Multi-file input widget that renders with the 'multiple' attribute.
-    """
     allow_multiple_selected = True
 
     def __init__(self, attrs=None):
         if attrs is None:
             attrs = {}
-        attrs['multiple'] = True
+        attrs["multiple"] = True
         super().__init__(attrs)
-
-
-def _category_choices_for_form(qs: Iterable[Category]) -> List[Tuple[str, List[Tuple[int, str]]]]:
-    """
-    Build optgrouped <select> choices to reduce scrolling:
-      - Groups by parent category
-      - Shows children under each group
-      - If no parent/children, still lists under a sensible group
-    Returns a structure Django accepts for Field.choices:
-      [("Group label", [(value,label), ...]), ...]
-    """
-    # Materialize (we use it multiple times)
-    cats = list(qs)
-
-    by_parent: dict[int | None, list[Category]] = {}
-    for c in cats:
-        by_parent.setdefault(c.parent_id, []).append(c)
-
-    # Parents are those with parent_id=None
-    parents = by_parent.get(None, [])
-    # Sort parents by sort_order, name (qs should already be ordered, but keep stable)
-    parents = sorted(parents, key=lambda x: (getattr(x, "sort_order", 0), x.name.lower(), x.id))
-
-    groups: List[Tuple[str, List[Tuple[int, str]]]] = []
-
-    used_ids: set[int] = set()
-
-    # Build groups for each parent
-    for parent in parents:
-        children = by_parent.get(parent.id, [])
-        children = sorted(children, key=lambda x: (getattr(x, "sort_order", 0), x.name.lower(), x.id))
-
-        # Include the parent itself as a selectable option too (if your data allows products on parents)
-        # If you *never* allow selecting parents, remove this block.
-        group_items: List[Tuple[int, str]] = []
-        group_items.append((parent.id, f"{parent.name}"))
-
-        used_ids.add(parent.id)
-
-        for ch in children:
-            group_items.append((ch.id, f"— {ch.name}"))
-            used_ids.add(ch.id)
-
-        groups.append((parent.name, group_items))
-
-    # Any orphans (categories whose parent isn't active/returned in qs)
-    orphans = [c for c in cats if c.id not in used_ids]
-    if orphans:
-        orphans = sorted(orphans, key=lambda x: (getattr(x, "sort_order", 0), x.name.lower(), x.id))
-        groups.append(("Other", [(c.id, c.name) for c in orphans]))
-
-    # Fallback: never return empty (Django handles empty, but this avoids weird UI)
-    if not groups and cats:
-        groups = [("Categories", [(c.id, c.name) for c in cats])]
-
-    return groups
 
 
 class ProductForm(forms.ModelForm):
@@ -153,6 +94,7 @@ class ProductForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
         # Category dropdown should only show ROOT categories (parent is null)
@@ -160,12 +102,10 @@ class ProductForm(forms.ModelForm):
             Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
         )
 
-        # Subcategory dropdown should only show CHILD categories (but we’ll restrict by selected category during clean)
-        # Start empty; JS will load options. On edit/postback, we populate if possible.
+        # Subcategory dropdown: start empty; JS will populate. On edit/postback, we populate if possible.
         self.fields["subcategory"].queryset = Category.objects.none()
         self.fields["subcategory"].required = False
 
-        # If editing an existing product and it already has a category, preload valid subcategories
         initial_cat = None
         try:
             if self.instance and self.instance.pk and self.instance.category_id:
@@ -173,7 +113,6 @@ class ProductForm(forms.ModelForm):
         except Exception:
             initial_cat = None
 
-        # If this is a POST and category was submitted, prefer that
         posted_cat_id = (self.data.get("category") or "").strip()
         if posted_cat_id:
             try:
@@ -194,30 +133,50 @@ class ProductForm(forms.ModelForm):
         subcategory: Category | None = cleaned.get("subcategory")
 
         if category:
-            # category must be root
             if category.parent_id is not None:
                 raise ValidationError({"category": "Category must be a top-level category (not a subcategory)."})
 
-            # category.type must match product.kind
             if kind == Product.Kind.MODEL and category.type != Category.CategoryType.MODEL:
                 raise ValidationError({"category": "Model products must use a 3D Models category."})
             if kind == Product.Kind.FILE and category.type != Category.CategoryType.FILE:
                 raise ValidationError({"category": "File products must use a 3D Files category."})
 
         if subcategory:
-            # subcategory must be a child
             if subcategory.parent_id is None:
                 raise ValidationError({"subcategory": "Subcategory must be a child of a Category."})
 
-            # must match selected category
             if category and subcategory.parent_id != category.id:
                 raise ValidationError({"subcategory": "Subcategory must belong to the selected Category."})
 
-            # must match type
             if category and subcategory.type != category.type:
                 raise ValidationError({"subcategory": "Subcategory type must match the Category type."})
 
         return cleaned
+
+    def save(self, commit=True):
+        """
+        Slug policy from the form:
+        - If user typed a slug -> mark as manual.
+        - If slug is blank -> leave slug_is_manual=False and allow model auto-generation.
+        """
+        obj: Product = super().save(commit=False)
+
+        raw_slug = (self.cleaned_data.get("slug") or "").strip()
+        if raw_slug:
+            # user explicitly set slug
+            obj.slug_is_manual = True
+            obj.slug = raw_slug
+        else:
+            # auto slug (model will generate/update based on title)
+            obj.slug_is_manual = False
+            obj.slug = ""
+
+        if commit:
+            obj.full_clean()
+            obj.save()
+            self.save_m2m()
+
+        return obj
 
 
 class ProductImageUploadForm(forms.ModelForm):
@@ -227,7 +186,6 @@ class ProductImageUploadForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Bootstrap-friendly defaults
         self.fields["image"].widget.attrs.setdefault("class", "form-control")
         self.fields["image"].widget.attrs.setdefault("accept", "image/*")
         self.fields["alt_text"].widget.attrs.setdefault("class", "form-control")
@@ -241,13 +199,6 @@ class ProductImageUploadForm(forms.ModelForm):
 
 
 class ProductImageBulkUploadForm(forms.Form):
-    """
-    Multi-image upload in one submit.
-
-    IMPORTANT:
-    - Do NOT use `multiple=True` in widget attrs or widget init.
-    - Use a widget with allow_multiple_selected=True.
-    """
     images = forms.FileField(
         widget=MultiFileInput(
             attrs={
@@ -279,13 +230,14 @@ class DigitalAssetUploadForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         preferred = ["stl", "3mf", "obj", "zip"]
-        allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(t for t in ALLOWED_ASSET_EXTS if t not in preferred)
+        allowed = [t for t in preferred if t in ALLOWED_ASSET_EXTS] + sorted(
+            t for t in ALLOWED_ASSET_EXTS if t not in preferred
+        )
 
         if "file_type" in self.fields:
             self.fields["file_type"].choices = [(t, f".{t}") for t in allowed]
             self.fields["file_type"].required = True
 
-        # Bootstrap defaults
         if "file" in self.fields:
             self.fields["file"].widget.attrs.setdefault("class", "form-control")
         if "file_type" in self.fields:
@@ -320,8 +272,6 @@ class DigitalAssetUploadForm(forms.ModelForm):
 
 
 class ProductPhysicalForm(forms.ModelForm):
-    """Form for editing ProductPhysical specifications."""
-    
     class Meta:
         model = ProductPhysical
         fields = [
@@ -349,8 +299,6 @@ class ProductPhysicalForm(forms.ModelForm):
 
 
 class ProductDigitalForm(forms.ModelForm):
-    """Form for editing ProductDigital specifications."""
-    
     class Meta:
         model = ProductDigital
         fields = [

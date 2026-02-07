@@ -1,5 +1,4 @@
 # orders/services.py
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +9,7 @@ from django.db import transaction
 
 from core.config import get_site_config
 from payments.utils import money_to_cents
+from payments.services_fee_waiver import get_effective_marketplace_sales_percent_for_seller
 from products.models import Product
 
 from .models import LineItem, Order, OrderEvent
@@ -68,10 +68,10 @@ def create_order_from_cart(
     Create an Order + OrderItems from a session Cart (or an iterable of cart lines).
 
     Rules:
-      - Snapshot SiteConfig percent onto Order at creation time
-      - Snapshot seller onto each OrderItem at purchase time
+      - Snapshot SiteConfig percent onto Order at creation time (platform default).
       - Compute per-line ledger fields:
           marketplace_fee_cents, seller_net_cents
+        using the seller's effective percent (0% during waiver window).
 
     Platform fee:
       - NOT USED. Forced to 0 (legacy field remains).
@@ -85,14 +85,14 @@ def create_order_from_cart(
         raise ValueError("Guest checkout requires a valid email address.")
 
     cfg = get_site_config()
-    sales_pct = Decimal(getattr(cfg, "marketplace_sales_percent", Decimal("0.00")) or Decimal("0.00"))
+    default_sales_pct = Decimal(getattr(cfg, "marketplace_sales_percent", Decimal("0.00")) or Decimal("0.00"))
 
     order = Order.objects.create(
         buyer=buyer_obj,
         guest_email=guest_email if buyer_obj is None else "",
         currency=(currency or "usd").lower(),
         status=Order.Status.PENDING,
-        marketplace_sales_percent_snapshot=sales_pct,
+        marketplace_sales_percent_snapshot=default_sales_pct,  # platform default at the time
         platform_fee_cents_snapshot=0,  # legacy: no platform fee
     )
 
@@ -107,7 +107,6 @@ def create_order_from_cart(
         order.shipping_country = shipping.country
 
     items = _iter_cart_items(items_iterable)
-    sales_rate = _pct_to_rate(order.marketplace_sales_percent_snapshot)
 
     line_items: list[LineItem] = []
     for item in items:
@@ -134,10 +133,14 @@ def create_order_from_cart(
             qty = 1
 
         gross_cents = max(0, int(qty) * int(unit_price_cents))
-        marketplace_fee_cents = _compute_marketplace_fee_cents(gross_cents=gross_cents, sales_rate=sales_rate)
+
+        # ✅ Per-seller effective percent (fee waiver => 0%)
+        effective_pct = get_effective_marketplace_sales_percent_for_seller(seller_user=seller)
+        effective_rate = _pct_to_rate(effective_pct)
+
+        marketplace_fee_cents = _compute_marketplace_fee_cents(gross_cents=gross_cents, sales_rate=effective_rate)
         seller_net_cents = max(0, gross_cents - marketplace_fee_cents)
 
-        # Extract buyer notes if present
         buyer_notes = str(getattr(item, "buyer_notes", "") or "")
 
         line_items.append(

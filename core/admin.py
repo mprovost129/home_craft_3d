@@ -1,8 +1,12 @@
+# core/admin.py
 from __future__ import annotations
 
 from datetime import timedelta
 
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.contrib import messages
+from django.core.mail import send_mass_mail
 from django.db.models import Sum, Count, Q
 from django.http import HttpRequest
 from django.template.response import TemplateResponse
@@ -15,17 +19,11 @@ from products.models import ProductEngagementEvent
 from .models_advert import AdvertisementBanner
 from .models_email import SiteEmailTemplate
 
-# SiteEmailTemplate admin
-from django.contrib import messages
-from django.core.mail import send_mass_mail
-from django.contrib.auth import get_user_model
-
-
 
 # Extend the default admin site with analytics dashboard
 class AnalyticsAdminSite(admin.AdminSite):
     """Default admin site with analytics dashboard."""
-    
+
     def index(self, request: HttpRequest, extra_context=None) -> TemplateResponse:
         """Render dashboard with key metrics."""
         extra_context = extra_context or {}
@@ -85,7 +83,6 @@ class AnalyticsAdminSite(admin.AdminSite):
             .order_by("-events")[:10]
         )
 
-        # Convert revenue to formatted display
         extra_context.update({
             "total_orders": total_orders,
             "total_revenue": f"${total_revenue:,.2f}",
@@ -100,8 +97,8 @@ class AnalyticsAdminSite(admin.AdminSite):
         return super().index(request, extra_context)
 
 
-# Extend the default admin site with analytics
 admin.site.__class__ = AnalyticsAdminSite
+
 
 class SiteEmailTemplateInline(admin.TabularInline):
     model = SiteEmailTemplate
@@ -110,12 +107,16 @@ class SiteEmailTemplateInline(admin.TabularInline):
     readonly_fields = ("updated_at",)
     show_change_link = True
 
+
 @admin.register(SiteConfig)
 class SiteConfigAdmin(admin.ModelAdmin):
     inlines = [SiteEmailTemplateInline]
     list_display = (
         "id",
+        "promo_banner_enabled",
         "marketplace_sales_percent",
+        "seller_fee_waiver_enabled",
+        "seller_fee_waiver_days",
         "platform_fee_cents",
         "default_currency",
         "theme_default_mode",
@@ -125,10 +126,12 @@ class SiteConfigAdmin(admin.ModelAdmin):
 
     class Media:
         css = {
-            'all': ('admin/css/custom.css',)
+            "all": ("admin/css/custom.css",)
         }
 
     fieldsets = (
+        ("Promo Banner", {"fields": ("promo_banner_enabled", "promo_banner_text")}),
+        ("Seller Promo (Fee Waiver)", {"fields": ("seller_fee_waiver_enabled", "seller_fee_waiver_days")}),
         ("Commerce", {"fields": ("marketplace_sales_percent", "platform_fee_cents", "default_currency")}),
         ("Shipping", {"fields": ("allowed_shipping_countries",)}),
         (
@@ -180,6 +183,7 @@ class SiteConfigAdmin(admin.ModelAdmin):
                 )
             },
         ),
+        ("Analytics", {"fields": ("plausible_shared_url",)}),
     )
 
     def has_add_permission(self, request: HttpRequest) -> bool:
@@ -192,20 +196,21 @@ class SiteConfigAdmin(admin.ModelAdmin):
             url = None
             if obj is not None:
                 url = reverse("admin:core_siteconfig_change", args=[obj.pk])
-            # Render a minimal template that performs the redirect via meta-refresh
             return TemplateResponse(
                 request,
                 "admin/redirect.html",
                 {"redirect_url": url},
             )
         return super().changelist_view(request, extra_context=extra_context)
-    
+
+
 @admin.register(AdvertisementBanner)
 class AdvertisementBannerAdmin(admin.ModelAdmin):
     list_display = ("title", "is_active", "start_date", "end_date", "created_at")
     list_filter = ("is_active", "start_date", "end_date")
     search_fields = ("title",)
-    
+
+
 @admin.register(SiteEmailTemplate)
 class SiteEmailTemplateAdmin(admin.ModelAdmin):
     list_display = ("name", "subject", "is_active", "updated_at")
@@ -217,7 +222,6 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
     from django.template import Context, Template
 
     def render_template(self, raw, context_dict):
-        # Use Django's template engine for rendering
         return Template(raw).render(Context(context_dict))
 
     def send_email_to_all_users(self, request, queryset):
@@ -225,20 +229,15 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
         users = User.objects.filter(is_active=True, email__isnull=False).exclude(email="")
         site_name = request.get_host()
         for template in queryset:
-            messages_sent = 0
             datatuple = []
             for user in users:
-                context = {
-                    "user": user.get_full_name() or user.username,
-                    "site_name": site_name,
-                }
+                context = {"user": user.get_full_name() or user.username, "site_name": site_name}
                 subject = self.render_template(template.subject, context)
                 body = self.render_template(template.body, context)
                 datatuple.append((subject, body, None, [user.email]))
             if datatuple:
                 send_mass_mail(datatuple, fail_silently=False)
-                messages_sent = len(datatuple)
-            self.message_user(request, f"Sent '{template.name}' to {messages_sent} users.", messages.SUCCESS)
+            self.message_user(request, f"Sent '{template.name}' to {len(datatuple)} users.", messages.SUCCESS)
     send_email_to_all_users.short_description = "Send selected template to all users"
 
     def send_email_to_all_staff(self, request, queryset):
@@ -246,18 +245,13 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
         users = User.objects.filter(is_staff=True, is_active=True, email__isnull=False).exclude(email="")
         site_name = request.get_host()
         for template in queryset:
-            messages_sent = 0
             datatuple = []
             for user in users:
-                context = {
-                    "user": user.get_full_name() or user.username,
-                    "site_name": site_name,
-                }
+                context = {"user": user.get_full_name() or user.username, "site_name": site_name}
                 subject = self.render_template(template.subject, context)
                 body = self.render_template(template.body, context)
                 datatuple.append((subject, body, None, [user.email]))
             if datatuple:
                 send_mass_mail(datatuple, fail_silently=False)
-                messages_sent = len(datatuple)
-            self.message_user(request, f"Sent '{template.name}' to {messages_sent} staff members.", messages.SUCCESS)
+            self.message_user(request, f"Sent '{template.name}' to {len(datatuple)} staff members.", messages.SUCCESS)
     send_email_to_all_staff.short_description = "Send selected template to all staff"

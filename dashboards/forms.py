@@ -21,10 +21,7 @@ class SiteConfigForm(forms.ModelForm):
         required=False,
         max_length=120,
         widget=forms.TextInput(
-            attrs={
-                "class": "form-control",
-                "placeholder": "Welcome to Home Craft 3D",
-            }
+            attrs={"class": "form-control", "placeholder": "Welcome to Home Craft 3D"}
         ),
         help_text="Shown as the big headline on the home page.",
     )
@@ -32,20 +29,22 @@ class SiteConfigForm(forms.ModelForm):
     home_hero_subtitle = forms.CharField(
         required=False,
         widget=forms.Textarea(
-            attrs={
-                "class": "form-control",
-                "rows": 3,
-                "placeholder": "Describe what buyers can do on your marketplace…",
-            }
+            attrs={"class": "form-control", "rows": 3, "placeholder": "Describe what buyers can do on your marketplace…"}
         ),
         help_text="Shown under the hero title on the home page.",
     )
-    
-    
 
     class Meta:
         model = SiteConfig
         fields = [
+            # Promo banner
+            "promo_banner_enabled",
+            "promo_banner_text",
+
+            # Seller waiver promo
+            "seller_fee_waiver_enabled",
+            "seller_fee_waiver_days",
+
             # Marketplace
             "marketplace_sales_percent",
             "platform_fee_cents",
@@ -84,6 +83,12 @@ class SiteConfigForm(forms.ModelForm):
         ]
 
         widgets = {
+            "promo_banner_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "promo_banner_text": forms.TextInput(attrs={"class": "form-control", "placeholder": "Example: Sellers pay 0% fees for 30 days!"}),
+
+            "seller_fee_waiver_enabled": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "seller_fee_waiver_days": forms.NumberInput(attrs={"class": "form-control", "min": 0, "max": 365}),
+
             "marketplace_sales_percent": forms.NumberInput(attrs={"class": "form-control"}),
             "platform_fee_cents": forms.NumberInput(attrs={"class": "form-control"}),
             "default_currency": forms.TextInput(attrs={"class": "form-control"}),
@@ -113,6 +118,8 @@ class SiteConfigForm(forms.ModelForm):
             "youtube_url": forms.URLInput(attrs={"class": "form-control"}),
             "x_url": forms.URLInput(attrs={"class": "form-control"}),
             "linkedin_url": forms.URLInput(attrs={"class": "form-control"}),
+
+            "plausible_shared_url": forms.URLInput(attrs={"class": "form-control"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -120,11 +127,9 @@ class SiteConfigForm(forms.ModelForm):
 
         inst: SiteConfig | None = getattr(self, "instance", None)
         if inst and inst.pk:
-            # Render allowed_shipping_countries list as CSV
             countries = getattr(inst, "allowed_shipping_countries", None) or ["US"]
             self.fields["allowed_shipping_countries_csv"].initial = ",".join(countries)
 
-            # Home hero fields come from DB fields on SiteConfig
             self.fields["home_hero_title"].initial = getattr(inst, "home_hero_title", "") or ""
             self.fields["home_hero_subtitle"].initial = getattr(inst, "home_hero_subtitle", "") or ""
 
@@ -138,12 +143,15 @@ class SiteConfigForm(forms.ModelForm):
     def save(self, commit: bool = True) -> SiteConfig:
         obj: SiteConfig = super().save(commit=False)
 
-        # Persist countries list
         obj.allowed_shipping_countries = self.cleaned_data.get("allowed_shipping_countries_csv") or ["US"]
 
-        # Persist home hero fields onto SiteConfig
         obj.home_hero_title = (self.cleaned_data.get("home_hero_title") or "").strip()
         obj.home_hero_subtitle = (self.cleaned_data.get("home_hero_subtitle") or "").strip()
+
+        # Banner housekeeping
+        obj.promo_banner_text = (obj.promo_banner_text or "").strip()
+        if not obj.promo_banner_text:
+            obj.promo_banner_enabled = False
 
         if commit:
             obj.save()

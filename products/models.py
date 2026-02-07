@@ -110,6 +110,13 @@ class Product(models.Model):
 
     title = models.CharField(max_length=160)
     slug = models.SlugField(max_length=180)
+
+    # If True, user has explicitly chosen slug and we never auto-change it.
+    slug_is_manual = models.BooleanField(
+        default=False,
+        help_text="If checked, slug will not auto-update when the title changes.",
+    )
+
     short_description = models.CharField(max_length=280, blank=True)
     description = models.TextField(blank=True)
 
@@ -173,78 +180,77 @@ class Product(models.Model):
         ]
         ordering = ["-created_at"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Track what the object looked like when loaded from DB.
-        self._original_title = getattr(self, "title", None)
-        self._original_slug = getattr(self, "slug", None)
-
     def __str__(self) -> str:
         return f"{self.title} ({self.get_kind_display()})"  # type: ignore[attr-defined]
 
-    @staticmethod
-    def _unique_slug_for_seller(*, seller_id: int, base: str, max_len: int = 180, exclude_pk: int | None = None) -> str:
+    @classmethod
+    def generate_unique_slug(
+        cls,
+        *,
+        seller_id: int,
+        title: str,
+        max_length: int = 180,
+        exclude_pk: int | None = None,
+    ) -> str:
         """
-        Generate a unique slug for this seller:
-          base, base-2, base-3, ...
-        Respects max_len and avoids collisions.
+        Generate a short, stable, unique slug per seller based on title.
+        Uses numeric suffixes: cup, cup-2, cup-3, ...
+
+        exclude_pk: when editing an existing object (so it doesn't collide with itself).
         """
-        base = (base or "").strip("-")
-        if not base:
-            base = "item"
+        base = slugify(title) or "item"
+        base = base[:max_length].strip("-") or "item"
 
-        base = base[:max_len].strip("-")
-        candidate = base
-
-        qs = Product.objects.filter(seller_id=seller_id)
+        qs = cls.objects.filter(seller_id=seller_id)
         if exclude_pk is not None:
             qs = qs.exclude(pk=exclude_pk)
 
-        if not qs.filter(slug=candidate).exists():
-            return candidate
+        if not qs.filter(slug=base).exists():
+            return base
+
+        # Reserve room for "-NNNN"
+        # worst-case suffix length: "-9999" => 5 chars
+        room = max(1, max_length - 6)
+        base_trim = base[:room].strip("-") or "item"
 
         counter = 2
         while True:
-            suffix = f"-{counter}"
-            cut = max_len - len(suffix)
-            candidate = f"{base[:cut].strip('-')}{suffix}"
+            candidate = f"{base_trim}-{counter}"
+            candidate = candidate[:max_length].strip("-") or f"item-{counter}"
             if not qs.filter(slug=candidate).exists():
                 return candidate
             counter += 1
 
     def save(self, *args, **kwargs):
         """
-        Slug rules:
-        - If slug is blank -> auto-generate from current title.
-        - If editing and title changed AND slug hasn't been manually changed (still equals original slug),
-          then regenerate slug from the *new* title.
-          This makes: "cup" (slug cup) -> rename title to "rock" => slug becomes "rock".
-        - If user manually edited slug, we respect it and do not auto-change on title edits.
+        Slug policy:
+        - If slug_is_manual=True: never auto-change slug.
+        - If slug_is_manual=False:
+            - if new object OR title changed OR slug blank -> regenerate from title (unique per seller).
         """
-        current_slug = (self.slug or "").strip()
-        title_changed = (self._original_title is not None and self.title != self._original_title)
-        slug_unchanged = (self._original_slug is not None and current_slug == (self._original_slug or "").strip())
+        seller_id = getattr(self, "seller_id", None)
+        title_now = (self.title or "").strip()
 
-        should_regen = False
-        if not current_slug:
-            should_regen = True
-        elif self.pk and title_changed and slug_unchanged:
-            should_regen = True
+        should_autogen = (not self.slug_is_manual)
 
-        if should_regen:
-            base = slugify(self.title)[:180]
-            self.slug = self._unique_slug_for_seller(
-                seller_id=self.seller_id,
-                base=base,
-                max_len=180,
+        title_changed = False
+        if self.pk and should_autogen:
+            try:
+                prev = Product.objects.filter(pk=self.pk).only("title").first()
+                if prev and (prev.title or "").strip() != title_now:
+                    title_changed = True
+            except Exception:
+                title_changed = False
+
+        if should_autogen and seller_id and (not self.slug or title_changed):
+            self.slug = Product.generate_unique_slug(
+                seller_id=int(seller_id),
+                title=title_now,
+                max_length=180,
                 exclude_pk=self.pk,
             )
 
         super().save(*args, **kwargs)
-
-        # Refresh originals after save so subsequent saves behave correctly.
-        self._original_title = self.title
-        self._original_slug = self.slug
 
     def clean(self):
         from catalog.models import Category
@@ -254,6 +260,18 @@ class Product(models.Model):
                 raise ValidationError({"category": "Model products must use a 3D Models category."})
             if self.kind == Product.Kind.FILE and self.category.type != Category.CategoryType.FILE:
                 raise ValidationError({"category": "File products must use a 3D Files category."})
+
+        # Subcategory must be a child of category if provided
+        if self.subcategory_id:
+            try:
+                if self.subcategory.parent_id is None:
+                    raise ValidationError({"subcategory": "Subcategory must be a child of a Category."})
+                if self.category_id and self.subcategory.parent_id != self.category_id:
+                    raise ValidationError({"subcategory": "Subcategory must belong to the selected Category."})
+                if self.category_id and self.subcategory.type != self.category.type:
+                    raise ValidationError({"subcategory": "Subcategory type must match the Category type."})
+            except AttributeError:
+                pass
 
         if self.is_free:
             self.price = Decimal("0.00")
