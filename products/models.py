@@ -367,6 +367,57 @@ class Product(models.Model):
         return ", ".join(self.file_types())
 
 
+class FilamentRecommendation(models.Model):
+    """
+    Admin-managed recommended filament links shown on the product detail page.
+
+    Intentionally simple:
+    - material (PLA/PETG/etc.)
+    - optional brand label
+    - optional notes
+    - external/affiliate URL
+    """
+
+    MATERIAL_CHOICES = [
+        ("pla", "PLA / PLA+"),
+        ("petg", "PETG"),
+        ("abs", "ABS"),
+        ("asa", "ASA"),
+        ("tpu", "TPU"),
+        ("nylon", "Nylon"),
+    ]
+
+    product = models.ForeignKey(
+        "products.Product",
+        on_delete=models.CASCADE,
+        related_name="filament_recommendations",
+    )
+    material = models.CharField(max_length=20, choices=MATERIAL_CHOICES)
+    brand = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    url = models.URLField(help_text="External or affiliate link")
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["sort_order", "material", "id"]
+        indexes = [
+            models.Index(fields=["product", "is_active", "sort_order"]),
+            models.Index(fields=["material", "is_active"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "material", "url"],
+                name="uniq_filament_reco_product_material_url",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product} – {self.get_material_display()}"
+
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="images")
     image = models.ImageField(upload_to="product_images/")

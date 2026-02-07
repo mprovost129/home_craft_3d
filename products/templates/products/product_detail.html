@@ -1,3 +1,4 @@
+{# templates/products/product_detail.html #}
 {% extends "base.html" %}
 {% block title %}{{ product.title }} · Home Craft 3D{% endblock %}
 {% block meta_title %}{{ product.title }} · Home Craft 3D{% endblock %}
@@ -243,6 +244,42 @@
             {% else %}
               <div class="text-secondary small">No files uploaded yet.</div>
             {% endif %}
+          {% endif %}
+
+          {# ----------------------------- #}
+          {# Recommended Filament (NEW)    #}
+          {# Only show for digital FILEs   #}
+          {# ----------------------------- #}
+          {% if product.kind == "FILE" and filament_recommendations %}
+            <hr>
+            <div class="fw-semibold mb-2">Recommended Filament</div>
+            <div class="small text-secondary mb-2">
+              Optional links to help you print this file successfully.
+            </div>
+
+            <div class="list-group list-group-flush">
+              {% for f in filament_recommendations %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold">
+                        {{ f.get_material_display }}
+                        {% if f.brand %}<span class="text-muted"> · {{ f.brand }}</span>{% endif %}
+                      </div>
+                      {% if f.notes %}
+                        <div class="text-secondary small" style="white-space: pre-wrap;">{{ f.notes }}</div>
+                      {% endif %}
+                    </div>
+                    <a href="{{ f.url }}"
+                       class="btn btn-sm btn-outline-dark"
+                       target="_blank"
+                       rel="noopener noreferrer nofollow">
+                      Buy filament ↗
+                    </a>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
           {% endif %}
 
           {% if product.kind == "MODEL" and product.physical %}

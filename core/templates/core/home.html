@@ -187,7 +187,34 @@
       </div>
     </div>
   {% endif %}
+
   <br>
+
+  {% if product.filament_recommendations.all %}
+  <section class="mt-4">
+    <h4>Recommended Filament</h4>
+  
+    <ul class="list-unstyled">
+      {% for rec in product.filament_recommendations.all %}
+        {% if rec.is_active %}
+          <li class="mb-2">
+            <strong>{{ rec.get_material_display }}</strong>
+            {% if rec.brand %} — {{ rec.brand }}{% endif %}
+            {% if rec.notes %}<div class="text-muted small">{{ rec.notes }}</div>{% endif %}
+            <div>
+              <a href="{{ rec.url }}" target="_blank" rel="noopener noreferrer">
+                View filament ↗
+              </a>
+            </div>
+          </li>
+        {% endif %}
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <br>
+
   <div class="bg-dark text-white rounded-3 p-5 mb-5 text-center">
     <h2 class="mb-3">Ready to start creating or selling?</h2>
     <p class="lead text-light mb-4">Join our community of creators. Upload your designs, connect with customers, and grow your business.</p>

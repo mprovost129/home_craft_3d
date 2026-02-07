@@ -1,3 +1,4 @@
+# products/views.py
 from __future__ import annotations
 
 from datetime import timedelta
@@ -11,10 +12,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from orders.models import Order,  OrderItem
+from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
-from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS
+from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS, FilamentRecommendation
 from reviews.models import SellerReview
 
 
@@ -39,7 +40,7 @@ def _base_qs():
     return (
         Product.objects.filter(is_active=True)
         .select_related("category", "category__parent", "seller", "digital")
-        .prefetch_related("images", "digital_assets")
+        .prefetch_related("images", "digital_assets", "filament_recommendations")
     )
 
 
@@ -434,6 +435,13 @@ def _render_product_detail(
         p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
 
     # -------------------------
+    # Filament links (NEW)
+    # -------------------------
+    filament_recommendations = list(
+        FilamentRecommendation.objects.filter(product=product, is_active=True).order_by("sort_order", "material", "id")
+    )
+
+    # -------------------------
     # Q&A Tab (A)
     # -------------------------
     from qa.models import ProductQuestionThread
@@ -464,6 +472,8 @@ def _render_product_detail(
             "is_preview": is_preview,
             "related_same_seller": related_same_seller,
             "related_same_category": related_same_category,
+            # Filament
+            "filament_recommendations": filament_recommendations,
             # Q&A
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
@@ -476,7 +486,7 @@ def _render_product_detail(
 def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     base_qs = (
         Product.objects.select_related("category", "category__parent", "seller", "physical", "digital")
-        .prefetch_related("images", "digital_assets")
+        .prefetch_related("images", "digital_assets", "filament_recommendations")
     )
 
     if request.user.is_authenticated and (
@@ -493,24 +503,24 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
     """Public seller profile/shop page."""
     from django.contrib.auth import get_user_model
     from reviews.models import SellerReview
-    
+
     User = get_user_model()
     seller = get_object_or_404(User, pk=seller_id)
-    
+
     # Get seller's products
     products = _base_qs().filter(seller=seller)
     products = _annotate_rating(products).order_by("-created_at")
     products_list = list(products)
-    
+
     for p in products_list:
         p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
-    
+
     # Get seller's reviews
     seller_reviews = SellerReview.objects.filter(seller=seller).select_related("buyer").order_by("-created_at")
     seller_review_summary = seller_reviews.aggregate(avg=Avg("rating"), count=Count("id"))
     seller_avg_rating = seller_review_summary.get("avg") or 0
     seller_review_count = seller_review_summary.get("count") or 0
-    
+
     # Get seller profile (for avatar, shop name, bio, socials)
     profile = getattr(seller, "profile", None)
 
@@ -526,7 +536,8 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
             "profile": profile,
         },
     )
-    
+
+
 # --- Purchase Limit Helper ---
 def get_remaining_product_limit(product: Product, user) -> int | None:
     """
@@ -550,6 +561,7 @@ def get_remaining_product_limit(product: Product, user) -> int | None:
     # Optionally, add in-cart quantity (handled in cart logic)
     remaining = max(0, limit - already)
     return remaining
+
 
 def top_sellers(request: HttpRequest) -> HttpResponse:
     User = get_user_model()

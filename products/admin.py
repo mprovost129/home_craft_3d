@@ -4,7 +4,6 @@ from __future__ import annotations
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path
-from django.utils.html import format_html
 
 from catalog.models import Category
 
@@ -15,6 +14,7 @@ from .models import (
     ProductPhysical,
     DigitalAsset,
     ProductEngagementEvent,
+    FilamentRecommendation,
 )
 
 
@@ -26,6 +26,14 @@ class ProductImageInline(admin.TabularInline):
 class DigitalAssetInline(admin.TabularInline):
     model = DigitalAsset
     extra = 0
+
+
+class FilamentRecommendationInline(admin.TabularInline):
+    model = FilamentRecommendation
+    extra = 0
+    fields = ("sort_order", "is_active", "material", "brand", "url", "notes")
+    ordering = ("sort_order", "material", "id")
+    show_change_link = True
 
 
 @admin.register(Product)
@@ -47,7 +55,7 @@ class ProductAdmin(admin.ModelAdmin):
     )
     list_filter = ("kind", "is_active", "is_featured", "is_trending", "category", "slug_is_manual")
     search_fields = ("title", "slug", "seller__username", "short_description", "description")
-    inlines = [ProductImageInline, DigitalAssetInline]
+    inlines = [ProductImageInline, DigitalAssetInline, FilamentRecommendationInline]
 
     # IMPORTANT: remove prepopulated_fields so it doesn't fight our model policy
     prepopulated_fields = {}
@@ -122,11 +130,7 @@ class ProductAdmin(admin.ModelAdmin):
                 except Exception:
                     pass
             else:
-                # Add view: if admin is re-rendering due to validation errors,
-                # Django will keep POSTed values; JS will also re-populate.
-                # We keep queryset none here intentionally.
-
-                # Optional: allow filtering if the admin is opened with ?category=<id>
+                # Add view: keep queryset none here intentionally.
                 raw = (request.GET.get("category") or "").strip()
                 try:
                     cat_id = int(raw)
@@ -190,3 +194,11 @@ class ProductEngagementEventAdmin(admin.ModelAdmin):
     list_filter = ("event_type",)
     search_fields = ("product__title", "product__seller__username")
     date_hierarchy = "created_at"
+
+
+@admin.register(FilamentRecommendation)
+class FilamentRecommendationAdmin(admin.ModelAdmin):
+    list_display = ("product", "material", "brand", "is_active", "sort_order", "created_at")
+    list_filter = ("material", "is_active")
+    search_fields = ("product__title", "brand", "url")
+    ordering = ("product", "sort_order", "material", "id")
