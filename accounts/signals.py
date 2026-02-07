@@ -76,6 +76,21 @@ def create_or_update_profile(sender, instance, created, **kwargs):
             email=getattr(instance, "email", "") or "",
         )
         _send_welcome_email(instance)
+
+        # Send admin notification email
+        admin_email = getattr(settings, "ADMIN_NOTIFICATION_EMAIL", getattr(settings, "DEFAULT_FROM_EMAIL", None))
+        if admin_email:
+            subject = "New User Signup - Home Craft 3D"
+            body = f"A new user has signed up: {getattr(instance, 'username', '')} ({getattr(instance, 'email', '')})"
+            try:
+                send_mail(
+                    subject,
+                    body,
+                    getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                    [admin_email],
+                )
+            except Exception:
+                pass
         return
 
     Profile.objects.get_or_create(user=instance)
