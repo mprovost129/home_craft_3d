@@ -132,12 +132,13 @@ class SiteConfigAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Promo Banner", {"fields": ("promo_banner_enabled", "promo_banner_text")}),
         ("Home Page Banner", {"fields": ("home_banner_enabled", "home_banner_text")}),
+        ("Home Page Hero", {"fields": ("home_hero_title", "home_hero_subtitle")}),
         ("Seller Promo (Fee Waiver)", {"fields": ("seller_fee_waiver_enabled", "seller_fee_waiver_days")}),
         ("Affiliate / Amazon Associates", {"fields": (
-        "affiliate_links_enabled",
-        "affiliate_links_title",
-        "affiliate_disclosure_text",
-        "affiliate_links",
+            "affiliate_links_enabled",
+            "affiliate_links_title",
+            "affiliate_disclosure_text",
+            "affiliate_links",
         )}),
         ("Commerce", {"fields": ("marketplace_sales_percent", "platform_fee_cents", "default_currency")}),
         ("Shipping", {"fields": ("allowed_shipping_countries",)}),
@@ -166,12 +167,10 @@ class SiteConfigAdmin(admin.ModelAdmin):
             "facebook_url",
             "instagram_url",
             "tiktok_url",
-                    "youtube_url",
-                    "x_url",
-                    "linkedin_url",
-                )
-            },
-        ),
+            "youtube_url",
+            "x_url",
+            "linkedin_url",
+        )}),
         ("Analytics", {"fields": ("plausible_shared_url",)}),
     )
 
