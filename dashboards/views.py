@@ -17,8 +17,10 @@ from django.urls import reverse
 from django.utils import timezone
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 
-from core.config import get_site_config
+from core.config import get_site_config, invalidate_site_config_cache
+from core.models import SiteConfig
 from .forms import SiteConfigForm, ProductFreeUnlockForm
 from .plausible import get_summary as plausible_get_summary
 from .plausible import get_top_pages as plausible_get_top_pages
@@ -31,6 +33,9 @@ from payments.services import get_seller_balance_cents
 
 
 DASH_RECENT_DAYS = 30
+
+# Keep in sync with core.views
+HOME_ANON_CACHE_KEY = "home_html_anon_v2"
 
 
 def _cents_to_dollars(cents: int) -> Decimal:
@@ -58,14 +63,11 @@ def _build_plausible_embed_url(shared_url: str, *, theme: str = "light") -> str:
     try:
         parsed, qs = _parse_url_and_query(shared_url)
         qs["embed"] = "true"
-        # theme is optional; Plausible supports light/dark
         if theme:
             qs["theme"] = theme
-
         new_query = urlencode(qs, doseq=True)
         return urlunparse(parsed._replace(query=new_query))
     except Exception:
-        # If anything odd happens, just don't embed.
         return ""
 
 
@@ -112,7 +114,6 @@ def consumer_dashboard(request):
 
 @login_required
 def seller_dashboard(request):
-
     user = request.user
 
     if not is_seller_user(user):
@@ -138,10 +139,8 @@ def seller_dashboard(request):
     listings_total = Product.objects.filter(seller=user, is_active=True).count()
     listings_inactive = Product.objects.filter(seller=user, is_active=False).count()
 
-    # Fetch all listings for this seller for checklist and bulk actions
     listings = Product.objects.filter(seller=user).prefetch_related("images", "digital_assets", "digital", "physical")
 
-    # Build completeness checklist for each listing
     def get_listing_checklist(product):
         return {
             "has_image": product.images.exists(),
@@ -150,13 +149,7 @@ def seller_dashboard(request):
             "is_active": product.is_active,
         }
 
-    listings_with_checklist = [
-        {
-            "product": p,
-            "checklist": get_listing_checklist(p),
-        }
-        for p in listings
-    ]
+    listings_with_checklist = [{"product": p, "checklist": get_listing_checklist(p)} for p in listings]
 
     line_total_expr = ExpressionWrapper(
         F("quantity") * F("unit_price_cents"),
@@ -185,13 +178,13 @@ def seller_dashboard(request):
         sold_count=Sum("quantity"),
     )
 
-    # ✅ When ledger includes SALE credits and PAYOUT debits, the ledger IS the source of truth.
     payout_available_cents = max(0, int(balance_cents))
 
     ledger_entries = SellerBalanceEntry.objects.filter(seller=user).order_by("-created_at")[:10]
 
     balance_dollars = _cents_to_dollars(balance_cents)
     payout_available_dollars = _cents_to_dollars(payout_available_cents)
+
     grant_form = None
     if request.method == "POST" and "grant_free_download" in request.POST:
         grant_form = ProductFreeUnlockForm(request.POST, seller=user)
@@ -214,6 +207,7 @@ def seller_dashboard(request):
             return redirect("dashboards:seller")
     else:
         grant_form = ProductFreeUnlockForm(seller=user)
+
     return render(
         request,
         "dashboards/seller_dashboard.html",
@@ -300,11 +294,7 @@ def admin_dashboard(request):
             }
         )
 
-    # ---- Plausible (shared dashboard link + API stats) ----
     plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
-
-    # Embed uses the SAME share URL + embed=true (+ theme)
-    # NOTE: iframe can still be blocked by adblock/privacy; "Open Plausible" should always work.
     plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
 
     plausible_period = (request.GET.get("period") or "30d").strip()
@@ -362,9 +352,8 @@ def admin_dashboard(request):
         plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
 
     plausible_api_enabled = plausible_is_configured()
-    plausible_summary = {}
-    plausible_top_pages = []
     plausible_summary_display = {}
+    plausible_top_pages = []
     plausible_api_error = ""
 
     if plausible_api_enabled:
@@ -372,6 +361,7 @@ def admin_dashboard(request):
             if api_period == "custom" and not (plausible_from and plausible_to):
                 plausible_api_error = "Select both From and To dates for a custom range."
                 plausible_top_pages_raw = []
+                plausible_summary = {}
             else:
                 plausible_summary = plausible_get_summary(
                     period=api_period,
@@ -489,23 +479,39 @@ def admin_settings(request):
         messages.info(request, "You don’t have access to admin settings.")
         return redirect("dashboards:consumer")
 
-    cfg = get_site_config()
+    # IMPORTANT:
+    # For editing, always use a fresh DB instance (not a cached object)
+    cfg = SiteConfig.objects.first()
+    if cfg is None:
+        cfg = SiteConfig.objects.create()
 
     if request.method == "POST":
         form = SiteConfigForm(request.POST, instance=cfg)
         if form.is_valid():
             form.save()
+
+            # Bust SiteConfig cache AND anonymous home HTML cache (banner/theme changes)
+            try:
+                invalidate_site_config_cache()
+            except Exception:
+                pass
+            try:
+                cache.delete(HOME_ANON_CACHE_KEY)
+            except Exception:
+                pass
+
             messages.success(request, "Settings updated.")
             return redirect("dashboards:admin_settings")
+        else:
+            messages.error(request, "Please fix the errors below and try again.")
     else:
         form = SiteConfigForm(instance=cfg)
 
     return render(
         request,
         "dashboards/admin_settings.html",
-        {"form": form},
+        {"form": form, "site_config_updated_at": getattr(cfg, "updated_at", None)},
     )
-
 
 
 @login_required

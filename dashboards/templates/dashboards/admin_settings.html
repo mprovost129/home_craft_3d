@@ -22,7 +22,12 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h1 class="h4 mb-1">Admin Settings</h1>
-      <div class="text-secondary small">Manage store-wide settings without the Django admin.</div>
+      <div class="text-secondary small">
+        Manage store-wide settings without the Django admin.
+        {% if site_config_updated_at %}
+          <span class="ms-2">Last saved: {{ site_config_updated_at|date:"M j, Y g:i A" }}</span>
+        {% endif %}
+      </div>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a class="btn btn-outline-secondary" href="{% url 'dashboards:admin' %}">
@@ -33,6 +38,17 @@
       </a>
     </div>
   </div>
+
+  {# ✅ SHOW DJANGO MESSAGES (this was missing) #}
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-2" role="alert">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
   <div class="card">
     <div class="card-body">
