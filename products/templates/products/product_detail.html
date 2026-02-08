@@ -15,9 +15,9 @@
 
 {% block og_image %}
   {% if product.images.first %}
-    {{ request.scheme }}://{{ request.get_host }}{{ product.images.first.image.url }}
+    https://{{ request.get_host }}{{ product.images.first.image.url }}
   {% else %}
-    {{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}
+    https://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}
   {% endif %}
 {% endblock %}
 
@@ -25,9 +25,9 @@
 {% block twitter_description %}{{ product.short_description|default:product.description|striptags|truncatechars:160 }}{% endblock %}
 {% block twitter_image %}
   {% if product.images.first %}
-    {{ request.scheme }}://{{ request.get_host }}{{ product.images.first.image.url }}
+    https://{{ request.get_host }}{{ product.images.first.image.url }}
   {% else %}
-    {{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}
+    https://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}
   {% endif %}
 {% endblock %}
 
