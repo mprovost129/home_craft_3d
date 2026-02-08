@@ -2,8 +2,33 @@
 {% extends "base.html" %}
 {% block title %}{{ product.title }} · Home Craft 3D{% endblock %}
 {% block meta_title %}{{ product.title }} · Home Craft 3D{% endblock %}
-{% block og_title %}{{ product.title }} · Home Craft 3D{% endblock %}
-{% block og_description %}{{ product.short_description }}{% endblock %}
+{% block og_type %}product{% endblock %}
+
+{% block og_title %}
+{{ product.title }} – Home Craft 3D
+{% endblock %}
+
+{% block og_description %}
+{{ product.short_description|default:product.description|truncatechars:160 }}
+{% endblock %}
+
+{% block og_image %}
+{% if product.images.first %}
+{{ request.scheme }}://{{ request.get_host }}{{ product.images.first.image.url }}
+{% else %}
+{% endif %}
+{% endblock %}
+
+{% block twitter_title %}{{ product.title }} – Home Craft 3D{% endblock %}
+{% block twitter_description %}{{ product.short_description|default:product.description|striptags|truncatechars:160 }}{% endblock %}
+{% block twitter_image %}
+  {% if product.images.first %}
+    {{ request.scheme }}://{{ request.get_host }}{{ product.images.first.image.url }}
+  {% else %}
+    {{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}
+  {% endif %}
+{% endblock %}
+
 {% block meta_description %}
   {% if product.short_description %}
     {{ product.short_description }}
