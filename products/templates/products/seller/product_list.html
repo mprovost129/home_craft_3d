@@ -89,6 +89,7 @@
             <th>Price</th>
             <th>Status</th>
             <th>Units Sold</th>
+            <th>Downloads</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -136,6 +137,9 @@
               </td>
               <td>
                 {{ p.units_sold|default:0 }}
+              </td>
+              <td>
+                {{ p.total_downloads }}
               </td>
               <td class="text-end">
                 <div class="btn-group">

@@ -161,31 +161,61 @@
             <div class="h5 mb-2">{{ product.display_price }}</div>
 
             {# Keep Add-to-cart behavior for now, but your new free-download buttons make checkout unnecessary for free FILEs #}
-            {% if can_buy %}
-              <form method="post" action="{% url 'cart:add' %}">
-                {% csrf_token %}
-                <input type="hidden" name="product_id" value="{{ product.pk }}">
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
-                {% if product.kind == "MODEL" %}
-                  <div class="d-flex gap-2">
-                    <input class="form-control" type="number" name="quantity" min="1" value="1" style="max-width:120px;">
-                    <button class="btn btn-dark flex-grow-1" type="submit">
+            {% if can_buy %}
+              {% if product.kind == "MODEL" %}
+                <div class="d-flex gap-2">
+                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.pk }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input class="form-control mb-2" type="number" name="quantity" min="1" value="1" style="max-width:120px; display:inline-block; width:auto;">
+                    <button class="btn btn-dark flex-grow-1" type="submit" style="width:100%">
                       <i class="bi bi-cart-plus me-1"></i>Add to cart
                     </button>
-                  </div>
-                {% else %}
-                  <input type="hidden" name="quantity" value="1">
-                  <button class="btn btn-dark w-100" type="submit">
-                    <i class="bi bi-cart-plus me-1"></i>Add to cart
-                  </button>
-                  <div class="text-secondary small mt-2">Digital items are limited to 1 per cart.</div>
-                {% endif %}
-              </form>
+                  </form>
+                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.pk }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input type="hidden" name="is_tip" value="1">
+                    <button class="btn btn-outline-primary flex-grow-1" type="submit" style="width:100%">
+                      <i class="bi bi-cash-coin me-1"></i>Tip the seller
+                    </button>
+                  </form>
+                </div>
+              {% else %}
+                <div class="d-flex gap-2">
+                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.pk }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button class="btn btn-dark flex-grow-1" type="submit" style="width:100%">
+                      <i class="bi bi-cart-plus me-1"></i>Add to cart
+                    </button>
+                  </form>
+                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ product.pk }}">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input type="hidden" name="is_tip" value="1">
+                    <button class="btn btn-outline-primary flex-grow-1" type="submit" style="width:100%">
+                      <i class="bi bi-cash-coin me-1"></i>Tip the seller
+                    </button>
+                  </form>
+                </div>
+                <div class="text-secondary small mt-2">Digital items are limited to 1 per cart.</div>
+              {% endif %}
             {% else %}
-              <button class="btn btn-dark w-100" type="button" disabled style="opacity:.6; cursor:not-allowed;">
-                <i class="bi bi-cart-plus me-1"></i>Add to cart
-              </button>
+              <div class="d-flex gap-2">
+                <button class="btn btn-dark flex-grow-1" type="button" disabled style="opacity:.6; cursor:not-allowed; width:100%">
+                  <i class="bi bi-cart-plus me-1"></i>Add to cart
+                </button>
+                <button class="btn btn-outline-primary flex-grow-1" type="button" disabled style="opacity:.6; cursor:not-allowed; width:100%">
+                  <i class="bi bi-cash-coin me-1"></i>Tip this seller
+                </button>
+              </div>
               {% if is_preview %}
                 <div class="small mt-2" style="color:#b45309;">This listing is inactive.</div>
               {% else %}

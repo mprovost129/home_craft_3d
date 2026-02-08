@@ -12,10 +12,12 @@ CART_SESSION_KEY = "hc3_cart_v1"
 
 
 @dataclass(frozen=True)
+
 class CartLine:
     product: Product
     quantity: int
     buyer_notes: str = ""
+    is_tip: bool = False
 
     @property
     def unit_price(self) -> Decimal:
@@ -55,7 +57,7 @@ class Cart:
         self.data = {}
         self._save()
 
-    def add(self, product: Product, quantity: int = 1, buyer_notes: str = "") -> None:
+    def add(self, product: Product, quantity: int = 1, buyer_notes: str = "", is_tip: bool = False) -> None:
         if not product.is_active:
             return
 
@@ -68,6 +70,7 @@ class Cart:
         quantity = max(int(quantity), 1)
         buyer_notes = (buyer_notes or "").strip()
 
+
         if pid in self.data:
             if product.kind == Product.Kind.FILE:
                 self.data[pid]["qty"] = 1
@@ -76,10 +79,15 @@ class Cart:
             # Update notes if provided (or keep existing)
             if buyer_notes:
                 self.data[pid]["notes"] = buyer_notes
+            # Update is_tip if provided
+            if is_tip:
+                self.data[pid]["is_tip"] = True
         else:
             self.data[pid] = {"qty": quantity}
             if buyer_notes:
                 self.data[pid]["notes"] = buyer_notes
+            if is_tip:
+                self.data[pid]["is_tip"] = True
 
         self._save()
 
@@ -157,14 +165,16 @@ class Cart:
                 continue
 
             qty = int(payload.get("qty", 1))
+
             notes = str(payload.get("notes", "") or "")
+            is_tip = bool(payload.get("is_tip", False))
 
             if product.kind == Product.Kind.FILE:
                 qty = 1
             else:
                 qty = max(1, qty)
 
-            result.append(CartLine(product=product, quantity=qty, buyer_notes=notes))
+            result.append(CartLine(product=product, quantity=qty, buyer_notes=notes, is_tip=is_tip))
 
         if dirty:
             self._save()

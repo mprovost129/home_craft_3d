@@ -178,6 +178,7 @@ def cart_add(request):
     product_id = (request.POST.get("product_id") or "").strip()
     qty_raw = (request.POST.get("quantity") or "1").strip()
     buyer_notes = (request.POST.get("buyer_notes") or "").strip()[:1000]  # Limit to 1000 chars
+    is_tip = bool(request.POST.get("is_tip"))
 
     try:
         quantity = int(qty_raw)
@@ -218,9 +219,12 @@ def cart_add(request):
         messages.warning(request, f"You can only add {allowed} more of this product due to the purchase limit.")
 
     if quantity > 0:
-        cart.add(product, quantity=quantity, buyer_notes=buyer_notes)
+        cart.add(product, quantity=quantity, buyer_notes=buyer_notes, is_tip=is_tip)
         _log_add_to_cart_throttled(request, product=product)
-        messages.success(request, "Added to cart.")
+        if is_tip:
+            messages.success(request, "Tip added to cart.")
+        else:
+            messages.success(request, "Added to cart.")
 
     next_url = (request.POST.get("next") or "").strip()
     if next_url:

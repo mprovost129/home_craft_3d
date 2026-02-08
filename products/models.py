@@ -1,9 +1,11 @@
 # products/models.py
 from __future__ import annotations
 
+
 from decimal import Decimal
 from pathlib import Path
 import zipfile
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -54,8 +56,8 @@ def _validate_uploaded_file(*, f, allowed_exts: set[str], max_mb: int, field_lab
 
     size = getattr(f, "size", None)
     if size is not None:
-        limit_bytes = int(max_mb) * 1024 * 1024
-        if int(size) > limit_bytes:
+        limit_bytes = max_mb * 1024 * 1024
+        if size > limit_bytes:
             raise ValidationError({field_label: f"File too large. Max {max_mb} MB."})
 
 
@@ -83,14 +85,18 @@ def _extract_zip_contents(file_obj, *, limit: int = 200) -> list[str]:
     except Exception:
         return []
     finally:
-        try:
+        from contextlib import suppress
+        with suppress(Exception):
             if fh is not file_obj:
                 fh.close()
-        except Exception:
-            pass
 
 
 class Product(models.Model):
+    if TYPE_CHECKING:
+        digital_assets: models.Manager["DigitalAsset"]
+        images: models.Manager["ProductImage"]
+        physical: "ProductPhysical"
+        digital: "ProductDigital"
     class Kind(models.TextChoices):
         MODEL = "MODEL", "3D Model (Physical)"
         FILE = "FILE", "3D File (Digital)"
@@ -99,6 +105,11 @@ class Product(models.Model):
         BEGINNER = "beginner", "Beginner"
         INTERMEDIATE = "intermediate", "Intermediate"
         ADVANCED = "advanced", "Advanced"
+
+    @property
+    def total_downloads(self) -> int:
+        # Sum download_count for all digital assets of this product
+        return sum(asset.download_count for asset in self.digital_assets.all())
 
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -181,7 +192,7 @@ class Product(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.title} ({self.get_kind_display()})"  # type: ignore[attr-defined]
+        return f"{self.title} ({self.get_kind_display()})"
 
     @classmethod
     def generate_unique_slug(
@@ -249,28 +260,28 @@ class Product(models.Model):
                 exclude_pk=self.pk,
             )
 
-        super().save(*args, **kwargs)
+        super(Product, self).save(*args, **kwargs)
 
     def clean(self):
         from catalog.models import Category
 
-        if self.category_id:
-            if self.kind == Product.Kind.MODEL and self.category.type != Category.CategoryType.MODEL:
+        if self.category:
+            from catalog.models import Category as CatModel
+            if self.kind == self.Kind.MODEL and self.category.type != CatModel.CategoryType.MODEL:
                 raise ValidationError({"category": "Model products must use a 3D Models category."})
-            if self.kind == Product.Kind.FILE and self.category.type != Category.CategoryType.FILE:
+            if self.kind == self.Kind.FILE and self.category.type != CatModel.CategoryType.FILE:
                 raise ValidationError({"category": "File products must use a 3D Files category."})
 
         # Subcategory must be a child of category if provided
-        if self.subcategory_id:
-            try:
-                if self.subcategory.parent_id is None:
+        if self.subcategory:
+            from contextlib import suppress
+            with suppress(AttributeError):
+                if self.subcategory.parent is None:
                     raise ValidationError({"subcategory": "Subcategory must be a child of a Category."})
-                if self.category_id and self.subcategory.parent_id != self.category_id:
+                if self.category and self.subcategory.parent != self.category:
                     raise ValidationError({"subcategory": "Subcategory must belong to the selected Category."})
-                if self.category_id and self.subcategory.type != self.category.type:
+                if self.category and self.subcategory.type != self.category.type:
                     raise ValidationError({"subcategory": "Subcategory type must match the Category type."})
-            except AttributeError:
-                pass
 
         if self.is_free:
             self.price = Decimal("0.00")
@@ -338,12 +349,10 @@ class Product(models.Model):
         except Exception:
             profile = None
         if profile is not None:
-            try:
-                name = (profile.shop_name or "").strip()
-                if name:
+            from contextlib import suppress
+            with suppress(Exception):
+                if (name := (profile.shop_name or "").strip()):
                     return name
-            except Exception:
-                pass
         return getattr(self.seller, "username", "Seller")
 
     def file_types(self) -> list[str]:
@@ -353,8 +362,7 @@ class Product(models.Model):
                 types.add(str(asset.file_type).lower().lstrip("."))
             else:
                 name = getattr(asset.file, "name", "") or ""
-                ext = Path(name).suffix.lower().lstrip(".")
-                if ext:
+                if ext := Path(name).suffix.lower().lstrip("."):
                     types.add(ext)
 
         preferred = ["stl", "3mf", "obj", "zip"]
@@ -404,7 +412,7 @@ class FilamentRecommendation(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.product} – {self.get_material_display()}"
+        return f"{self.product} – {self.get_material_display() if hasattr(self, 'get_material_display') else self.material}"
 
 
 class ProductImage(models.Model):
@@ -423,7 +431,7 @@ class ProductImage(models.Model):
         ordering = ["sort_order", "id"]
 
     def __str__(self) -> str:
-        return f"Image<{self.product_id}>#{self.pk}"
+        return f"Image<{self.product.pk}>#{self.pk}"
 
     def clean(self):
         super().clean()
@@ -453,7 +461,7 @@ class ProductDigital(models.Model):
     requirements = models.TextField(blank=True, help_text="System requirements, dependencies, installation notes, etc.")
 
     def __str__(self) -> str:
-        return f"Digital<{self.product_id}>"
+        return f"Digital<{self.product.pk}>"
 
 
 class DigitalAsset(models.Model):
@@ -486,7 +494,7 @@ class DigitalAsset(models.Model):
         ordering = ["id"]
 
     def __str__(self) -> str:
-        return f"Asset<{self.product_id}>#{self.pk}"
+        return f"Asset<{self.product.pk}>#{self.pk}"
 
     def clean(self):
         super().clean()
@@ -503,10 +511,7 @@ class DigitalAsset(models.Model):
         if self.file_type and ext and self.file_type.lower() != ext:
             raise ValidationError({"file_type": "Selected file type does not match file extension."})
         is_zip = (self.file_type or ext) == "zip"
-        if is_zip:
-            self.zip_contents = _extract_zip_contents(self.file)
-        else:
-            self.zip_contents = None
+        self.zip_contents = _extract_zip_contents(self.file) if is_zip else None
 
 
 class ProductPhysical(models.Model):
@@ -523,7 +528,7 @@ class ProductPhysical(models.Model):
     specifications = models.TextField(blank=True, help_text="Additional specifications (e.g., scale info, assembly instructions, etc.)")
 
     def __str__(self) -> str:
-        return f"Physical<{self.product_id}>"
+        return f"Physical<{self.product.pk}>"
 
 
 class ProductEngagementEvent(models.Model):
@@ -548,4 +553,4 @@ class ProductEngagementEvent(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"{self.event_type} product={self.product_id} at {self.created_at}"
+        return f"{self.event_type} product={self.product.pk} at {self.created_at}"

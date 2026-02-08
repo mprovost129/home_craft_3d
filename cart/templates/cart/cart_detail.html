@@ -74,7 +74,12 @@
 
                   <div>
                     <div class="fw-semibold">
-                      <a class="text-decoration-none" href="{{ line.product.get_absolute_url }}">{{ line.product.title }}</a>
+                      {% if line.is_tip %}
+                        <span class="badge bg-primary me-1">Tip for Seller</span>
+                        <span>Tip for {{ line.product.seller.username }}</span>
+                      {% else %}
+                        <a class="text-decoration-none" href="{{ line.product.get_absolute_url }}">{{ line.product.title }}</a>
+                      {% endif %}
                     </div>
                     <div class="text-secondary small">
                       by {{ line.product.seller.username }} · {{ line.product.category.name }}
