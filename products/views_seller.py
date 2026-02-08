@@ -349,7 +349,7 @@ def seller_product_images(request, pk: int):
                     img.save(update_fields=["is_primary"])
 
                 messages.success(request, f"Image uploaded for '{product.title}'.")
-                return redirect("products:seller_list")
+                return redirect("products:seller_images")
     else:
         form = ProductImageUploadForm()
         bulk_form = ProductImageBulkUploadForm()
