@@ -173,13 +173,14 @@ class Cart:
 
             notes = str(payload.get("notes", "") or "")
             is_tip = bool(payload.get("is_tip", False))
+            tip_amount = float(payload.get("tip_amount", 0.0)) if is_tip else 0.0
 
             if product.kind == Product.Kind.FILE:
                 qty = 1
             else:
                 qty = max(1, qty)
 
-            result.append(CartLine(product=product, quantity=qty, buyer_notes=notes, is_tip=is_tip))
+            result.append(CartLine(product=product, quantity=qty, buyer_notes=notes, is_tip=is_tip, tip_amount=tip_amount))
 
         if dirty:
             self._save()

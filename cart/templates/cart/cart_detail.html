@@ -133,8 +133,20 @@
                 {% endif %}
               </td>
 
-              <td class="text-end"><strong>${{ line.unit_price }}</strong></td>
-              <td class="text-end"><strong>${{ line.line_total }}</strong></td>
+              <td class="text-end"><strong>
+                {% if line.is_tip %}
+                  ${{ line.tip_amount|floatformat:2 }}
+                {% else %}
+                  ${{ line.unit_price }}
+                {% endif %}
+              </strong></td>
+              <td class="text-end"><strong>
+                {% if line.is_tip %}
+                  ${{ line.tip_amount|floatformat:2 }}
+                {% else %}
+                  ${{ line.line_total }}
+                {% endif %}
+              </strong></td>
 
               <td class="text-end">
                 <form method="post" action="{% url 'cart:remove' line.product.pk %}">
