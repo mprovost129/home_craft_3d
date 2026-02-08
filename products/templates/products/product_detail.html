@@ -163,62 +163,43 @@
             {# Keep Add-to-cart behavior for now, but your new free-download buttons make checkout unnecessary for free FILEs #}
 
             {% if can_buy %}
-              {% if product.kind == "MODEL" %}
-                <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
-                  {% csrf_token %}
-                  <input type="hidden" name="product_id" value="{{ product.pk }}">
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
+                {% csrf_token %}
+                <input type="hidden" name="product_id" value="{{ product.pk }}">
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                {% if product.kind == "MODEL" %}
                   <div class="mb-2">
                     <label class="form-label fw-semibold">Desired Color(s)</label>
                     <input class="form-control mb-2" type="text" name="custom_colors" placeholder="e.g., Red, Blue, Custom mix">
                   </div>
-                  <div class="mb-2">
-                    <label class="form-label fw-semibold">Notes for Seller</label>
-                    <textarea class="form-control mb-2" name="buyer_notes" rows="2" placeholder="Special instructions, requests, etc."></textarea>
-                  </div>
-                  <div class="mb-2">
-                    <label class="form-label fw-semibold">Quantity</label>
-                    <input class="form-control mb-2" type="number" name="quantity" min="1" value="1" style="max-width:120px; display:inline-block; width:auto;"
-                      {% if product.max_purchases_per_buyer %}max="{{ product.max_purchases_per_buyer }}"{% endif %}>
-                    {% if product.max_purchases_per_buyer %}
-                      <div class="small text-secondary">Limit: {{ product.max_purchases_per_buyer }} per buyer</div>
-                    {% endif %}
-                  </div>
-                  <div class="mb-2">
-                    <label class="form-label fw-semibold">Tip for Seller</label>
-                    <div class="input-group" style="max-width:180px;">
-                      <span class="input-group-text">$</span>
-                      <input class="form-control" type="number" name="tip_amount" min="0" step="0.01" value="0.00" placeholder="0.00">
-                    </div>
-                    <div class="form-text">Optional. Show your appreciation with a tip.</div>
-                  </div>
-                  <button class="btn btn-dark flex-grow-1 mb-2" type="submit" style="width:100%">
-                    <i class="bi bi-cart-plus me-1"></i>Add to cart
-                  </button>
-                </form>
-              {% else %}
-                <div class="d-flex gap-2">
-                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="product_id" value="{{ product.pk }}">
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <input type="hidden" name="quantity" value="1">
-                    <button class="btn btn-dark flex-grow-1" type="submit" style="width:100%">
-                      <i class="bi bi-cart-plus me-1"></i>Add to cart
-                    </button>
-                  </form>
-                  <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
-                    {% csrf_token %}
-                    <input type="hidden" name="product_id" value="{{ product.pk }}">
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <input type="hidden" name="is_tip" value="1">
-                    <button class="btn btn-outline-primary flex-grow-1" type="submit" style="width:100%">
-                      <i class="bi bi-cash-coin me-1"></i>Tip the seller
-                    </button>
-                  </form>
+                {% endif %}
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Notes for Seller</label>
+                  <textarea class="form-control mb-2" name="buyer_notes" rows="2" placeholder="Special instructions, requests, etc."></textarea>
                 </div>
-                <div class="text-secondary small mt-2">Digital items are limited to 1 per cart.</div>
-              {% endif %}
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Quantity</label>
+                  <input class="form-control mb-2" type="number" name="quantity" min="1" value="1" style="max-width:120px; display:inline-block; width:auto;"
+                    {% if product.max_purchases_per_buyer %}max="{{ product.max_purchases_per_buyer }}"{% endif %} {% if product.kind == "FILE" %}readonly value="1"{% endif %}>
+                  {% if product.max_purchases_per_buyer %}
+                    <div class="small text-secondary">Limit: {{ product.max_purchases_per_buyer }} per buyer</div>
+                  {% endif %}
+                  {% if product.kind == "FILE" %}
+                    <div class="text-secondary small mt-2">Digital items are limited to 1 per cart.</div>
+                  {% endif %}
+                </div>
+                <div class="mb-2">
+                  <label class="form-label fw-semibold">Tip for Seller</label>
+                  <div class="input-group" style="max-width:180px;">
+                    <span class="input-group-text">$</span>
+                    <input class="form-control" type="number" name="tip_amount" min="0" step="0.01" value="0.00" placeholder="0.00">
+                  </div>
+                  <div class="form-text">Optional. Show your appreciation with a tip.</div>
+                </div>
+                <button class="btn btn-dark flex-grow-1 mb-2" type="submit" style="width:100%">
+                  <i class="bi bi-cart-plus me-1"></i>Add to cart
+                </button>
+              </form>
             {% else %}
               <div class="d-flex gap-2">
                 <button class="btn btn-dark flex-grow-1" type="button" disabled style="opacity:.6; cursor:not-allowed; width:100%">
