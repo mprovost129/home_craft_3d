@@ -17,6 +17,14 @@ from .cart import Cart
 
 logger = logging.getLogger(__name__)
 
+def _prune_blocked_items(request, cart: Cart) -> Tuple[List[str], List[str]]:
+    """
+    Remove inactive items and return (removed_titles, unready_sellers).
+    """
+    removed_titles = _prune_inactive_items(cart)
+    unready_sellers = _cart_unready_sellers(request, cart)
+    return removed_titles, unready_sellers
+
 
 # ============================================================
 # Throttle rules
@@ -39,11 +47,7 @@ def _is_owner_request(request) -> bool:
 
 def _clamp_quantity(qty: int) -> int:
     # Keep it simple for v1. You can add per-product max later.
-    if qty < 1:
-        return 1
-    if qty > 20:
-        return 20
-    return qty
+    return max(1, min(qty, 20))
 
 
 def _seller_block_reason(*, request, product: Product) -> str | None:
@@ -67,15 +71,15 @@ def _seller_block_reason(*, request, product: Product) -> str | None:
     return None
 
 
+import contextlib
+
 def _enforce_file_quantity(product: Product, quantity: int) -> int:
     """
     Digital FILE items must always be qty=1.
     """
-    try:
+    with contextlib.suppress(Exception):
         if getattr(product, "kind", None) == Product.Kind.FILE:
             return 1
-    except Exception:
-        pass
     return quantity
 
 
@@ -85,7 +89,7 @@ def _log_add_to_cart_throttled(request, *, product: Product) -> None:
     (One per session per product.)
     """
     try:
-        key = f"hc3_event_add_to_cart_{product.id}"
+        key = f"hc3_event_add_to_cart_{product.pk}"
         if request.session.get(key):
             return
         ProductEngagementEvent.objects.create(
@@ -143,18 +147,19 @@ def _cart_unready_sellers(request, cart: Cart) -> List[str]:
 def cart_detail(request):
     cart = Cart(request)
 
-    removed_titles = _prune_inactive_items(cart)
+    # IMPORTANT: do NOT auto-remove unready sellers from cart.
+    # Only block checkout. (Online store behavior.)
+    removed_titles, unready_sellers = _prune_blocked_items(request, cart)
     if removed_titles:
         messages.warning(
             request,
-            "Some items were removed from your cart because they’re no longer available: "
+            "Some items were removed from your cart because they can’t be checked out right now: "
             + ", ".join(removed_titles),
         )
 
     cart_lines = cart.lines()
-    unready_sellers = _cart_unready_sellers(request, cart)
 
-    subtotal = cart.subtotal()
+    subtotal = cart.items_subtotal()
     tips_total = cart.tips_total()
     grand_total = cart.grand_total()
 
@@ -171,8 +176,8 @@ def cart_detail(request):
             "grand_total": grand_total,
             "unready_sellers": unready_sellers,
             "can_checkout": can_checkout,
-            # Template helper
-            "KIND_FILE": getattr(Product.Kind, "FILE", "file"),
+            # ✅ correct enum constant for template comparisons
+            "KIND_FILE": Product.Kind.FILE,
         },
     )
 
@@ -215,8 +220,7 @@ def cart_add(request):
         is_active=True,
     )
 
-    reason = _seller_block_reason(request=request, product=product)
-    if reason:
+    if (reason := _seller_block_reason(request=request, product=product)):
         messages.error(request, reason)
         return redirect(product.get_absolute_url())
 
@@ -229,11 +233,7 @@ def cart_add(request):
     # Enforce purchase limit
     remaining_limit = get_remaining_product_limit(product, request.user)
 
-    in_cart_qty = 0
-    for line in cart.lines():
-        if line.product.pk == product.pk:
-            in_cart_qty = line.quantity
-            break
+    in_cart_qty = next((line.quantity for line in cart.lines() if line.product.pk == product.pk), 0)
 
     if remaining_limit is not None:
         # remaining_limit means "how many more you can buy"
@@ -257,15 +257,11 @@ def cart_add(request):
         else:
             messages.success(request, "Added to cart.")
 
-    next_url = (request.POST.get("next") or "").strip()
-    if next_url:
+    if next_url := (request.POST.get("next") or "").strip():
         return redirect(next_url)
 
     referer = (request.META.get("HTTP_REFERER") or "").strip()
-    if referer:
-        return redirect(referer)
-
-    return redirect(product.get_absolute_url())
+    return redirect(referer) if referer else redirect(product.get_absolute_url())
 
 
 @require_POST
@@ -292,8 +288,7 @@ def cart_update(request):
         messages.info(request, "Item removed (no longer available).")
         return redirect("cart:detail")
 
-    reason = _seller_block_reason(request=request, product=product)
-    if reason:
+    if reason := _seller_block_reason(request=request, product=product):
         # keep it in cart (blocked) if unready; remove only if inactive (handled above)
         if "payout setup" in reason.lower():
             messages.error(request, reason)
