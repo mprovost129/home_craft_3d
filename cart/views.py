@@ -187,7 +187,14 @@ def cart_add(request):
             buyer_notes = f"{color_note}\n{buyer_notes}"
         else:
             buyer_notes = color_note
-    is_tip = bool(request.POST.get("is_tip"))
+    tip_amount_raw = request.POST.get("tip_amount")
+    try:
+        tip_amount = float(tip_amount_raw) if tip_amount_raw is not None else 0.0
+        if tip_amount < 0:
+            tip_amount = 0.0
+    except Exception:
+        tip_amount = 0.0
+    is_tip = tip_amount > 0
 
     try:
         quantity = int(qty_raw)
@@ -228,10 +235,10 @@ def cart_add(request):
         messages.warning(request, f"You can only add {allowed} more of this product due to the purchase limit.")
 
     if quantity > 0:
-        cart.add(product, quantity=quantity, buyer_notes=buyer_notes, is_tip=is_tip)
+        cart.add(product, quantity=quantity, buyer_notes=buyer_notes, is_tip=is_tip, tip_amount=tip_amount)
         _log_add_to_cart_throttled(request, product=product)
         if is_tip:
-            messages.success(request, "Tip added to cart.")
+            messages.success(request, f"Tip of ${tip_amount:.2f} added to cart.")
         else:
             messages.success(request, "Added to cart.")
 

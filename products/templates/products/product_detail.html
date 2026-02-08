@@ -184,17 +184,16 @@
                       <div class="small text-secondary">Limit: {{ product.max_purchases_per_buyer }} per buyer</div>
                     {% endif %}
                   </div>
+                  <div class="mb-2">
+                    <label class="form-label fw-semibold">Tip for Seller</label>
+                    <div class="input-group" style="max-width:180px;">
+                      <span class="input-group-text">$</span>
+                      <input class="form-control" type="number" name="tip_amount" min="0" step="0.01" value="0.00" placeholder="0.00">
+                    </div>
+                    <div class="form-text">Optional. Show your appreciation with a tip.</div>
+                  </div>
                   <button class="btn btn-dark flex-grow-1 mb-2" type="submit" style="width:100%">
                     <i class="bi bi-cart-plus me-1"></i>Add to cart
-                  </button>
-                </form>
-                <form method="post" action="{% url 'cart:add' %}" class="flex-grow-1">
-                  {% csrf_token %}
-                  <input type="hidden" name="product_id" value="{{ product.pk }}">
-                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                  <input type="hidden" name="is_tip" value="1">
-                  <button class="btn btn-outline-primary flex-grow-1" type="submit" style="width:100%">
-                    <i class="bi bi-cash-coin me-1"></i>Tip the seller
                   </button>
                 </form>
               {% else %}
