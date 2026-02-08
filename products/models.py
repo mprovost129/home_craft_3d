@@ -109,7 +109,8 @@ class Product(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
 
     title = models.CharField(max_length=160)
-    slug = models.SlugField(max_length=180)
+    slug = models.SlugField(max_length=180, blank=True)
+
 
     # If True, user has explicitly chosen slug and we never auto-change it.
     slug_is_manual = models.BooleanField(
