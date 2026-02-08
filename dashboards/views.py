@@ -297,7 +297,7 @@ def admin_dashboard(request):
     plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
     plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
 
-    plausible_period = (request.GET.get("period") or "30d").strip()
+    plausible_period = (request.GET.get("period") or "today").strip()
     allowed_periods = {"7d", "30d", "90d", "6mo", "12mo", "year", "today", "yesterday", "custom"}
     if plausible_period not in allowed_periods:
         plausible_period = "30d"
@@ -491,14 +491,11 @@ def admin_settings(request):
             form.save()
 
             # Bust SiteConfig cache AND anonymous home HTML cache (banner/theme changes)
-            try:
+            from contextlib import suppress
+            with suppress(Exception):
                 invalidate_site_config_cache()
-            except Exception:
-                pass
-            try:
+            with suppress(Exception):
                 cache.delete(HOME_ANON_CACHE_KEY)
-            except Exception:
-                pass
 
             messages.success(request, "Settings updated.")
             return redirect("dashboards:admin_settings")
