@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from django import forms
+from django.contrib.auth import get_user_model
+from products.models import Product
+from .models import ProductFreeUnlock
 
 from core.models import SiteConfig
 
@@ -192,3 +195,53 @@ class SiteConfigForm(forms.ModelForm):
             obj.save()
 
         return obj
+
+
+class ProductFreeUnlockForm(forms.Form):
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.none(),
+        label="Product",
+        widget=forms.Select(attrs={"class": "form-control"})
+    )
+    username = forms.CharField(
+        label="Username",
+        max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "off"})
+    )
+    user_email = forms.EmailField(
+        label="User Email",
+        required=False,
+        widget=forms.EmailInput(attrs={"readonly": "readonly", "class": "form-control"})
+    )
+    send_email = forms.BooleanField(
+        label="Send download email?",
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )
+
+    def __init__(self, *args, **kwargs):
+        seller = kwargs.pop("seller", None)
+        super().__init__(*args, **kwargs)
+        if seller:
+            self.fields["product"].queryset = Product.objects.filter(seller=seller)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get("username")
+        User = get_user_model()
+        try:
+            user = User.objects.get(username=username, is_active=True)
+            cleaned_data["user"] = user
+            cleaned_data["user_email"] = user.email
+        except User.DoesNotExist:
+            self.add_error("username", "No active user found with this username.")
+        return cleaned_data
+
+    def save(self, seller):
+        product = self.cleaned_data["product"]
+        user = self.cleaned_data["user"]
+        unlock, created = ProductFreeUnlock.objects.get_or_create(
+            product=product, user=user, defaults={"granted_by": seller}
+        )
+        return unlock, created

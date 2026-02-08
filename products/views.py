@@ -17,6 +17,7 @@ from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
 from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS, FilamentRecommendation, DigitalAsset
 from reviews.models import SellerReview
+from dashboards.models import ProductFreeUnlock
 
 
 MIN_REVIEWS_TOP_RATED = 3
@@ -392,8 +393,11 @@ def product_free_asset_download(request: HttpRequest, pk: int, slug: str, asset_
     if product.kind != Product.Kind.FILE:
         raise Http404("Not a digital product.")
 
-    # IMPORTANT: enforce free-only behavior
-    if not product.is_free:
+    # IMPORTANT: enforce free-only behavior, or allow if user has free unlock
+    has_free_unlock = False
+    if request.user.is_authenticated:
+        has_free_unlock = ProductFreeUnlock.objects.filter(product=product, user=request.user).exists()
+    if not product.is_free and not has_free_unlock:
         raise Http404("This asset requires purchase.")
 
     # If draft and not owner/seller, it won't be reachable due to query above.

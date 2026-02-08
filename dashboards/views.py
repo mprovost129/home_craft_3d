@@ -7,6 +7,7 @@ from decimal import Decimal
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import re
 
+from django.core.mail import send_mail
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, F, IntegerField, Sum
@@ -14,9 +15,11 @@ from django.db.models.expressions import ExpressionWrapper
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
 
 from core.config import get_site_config
-from .forms import SiteConfigForm
+from .forms import SiteConfigForm, ProductFreeUnlockForm
 from .plausible import get_summary as plausible_get_summary
 from .plausible import get_top_pages as plausible_get_top_pages
 from .plausible import is_configured as plausible_is_configured
@@ -47,9 +50,13 @@ def _build_plausible_embed_url(shared_url: str, *, theme: str = "light") -> str:
     if not shared_url:
         return ""
 
-    try:
-        parsed = urlparse(shared_url)
+    def _parse_url_and_query(url):
+        parsed = urlparse(url)
         qs = dict(parse_qsl(parsed.query, keep_blank_values=True))
+        return parsed, qs
+
+    try:
+        parsed, qs = _parse_url_and_query(shared_url)
         qs["embed"] = "true"
         # theme is optional; Plausible supports light/dark
         if theme:
@@ -185,6 +192,28 @@ def seller_dashboard(request):
 
     balance_dollars = _cents_to_dollars(balance_cents)
     payout_available_dollars = _cents_to_dollars(payout_available_cents)
+    grant_form = None
+    if request.method == "POST" and "grant_free_download" in request.POST:
+        grant_form = ProductFreeUnlockForm(request.POST, seller=user)
+        if grant_form.is_valid():
+            unlock, created = grant_form.save(user)
+            if created:
+                if grant_form.cleaned_data.get("send_email"):
+                    recipient = grant_form.cleaned_data["user_email"]
+                    product = grant_form.cleaned_data["product"]
+                    send_mail(
+                        subject=f"Free Download Unlocked: {product.title}",
+                        message=f"You have been granted a free download for {product.title}.",
+                        from_email=None,
+                        recipient_list=[recipient],
+                        fail_silently=True,
+                    )
+                messages.success(request, "Free download unlocked and user notified.")
+            else:
+                messages.info(request, "User already has free access to this product.")
+            return redirect("dashboards:seller")
+    else:
+        grant_form = ProductFreeUnlockForm(seller=user)
     return render(
         request,
         "dashboards/seller_dashboard.html",
@@ -205,6 +234,7 @@ def seller_dashboard(request):
             "sold_count": sales_totals.get("sold_count") or 0,
             "order_count": sales_totals.get("order_count") or 0,
             "since_days": DASH_RECENT_DAYS,
+            "grant_form": grant_form,
         },
     )
 
@@ -328,9 +358,8 @@ def admin_dashboard(request):
         "custom": "Custom range",
     }
     plausible_period_label = labels.get(selected_period, "Last 30 days")
-    if plausible_period == "custom" and (plausible_from or plausible_to):
-        if selected_period == "custom":
-            plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
+    if plausible_period == "custom" and selected_period == "custom" and (plausible_from or plausible_to):
+        plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
 
     plausible_api_enabled = plausible_is_configured()
     plausible_summary = {}
@@ -386,9 +415,8 @@ def admin_dashboard(request):
                 hours, mins = divmod(mins, 60)
                 if hours:
                     return f"{hours}h {mins}m"
-                if mins:
-                    return f"{mins}m {secs}s"
-                return f"{secs}s"
+                else:
+                    return f"{mins}m {secs}s" if mins else f"{secs}s"
 
             plausible_summary_display = {
                 "visitors": _safe_int(plausible_summary.get("visitors")),
@@ -477,3 +505,16 @@ def admin_settings(request):
         "dashboards/admin_settings.html",
         {"form": form},
     )
+
+
+
+@login_required
+def ajax_verify_username(request):
+    """AJAX endpoint to verify username and return email if user exists."""
+    username = request.GET.get("username", "").strip()
+    User = get_user_model()
+    try:
+        user = User.objects.get(username=username, is_active=True)
+        return JsonResponse({"success": True, "email": user.email})
+    except User.DoesNotExist:
+        return JsonResponse({"success": False, "error": "No active user found with this username."})
