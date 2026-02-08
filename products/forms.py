@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import List
 
 from django import forms
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.urls import reverse_lazy
+from django.utils.text import slugify
 
 from catalog.models import Category
 from .models import Product, ProductImage, DigitalAsset, ProductPhysical, ProductDigital
@@ -83,7 +84,6 @@ class ProductForm(forms.ModelForm):
         ]
         widgets = {
             "kind": forms.Select(attrs={"class": "form-select"}),
-            # IMPORTANT: let Django generate default ids: id_category / id_subcategory
             "category": forms.Select(attrs={"class": "form-select"}),
             "subcategory": forms.Select(attrs={"class": "form-select"}),
             "title": forms.TextInput(attrs={"class": "form-control"}),
@@ -92,33 +92,40 @@ class ProductForm(forms.ModelForm):
             "price": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
             "is_free": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
-            "slug": forms.TextInput(attrs={"class": "form-control"}),
+            "slug": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Leave blank for automatic slug",
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
 
-        # Category dropdown should only show ROOT categories (parent is null)
+        # Slug is optional: auto-generate unless seller intentionally edits it.
+        self.fields["slug"].required = False
+
+        # Category dropdown shows ROOT categories only.
         self.fields["category"].queryset = (
-            Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
+            Category.objects.filter(parent__isnull=True, is_active=True)
+            .order_by("type", "sort_order", "name")
         )
 
         # Subcategory dropdown: default empty; JS will populate.
         self.fields["subcategory"].queryset = Category.objects.none()
         self.fields["subcategory"].required = False
 
-        # Provide the seller endpoint on the widget so templates don't need special casing.
-        # This URL exists after updating products/urls.py below.
+        # Optional: expose endpoint attr for alternative template/JS patterns
         try:
             self.fields["subcategory"].widget.attrs["data-subcategory-endpoint"] = reverse_lazy(
                 "products:seller_subcategories_for_category"
             )
         except Exception:
-            # If URLs aren't loaded in some context, harmless.
             pass
 
-        # Determine which category should control the subcategory queryset
+        # Determine which category controls the subcategory queryset (edit or postback)
         initial_cat = None
 
         # Edit view: instance.category
@@ -141,6 +148,28 @@ class ProductForm(forms.ModelForm):
             self.fields["subcategory"].queryset = (
                 Category.objects.filter(parent=initial_cat, is_active=True).order_by("sort_order", "name")
             )
+
+    def clean_slug(self) -> str:
+        """
+        Slug policy:
+        - Default is AUTO (slug_is_manual=False) when the seller does not touch the slug field.
+        - If seller edits slug and provides a value -> MANUAL (slug_is_manual=True), normalized via slugify.
+        - If seller edits slug and clears it -> AUTO again (slug_is_manual=False) and blank slug forces regen.
+        """
+        raw = (self.cleaned_data.get("slug") or "").strip()
+
+        # Only treat as "manual" if the user actually changed the slug field.
+        if "slug" in getattr(self, "changed_data", []):
+            if raw:
+                self.instance.slug_is_manual = True
+                return slugify(raw)
+            # cleared intentionally -> back to auto
+            self.instance.slug_is_manual = False
+            return ""
+
+        # Not changed: keep whatever the model/form already has (usually the current slug),
+        # and DO NOT flip slug_is_manual.
+        return raw
 
     def clean(self):
         cleaned = super().clean()
@@ -172,21 +201,23 @@ class ProductForm(forms.ModelForm):
 
     def save(self, commit=True):
         """
-        Slug policy from the form:
-        - If user typed a slug -> mark as manual.
-        - If slug is blank -> leave slug_is_manual=False and allow model auto-generation.
+        Keep slug behavior consistent with clean_slug():
+
+        - If slug field was changed:
+          - non-empty => manual True (already set in clean_slug)
+          - empty => manual False (already set in clean_slug) and slug blank forces regen
+
+        - If slug field was NOT changed:
+          - do NOT force slug_is_manual=True just because slug exists
         """
         obj: Product = super().save(commit=False)
 
-        raw_slug = (self.cleaned_data.get("slug") or "").strip()
-        if raw_slug:
-            # user explicitly set slug
-            obj.slug_is_manual = True
-            obj.slug = raw_slug
-        else:
-            # auto slug (model will generate/update based on title)
-            obj.slug_is_manual = False
-            obj.slug = ""
+        if "slug" in getattr(self, "changed_data", []):
+            # clean_slug already set slug_is_manual and normalized slug;
+            # ensure blank stays blank so model regenerates.
+            if not (obj.slug or "").strip():
+                obj.slug = ""
+                obj.slug_is_manual = False
 
         if commit:
             obj.full_clean()
