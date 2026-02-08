@@ -42,6 +42,42 @@
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
             <div class="form-text">Choose a main category (filtered by Kind).</div>
           </div>
+          <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            const kindSelect = document.getElementById('id_kind');
+            const categorySelect = document.getElementById('id_category');
+            if (!kindSelect || !categorySelect) return;
+            // Store all options for later filtering
+            const allOptions = Array.from(categorySelect.options).map(opt => ({
+              value: opt.value,
+              text: opt.text,
+              type: opt.getAttribute('data-type') || '',
+              parent: opt.getAttribute('data-parent') || '',
+              isActive: opt.getAttribute('data-active') !== 'false',
+            }));
+            function filterCategories() {
+              const kind = kindSelect.value.toUpperCase();
+              categorySelect.innerHTML = '';
+              let filtered = allOptions;
+              if (kind === 'MODEL') {
+                filtered = allOptions.filter(opt => opt.type === 'MODEL');
+              } else if (kind === 'FILE') {
+                filtered = allOptions.filter(opt => opt.type === 'FILE');
+              }
+              filtered.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.text = opt.text;
+                if (opt.type) option.setAttribute('data-type', opt.type);
+                if (opt.parent) option.setAttribute('data-parent', opt.parent);
+                option.setAttribute('data-active', opt.isActive ? 'true' : 'false');
+                categorySelect.appendChild(option);
+              });
+            }
+            kindSelect.addEventListener('change', filterCategories);
+            filterCategories(); // Initial filter
+          });
+          </script>
 
           <div class="col-12">
             <label class="form-label fw-semibold">Subcategory</label>
