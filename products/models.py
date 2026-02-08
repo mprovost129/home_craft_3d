@@ -265,11 +265,11 @@ class Product(models.Model):
     def clean(self):
         from catalog.models import Category
 
-        if self.category:
+        if self.category_id:
             from catalog.models import Category as CatModel
-            if self.kind == self.Kind.MODEL and self.category.type != CatModel.CategoryType.MODEL:
+            if self.kind == self.Kind.MODEL and self.category and self.category.type != CatModel.CategoryType.MODEL:
                 raise ValidationError({"category": "Model products must use a 3D Models category."})
-            if self.kind == self.Kind.FILE and self.category.type != CatModel.CategoryType.FILE:
+            if self.kind == self.Kind.FILE and self.category and self.category.type != CatModel.CategoryType.FILE:
                 raise ValidationError({"category": "File products must use a 3D Files category."})
 
         # Subcategory must be a child of category if provided
