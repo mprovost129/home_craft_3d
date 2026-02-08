@@ -11,7 +11,6 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils.text import slugify
 
 from catalog.models import Category
 from core.throttle import ThrottleRule, throttle
@@ -60,7 +59,7 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
     """
     Copy a stored file to a new key/path and return the new name.
 
-    - If using django-storages S3Boto3Storage, try *server-side* bucket copy (fast).
+    - If using django-storages S3Boto3Storage, try server-side bucket copy (fast).
     - Otherwise fall back to reading + saving (streaming via File wrapper).
     """
     if not source_field:
@@ -74,12 +73,10 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
     ext = Path(name).suffix
     new_name = f"{dest_prefix}/{uuid.uuid4().hex}{ext}"
 
-    # Attempt S3 server-side copy if the storage exposes bucket + connection.
     bucket = getattr(storage, "bucket", None)
     location = (getattr(storage, "location", "") or "").strip("/")
 
     if bucket is not None:
-        # Build a CopySource that matches the actual object key.
         src_key = f"{location}/{name}".lstrip("/") if location else name
         try:
             bucket.copy(
@@ -88,10 +85,8 @@ def _safe_storage_copy(*, source_field, dest_prefix: str) -> Optional[str]:
             )
             return new_name
         except Exception:
-            # Fall through to stream copy.
             pass
 
-    # Fallback: open and re-save (can be slower for large files, but safe).
     try:
         source_field.open("rb")
         storage.save(new_name, File(source_field))
@@ -114,9 +109,6 @@ def seller_subcategories_for_category(request):
     """
     Seller-only JSON endpoint for dependent dropdown:
     Category -> Subcategory options.
-
-    Returns active child categories under the given parent category.
-    Also enforces matching 'type' to prevent cross-type mixing.
     """
     raw_id = (request.GET.get("category_id") or "").strip()
     try:
@@ -141,17 +133,16 @@ def seller_product_list(request, *args, **kwargs):
     """
     Seller dashboard: list your products.
     Owner/admin sees all products.
-
-    NOTE: This is NOT gated by Stripe readiness. Sellers can still create drafts pre-onboarding.
     """
-    from django.db.models import Sum, Q
+    from django.db.models import Sum, Q as DjQ
+
     qs = (
         Product.objects.select_related("category", "category__parent", "seller", "digital", "physical")
         .prefetch_related("images", "digital_assets")
         .annotate(
             units_sold=Sum(
                 "order_items__quantity",
-                filter=Q(order_items__order__status="PAID", order_items__order__paid_at__isnull=False)
+                filter=DjQ(order_items__order__status="PAID", order_items__order__paid_at__isnull=False),
             )
         )
         .order_by("-created_at")
@@ -161,13 +152,12 @@ def seller_product_list(request, *args, **kwargs):
 
     q = (request.GET.get("q") or "").strip()
     if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(short_description__icontains=q) | Q(description__icontains=q))
+        qs = qs.filter(DjQ(title__icontains=q) | DjQ(short_description__icontains=q) | DjQ(description__icontains=q))
 
     file_type = (request.GET.get("file_type") or "").strip().lower().lstrip(".")
     if file_type:
         qs = qs.filter(
-            Q(digital_assets__file_type=file_type)
-            | Q(digital_assets__file__iendswith=f".{file_type}")
+            DjQ(digital_assets__file_type=file_type) | DjQ(digital_assets__file__iendswith=f".{file_type}")
         ).distinct()
 
     stripe_account = None
@@ -196,9 +186,6 @@ def seller_product_create(request, *args, **kwargs):
     """
     Draft-first create:
     - Create listing with is_active=False by default.
-    - Redirect flow:
-        FILE -> Assets page first
-        MODEL -> Images page first
     """
     if request.method == "POST":
         form = ProductForm(request.POST, user=request.user)
@@ -209,7 +196,7 @@ def seller_product_create(request, *args, **kwargs):
             # Draft-first
             product.is_active = False
 
-            # If slug left blank, model will generate from title
+            # If slug left blank, model will generate from title (slug field should be blank=True in model)
             if not (product.slug or "").strip():
                 product.slug_is_manual = False
                 product.slug = ""
@@ -243,10 +230,6 @@ def seller_product_edit(request, pk: int):
         form = ProductForm(request.POST, instance=product, user=request.user)
         if form.is_valid():
             obj = form.save(commit=False)
-
-            # Form controls slug policy:
-            # - if user typed slug -> slug_is_manual=True
-            # - if blank -> slug_is_manual=False and obj.slug == "" so model regenerates from title
             obj.full_clean()
             obj.save()
             messages.success(request, f"Listing saved for '{product.title}'.")
@@ -314,6 +297,12 @@ def seller_product_specs(request, pk: int):
 @seller_required
 @throttle(SELLER_UPLOAD_RULE)
 def seller_product_images(request, pk: int):
+    """
+    Image upload/manage page.
+
+    IMPORTANT UX:
+    - After uploading an image, stay on this same page so the seller can keep uploading.
+    """
     product = _get_owned_product_or_404(request, pk)
 
     def _next_sort_order() -> int:
@@ -325,15 +314,15 @@ def seller_product_images(request, pk: int):
         except Exception:
             return product.images.count()
 
+    bulk_form = ProductImageBulkUploadForm()  # keep defined for template
+
     if request.method == "POST":
         form = ProductImageUploadForm(request.POST, request.FILES)
-
         if form.is_valid():
             with transaction.atomic():
                 img: ProductImage = form.save(commit=False)
                 img.product = product
 
-                # Default sort_order if user left it blank
                 if img.sort_order is None:
                     img.sort_order = _next_sort_order()
 
@@ -343,22 +332,20 @@ def seller_product_images(request, pk: int):
                 if img.is_primary:
                     ProductImage.objects.filter(product=product).exclude(pk=img.pk).update(is_primary=False)
 
-                # If no primary exists, make this one primary
                 if not ProductImage.objects.filter(product=product, is_primary=True).exists():
                     img.is_primary = True
                     img.save(update_fields=["is_primary"])
 
-                messages.success(request, f"Image uploaded for '{product.title}'.")
-                return redirect("products:seller_images")
+            messages.success(request, f"Image uploaded for '{product.title}'.")
+            return redirect("products:seller_images", pk=product.pk)
     else:
         form = ProductImageUploadForm()
-        bulk_form = ProductImageBulkUploadForm()
 
     images = product.images.all().order_by("sort_order", "id")
     return render(
         request,
         "products/seller/product_images.html",
-        {"product": product, "form": form, "images": images},
+        {"product": product, "form": form, "bulk_form": bulk_form, "images": images},
     )
 
 
@@ -379,9 +366,9 @@ def seller_product_image_delete(request, *args, **kwargs):
                 next_img.is_primary = True
                 next_img.save(update_fields=["is_primary"])
         messages.success(request, f"Image deleted for '{product.title}'.")
-        return redirect("products:seller_list")
+        return redirect("products:seller_images", pk=product.pk)
 
-    return redirect("products:seller_list")
+    return redirect("products:seller_images", pk=product.pk)
 
 
 @seller_required
@@ -396,7 +383,7 @@ def seller_product_image_update(request, pk: int, image_id: int):
     action = (request.POST.get("action") or "").strip()
     sort_value = (request.POST.get("sort_order") or "").strip()
 
-    updated_fields = []
+    updated_fields: list[str] = []
 
     if sort_value:
         try:
@@ -444,7 +431,7 @@ def seller_product_assets(request, pk: int):
             asset.full_clean()
             asset.save()
             messages.success(request, f"Digital asset uploaded for '{product.title}'.")
-            return redirect("products:seller_list")
+            return redirect("products:seller_assets", pk=product.pk)
     else:
         form = DigitalAssetUploadForm()
 
@@ -473,9 +460,9 @@ def seller_product_asset_delete(request, *args, **kwargs):
     if request.method == "POST":
         asset.delete()
         messages.success(request, f"Digital asset deleted for '{product.title}'.")
-        return redirect("products:seller_list")
+        return redirect("products:seller_assets", pk=product.pk)
 
-    return redirect("products:seller_list")
+    return redirect("products:seller_assets", pk=product.pk)
 
 
 @seller_required
@@ -495,10 +482,7 @@ def seller_product_toggle_active(request, pk: int):
 @seller_required
 @throttle(SELLER_DELETE_RULE)
 def seller_product_delete(request, pk: int):
-    """
-    Delete a product listing.
-    Note: This will cascade delete related images, assets, specs, etc.
-    """
+    """Delete a product listing (cascades to images/assets/specs)."""
     product = _get_owned_product_or_404(request, pk)
 
     if request.method == "POST":
@@ -514,19 +498,7 @@ def seller_product_delete(request, pk: int):
 @throttle(SELLER_PRODUCT_MUTATE_RULE)
 def seller_product_duplicate(request, pk: int):
     """
-    Create a copy of a product with the same details but as a new listing (draft).
-
-    IMPORTANT:
-    - This performs a SAFE copy of file blobs:
-      - On S3 (django-storages), attempts server-side copy (fast).
-      - Otherwise falls back to open()+save().
-
-    - The duplicate starts as inactive (draft).
-
-    SLUG POLICY (robust):
-    - New product starts with slug_is_manual=False and slug=""
-    - Product.save() will generate a clean unique slug from the *new title*
-    - If user later changes title (and slug is not manually set), slug updates automatically.
+    Create a copy of a product as a new draft listing.
     """
     original = _get_owned_product_or_404(request, pk)
 
@@ -538,15 +510,15 @@ def seller_product_duplicate(request, pk: int):
             seller=request.user,
             kind=original.kind,
             title=f"{original.title} (Copy)",
-            slug="",  # force auto
-            slug_is_manual=False,  # force auto based on title
+            slug="",
+            slug_is_manual=False,
             short_description=original.short_description,
             description=original.description,
             category=original.category,
             subcategory=original.subcategory,
             price=original.price,
             is_free=original.is_free,
-            is_active=False,  # draft
+            is_active=False,
             complexity_level=original.complexity_level,
             print_time_hours=original.print_time_hours,
             max_purchases_per_buyer=original.max_purchases_per_buyer,
@@ -554,34 +526,30 @@ def seller_product_duplicate(request, pk: int):
             is_trending=False,
         )
 
-        # IMPORTANT: force auto slug so model generates from title
         new_product.slug_is_manual = False
-        new_product.slug = ""  # force auto based on new title
+        new_product.slug = ""
 
         new_product.full_clean()
         new_product.save()
 
-        # Copy images (safe storage copy)
         for img in original.images.all().order_by("sort_order", "id"):
             new_name = _safe_storage_copy(source_field=img.image, dest_prefix="product_images")
             if not new_name:
                 continue
             ProductImage.objects.create(
                 product=new_product,
-                image=new_name,  # storage path
+                image=new_name,
                 alt_text=img.alt_text,
                 is_primary=img.is_primary,
                 sort_order=img.sort_order,
             )
 
-        # Ensure exactly one primary if any images exist
         if new_product.images.exists() and not new_product.images.filter(is_primary=True).exists():
             first = new_product.images.order_by("sort_order", "id").first()
             if first:
                 first.is_primary = True
                 first.save(update_fields=["is_primary"])
 
-        # Copy digital assets if applicable (safe storage copy)
         if original.kind == Product.Kind.FILE:
             for asset in original.digital_assets.all().order_by("id"):
                 new_asset_name = _safe_storage_copy(source_field=asset.file, dest_prefix="digital_assets")
@@ -595,8 +563,5 @@ def seller_product_duplicate(request, pk: int):
                     zip_contents=asset.zip_contents,
                 )
 
-    messages.success(
-        request,
-        "Product duplicated as a draft. Edit files, images, and specs from My Listings.",
-    )
+    messages.success(request, "Product duplicated as a draft. Edit files, images, and specs from My Listings.")
     return redirect("products:seller_list")
