@@ -1,5 +1,7 @@
+{# templates/products/seller/product_form.html #}
 {% extends "base.html" %}
 {% load static %}
+
 {% block title %}Seller · {% if mode == "create" %}New Listing{% else %}Edit Listing{% endif %} · Home Craft 3D{% endblock %}
 
 {% block content %}
@@ -39,53 +41,17 @@
           <div class="col-12">
             <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
             <select name="category" id="id_category" class="form-select">
-              {% for cat in form.fields.category.queryset %}
-                <option value="{{ cat.pk }}" data-type="{{ cat.type }}" data-parent="" data-active="{{ cat.is_active|yesno:'true,false' }}" {% if form.initial.category == cat.pk or form.data.category == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
-              {% endfor %}
+              <option value="">Loading categories…</option>
             </select>
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
             <div class="form-text">Choose a main category (filtered by Kind).</div>
           </div>
-          <script>
-          document.addEventListener('DOMContentLoaded', function() {
-            const kindSelect = document.getElementById('id_kind');
-            const categorySelect = document.getElementById('id_category');
-            if (!kindSelect || !categorySelect) return;
-            // Store all options for later filtering
-            const allOptions = Array.from(categorySelect.options).map(opt => ({
-              value: opt.value,
-              text: opt.text,
-              type: opt.getAttribute('data-type') || '',
-              parent: opt.getAttribute('data-parent') || '',
-              isActive: opt.getAttribute('data-active') !== 'false',
-            }));
-            function filterCategories() {
-              const kind = kindSelect.value.toUpperCase();
-              categorySelect.innerHTML = '';
-              let filtered = allOptions;
-              if (kind === 'MODEL') {
-                filtered = allOptions.filter(opt => opt.type === 'MODEL');
-              } else if (kind === 'FILE') {
-                filtered = allOptions.filter(opt => opt.type === 'FILE');
-              }
-              filtered.forEach(opt => {
-                const option = document.createElement('option');
-                option.value = opt.value;
-                option.text = opt.text;
-                if (opt.type) option.setAttribute('data-type', opt.type);
-                if (opt.parent) option.setAttribute('data-parent', opt.parent);
-                option.setAttribute('data-active', opt.isActive ? 'true' : 'false');
-                categorySelect.appendChild(option);
-              });
-            }
-            kindSelect.addEventListener('change', filterCategories);
-            filterCategories(); // Initial filter
-          });
-          </script>
 
           <div class="col-12">
             <label class="form-label fw-semibold">Subcategory</label>
-            {{ form.subcategory }}
+            <select name="subcategory" id="id_subcategory" class="form-select" disabled>
+              <option value="">Select a category first…</option>
+            </select>
             {% if form.subcategory.errors %}<div class="text-danger small mt-1">{{ form.subcategory.errors }}</div>{% endif %}
             <div class="form-text">Locked until you pick a Category.</div>
           </div>
@@ -217,104 +183,136 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const kindSelect = document.querySelector('select[name="kind"]');
-  const categorySelect = document.querySelector('select[name="category"]');
-  const subcategorySelect = document.querySelector('select[name="subcategory"]');
+  const kindSelect = document.getElementById("id_kind");
+  const categorySelect = document.getElementById("id_category");
+  const subcategorySelect = document.getElementById("id_subcategory");
 
   if (!kindSelect || !categorySelect || !subcategorySelect) return;
 
-  // Preserve existing selections (edit mode / postback)
-  const initialCategory = categorySelect.value || "";
-  const initialSubcategory = subcategorySelect.value || "";
+  const CATEGORIES_URL = "{% url 'catalog:api_categories' %}";
+  const SUBCATEGORIES_URL = "{% url 'catalog:api_subcategories' %}";
 
-  function setSubcategoryDisabled(disabled) {
-    subcategorySelect.disabled = disabled;
-    if (disabled) {
-      subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
-      subcategorySelect.value = "";
-    }
-  }
+  // Preserve selection on edit/postback:
+  // Prefer POSTed values, then initial, then blank.
+  const initialKind = (kindSelect.value || "").trim() || "FILE";
+  const initialCategory =
+    ("{{ form.data.category|default_if_none:'' }}".trim()) ||
+    ("{{ form.initial.category|default_if_none:'' }}".trim()) ||
+    "";
+  const initialSubcategory =
+    ("{{ form.data.subcategory|default_if_none:'' }}".trim()) ||
+    ("{{ form.initial.subcategory|default_if_none:'' }}".trim()) ||
+    "";
 
-  async function loadCategories(kind, keepCategoryId) {
-    categorySelect.innerHTML = '<option value="">Select a category</option>';
-    setSubcategoryDisabled(true);
+  function setCategoryOptions(items) {
+    categorySelect.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Select a category…";
+    categorySelect.appendChild(ph);
 
-    if (!kind) return;
-
-    const url = "{% url 'catalog:api_categories' %}" + "?kind=" + encodeURIComponent(kind);
-    const resp = await fetch(url, { headers: { "Accept": "application/json" } });
-    const data = await resp.json();
-
-    const cats = (data && data.categories) ? data.categories : [];
-    for (const c of cats) {
+    for (const c of items) {
       const opt = document.createElement("option");
       opt.value = String(c.id);
       opt.textContent = c.name;
       categorySelect.appendChild(opt);
     }
-
-    if (keepCategoryId) {
-      categorySelect.value = keepCategoryId;
-    } else {
-      categorySelect.value = "";
-    }
-
-    // If we have a selected category, load its subcats
-    if (categorySelect.value) {
-      await loadSubcategories(categorySelect.value, initialSubcategory);
-    }
   }
 
-  async function loadSubcategories(categoryId, keepSubId) {
-    setSubcategoryDisabled(true);
+  function setSubcategoryOptions(items) {
+    subcategorySelect.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = items.length ? "Select a subcategory…" : "No subcategories";
+    subcategorySelect.appendChild(ph);
 
-    if (!categoryId) return;
-
-    const url = "{% url 'catalog:api_subcategories' %}" + "?category_id=" + encodeURIComponent(categoryId);
-    const resp = await fetch(url, { headers: { "Accept": "application/json" } });
-    const data = await resp.json();
-
-    const subs = (data && data.subcategories) ? data.subcategories : [];
-
-    subcategorySelect.innerHTML = '<option value="">Select a subcategory</option>';
-
-    if (subs.length === 0) {
-      // no subcats; remain disabled
-      setSubcategoryDisabled(true);
-      return;
-    }
-
-    for (const s of subs) {
+    for (const s of items) {
       const opt = document.createElement("option");
       opt.value = String(s.id);
       opt.textContent = s.name;
       subcategorySelect.appendChild(opt);
     }
 
-    subcategorySelect.disabled = false;
-
-    if (keepSubId) {
-      subcategorySelect.value = keepSubId;
-    }
+    subcategorySelect.disabled = (items.length === 0);
   }
 
+  async function fetchJSON(url) {
+    const resp = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    if (!resp.ok) return null;
+    try { return await resp.json(); } catch (e) { return null; }
+  }
+
+  async function loadCategories(kind, desiredCategoryId) {
+    // Reset
+    categorySelect.innerHTML = '<option value="">Loading categories…</option>';
+    subcategorySelect.innerHTML = '<option value="">Select a category first…</option>';
+    subcategorySelect.disabled = true;
+
+    const data = await fetchJSON(CATEGORIES_URL + "?kind=" + encodeURIComponent(kind));
+    const cats = (data && data.categories) ? data.categories : [];
+
+    setCategoryOptions(cats);
+
+    // Determine selection:
+    // 1) desiredCategoryId (edit/postback)
+    // 2) first category
+    // 3) blank
+    let selectId = (desiredCategoryId || "").trim();
+    if (selectId && !Array.from(categorySelect.options).some(o => o.value === selectId)) {
+      selectId = "";
+    }
+    if (!selectId && cats.length) {
+      selectId = String(cats[0].id);
+    }
+
+    categorySelect.value = selectId;
+
+    // Load subcategories for selected category (if any)
+    await loadSubcategories(categorySelect.value, initialSubcategory);
+  }
+
+  async function loadSubcategories(categoryId, desiredSubId) {
+    if (!categoryId) {
+      setSubcategoryOptions([]);
+      return;
+    }
+
+    const data = await fetchJSON(SUBCATEGORIES_URL + "?category_id=" + encodeURIComponent(categoryId));
+    const subs = (data && data.subcategories) ? data.subcategories : [];
+
+    setSubcategoryOptions(subs);
+
+    // Determine selection:
+    // 1) desiredSubId (edit/postback)
+    // 2) first subcategory
+    // 3) blank
+    let subId = (desiredSubId || "").trim();
+    if (subId && !Array.from(subcategorySelect.options).some(o => o.value === subId)) {
+      subId = "";
+    }
+    if (!subId && subs.length) {
+      subId = String(subs[0].id);
+    }
+
+    subcategorySelect.value = subId;
+  }
+
+  // Events
   kindSelect.addEventListener("change", async function () {
-    const kind = (kindSelect.value || "").trim();
+    const kind = (kindSelect.value || "FILE").trim().toUpperCase();
     await loadCategories(kind, "");
   });
 
   categorySelect.addEventListener("change", async function () {
-    const catId = (categorySelect.value || "").trim();
-    await loadSubcategories(catId, "");
+    await loadSubcategories((categorySelect.value || "").trim(), "");
   });
 
-  // Initial load:
-  // If kind is blank, pick FILE by default (feel free to change default)
-  const initialKind = (kindSelect.value || "FILE").trim();
-  if (!kindSelect.value) kindSelect.value = initialKind;
-
-  // Load categories for kind, then restore category/subcategory if present
-  loadCategories(initialKind, initialCategory);
+  // Init: default to FILE on create
+  kindSelect.value = (initialKind || "FILE").trim().toUpperCase();
+  loadCategories(kindSelect.value, initialCategory);
 });
 </script>
 {% endblock %}

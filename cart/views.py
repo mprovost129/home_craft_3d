@@ -177,7 +177,16 @@ def cart_add(request):
 
     product_id = (request.POST.get("product_id") or "").strip()
     qty_raw = (request.POST.get("quantity") or "1").strip()
-    buyer_notes = (request.POST.get("buyer_notes") or "").strip()[:1000]  # Limit to 1000 chars
+    custom_colors = (request.POST.get("custom_colors") or "").strip()
+    buyer_notes_raw = (request.POST.get("buyer_notes") or "").strip()
+    buyer_notes = buyer_notes_raw[:1000]
+    if custom_colors:
+        # Prepend color info to notes
+        color_note = f"Color(s) requested: {custom_colors}"
+        if buyer_notes:
+            buyer_notes = f"{color_note}\n{buyer_notes}"
+        else:
+            buyer_notes = color_note
     is_tip = bool(request.POST.get("is_tip"))
 
     try:
