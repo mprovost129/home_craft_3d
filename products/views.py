@@ -7,7 +7,7 @@ from decimal import Decimal
 from django.db import models
 from django.db.models import Avg, Count, F, FloatField, Q, Value
 from django.db.models.functions import Coalesce
-from django.http import HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -15,7 +15,7 @@ from django.contrib.auth import get_user_model
 from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
-from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS, FilamentRecommendation
+from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS, FilamentRecommendation, DigitalAsset
 from reviews.models import SellerReview
 
 
@@ -369,6 +369,56 @@ def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     return redirect("products:detail", pk=product.pk, slug=product.slug)
 
 
+def product_free_asset_download(request: HttpRequest, pk: int, slug: str, asset_id: int) -> HttpResponse:
+    """
+    Free-download endpoint:
+    - Only for active FILE products that are marked free
+    - Does not use cart/checkout/orders
+    - Increments DigitalAsset.download_count
+    """
+    base_qs = (
+        Product.objects.select_related("seller", "category")
+        .prefetch_related("digital_assets")
+    )
+
+    # Allow preview access for owner/seller; otherwise only active
+    if request.user.is_authenticated and (
+        is_owner_user(request.user) or base_qs.filter(pk=pk, slug=slug, seller=request.user).exists()
+    ):
+        product = get_object_or_404(base_qs, pk=pk, slug=slug)
+    else:
+        product = get_object_or_404(base_qs.filter(is_active=True), pk=pk, slug=slug)
+
+    if product.kind != Product.Kind.FILE:
+        raise Http404("Not a digital product.")
+
+    # IMPORTANT: enforce free-only behavior
+    if not product.is_free:
+        raise Http404("This asset requires purchase.")
+
+    # If draft and not owner/seller, it won't be reachable due to query above.
+    asset = get_object_or_404(DigitalAsset.objects.select_related("product"), pk=asset_id, product=product)
+
+    # Increment counter (atomic)
+    DigitalAsset.objects.filter(pk=asset.pk).update(download_count=F("download_count") + 1)
+
+    # Serve file
+    try:
+        fh = asset.file.open("rb")
+    except Exception:
+        raise Http404("File not available.")
+
+    filename = (asset.original_filename or "").strip()
+    if not filename:
+        try:
+            filename = Path(getattr(asset.file, "name", "") or "").name or "download"
+        except Exception:
+            filename = "download"
+
+    resp = FileResponse(fh, as_attachment=True, filename=filename)
+    return resp
+
+
 def _render_product_detail(
     *,
     request: HttpRequest,
@@ -434,16 +484,10 @@ def _render_product_detail(
     for p in related_same_seller + related_same_category:
         p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
 
-    # -------------------------
-    # Filament links (NEW)
-    # -------------------------
     filament_recommendations = list(
         FilamentRecommendation.objects.filter(product=product, is_active=True).order_by("sort_order", "material", "id")
     )
 
-    # -------------------------
-    # Q&A Tab (A)
-    # -------------------------
     from qa.models import ProductQuestionThread
 
     qa_threads = (
@@ -472,12 +516,9 @@ def _render_product_detail(
             "is_preview": is_preview,
             "related_same_seller": related_same_seller,
             "related_same_category": related_same_category,
-            # Filament
             "filament_recommendations": filament_recommendations,
-            # Q&A
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
-            # Purchase limit
             "remaining_limit": remaining_limit,
         },
     )
@@ -500,14 +541,11 @@ def product_detail(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
 
 
 def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
-    """Public seller profile/shop page."""
-    from django.contrib.auth import get_user_model
     from reviews.models import SellerReview
 
     User = get_user_model()
     seller = get_object_or_404(User, pk=seller_id)
 
-    # Get seller's products
     products = _base_qs().filter(seller=seller)
     products = _annotate_rating(products).order_by("-created_at")
     products_list = list(products)
@@ -515,13 +553,11 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
     for p in products_list:
         p.can_buy = _seller_can_sell(p)  # type: ignore[attr-defined]
 
-    # Get seller's reviews
     seller_reviews = SellerReview.objects.filter(seller=seller).select_related("buyer").order_by("-created_at")
     seller_review_summary = seller_reviews.aggregate(avg=Avg("rating"), count=Count("id"))
     seller_avg_rating = seller_review_summary.get("avg") or 0
     seller_review_count = seller_review_summary.get("count") or 0
 
-    # Get seller profile (for avatar, shop name, bio, socials)
     profile = getattr(seller, "profile", None)
 
     return render(
@@ -538,17 +574,12 @@ def seller_shop(request: HttpRequest, seller_id: int) -> HttpResponse:
     )
 
 
-# --- Purchase Limit Helper ---
 def get_remaining_product_limit(product: Product, user) -> int | None:
-    """
-    Returns the number of additional times this user can purchase this product, or None for unlimited.
-    """
     limit = getattr(product, "max_purchases_per_buyer", None)
     if not limit:
         return None
     if not user or not user.is_authenticated:
         return limit
-    # Count all PAID orders for this user for this product
     purchased = (
         OrderItem.objects.filter(
             product=product,
@@ -558,14 +589,12 @@ def get_remaining_product_limit(product: Product, user) -> int | None:
         or {}
     )
     already = purchased.get("total") or 0
-    # Optionally, add in-cart quantity (handled in cart logic)
     remaining = max(0, limit - already)
     return remaining
 
 
 def top_sellers(request: HttpRequest) -> HttpResponse:
     User = get_user_model()
-    # Only users with is_seller flag
     sellers = (
         User.objects.filter(profile__is_seller=True)
         .annotate(
@@ -575,7 +604,6 @@ def top_sellers(request: HttpRequest) -> HttpResponse:
         )
         .order_by("-seller_review_count", "-seller_avg_rating", "-date_joined")[:24]
     )
-    # Prefetch profile for avatar/shop name
     sellers = sellers.select_related("profile")
     return render(
         request,

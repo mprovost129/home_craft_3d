@@ -41,6 +41,11 @@ urlpatterns = [
 
     path("seller/<int:pk>/toggle-active/", views_seller.seller_product_toggle_active, name="seller_toggle_active"),
     path("seller/<int:pk>/delete/", views_seller.seller_product_delete, name="seller_delete"),
+    path(
+        "<int:pk>/<slug:slug>/assets/<int:asset_id>/download/",
+        views.product_free_asset_download,
+        name="free_asset_download",
+    ),
 
     # Dependent dropdown endpoint (Category -> Subcategory)
     path("seller/subcategories/", views_seller.seller_subcategories_for_category, name="seller_subcategories_for_category"),

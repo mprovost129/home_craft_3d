@@ -111,7 +111,6 @@ class Product(models.Model):
     title = models.CharField(max_length=160)
     slug = models.SlugField(max_length=180, blank=True)
 
-
     # If True, user has explicitly chosen slug and we never auto-change it.
     slug_is_manual = models.BooleanField(
         default=False,
@@ -210,7 +209,6 @@ class Product(models.Model):
             return base
 
         # Reserve room for "-NNNN"
-        # worst-case suffix length: "-9999" => 5 chars
         room = max(1, max_length - 6)
         base_trim = base[:room].strip("-") or "item"
 
@@ -369,16 +367,6 @@ class Product(models.Model):
 
 
 class FilamentRecommendation(models.Model):
-    """
-    Admin-managed recommended filament links shown on the product detail page.
-
-    Intentionally simple:
-    - material (PLA/PETG/etc.)
-    - optional brand label
-    - optional notes
-    - external/affiliate URL
-    """
-
     MATERIAL_CHOICES = [
         ("pla", "PLA / PLA+"),
         ("petg", "PETG"),
@@ -488,6 +476,9 @@ class DigitalAsset(models.Model):
     original_filename = models.CharField(max_length=255, blank=True)
     file_type = models.CharField(max_length=10, choices=FileType.choices, blank=True, null=True)
     zip_contents = models.JSONField(blank=True, null=True)
+
+    # NEW: per-asset download counter (free downloads + future paid unlocks)
+    download_count = models.PositiveIntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
