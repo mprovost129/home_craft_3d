@@ -38,7 +38,11 @@
 
           <div class="col-12">
             <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-            {{ form.category }}
+            <select name="category" id="id_category" class="form-select">
+              {% for cat in form.fields.category.queryset %}
+                <option value="{{ cat.pk }}" data-type="{{ cat.type }}" data-parent="" data-active="{{ cat.is_active|yesno:'true,false' }}" {% if form.initial.category == cat.pk or form.data.category == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
             {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
             <div class="form-text">Choose a main category (filtered by Kind).</div>
           </div>
