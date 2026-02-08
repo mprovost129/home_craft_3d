@@ -107,11 +107,21 @@ class ProductForm(forms.ModelForm):
         # Slug is optional: auto-generate unless seller intentionally edits it.
         self.fields["slug"].required = False
 
-        # Category dropdown shows ROOT categories only.
-        self.fields["category"].queryset = (
-            Category.objects.filter(parent__isnull=True, is_active=True)
-            .order_by("type", "sort_order", "name")
-        )
+        # Filter category queryset by selected kind (MODEL or FILE)
+        kind = None
+        # 1. POST data (form submission)
+        if self.data.get("kind"):
+            kind = self.data.get("kind").strip().upper()
+        # 2. Instance (edit mode)
+        elif self.instance and getattr(self.instance, "kind", None):
+            kind = str(self.instance.kind).strip().upper()
+        # 3. Default: show all root categories
+        if kind == Product.Kind.MODEL:
+            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True, type=Category.CategoryType.MODEL).order_by("sort_order", "name")
+        elif kind == Product.Kind.FILE:
+            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True, type=Category.CategoryType.FILE).order_by("sort_order", "name")
+        else:
+            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
 
         # Subcategory dropdown: default empty; JS will populate.
         self.fields["subcategory"].queryset = Category.objects.none()
