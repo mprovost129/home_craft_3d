@@ -67,14 +67,12 @@ def create_order_from_cart(
     """
     Create an Order + OrderItems from a session Cart (or an iterable of cart lines).
 
-    Rules:
-      - Snapshot SiteConfig percent onto Order at creation time (platform default).
-      - Compute per-line ledger fields:
-          marketplace_fee_cents, seller_net_cents
-        using the seller's effective percent (0% during waiver window).
-
-    Platform fee:
-      - NOT USED. Forced to 0 (legacy field remains).
+    Tip rules:
+      - Tips are separate OrderItem rows with is_tip=True
+      - Tip lines bypass marketplace fee entirely:
+          marketplace_fee_cents = 0
+          seller_net_cents = tip_cents
+      - Tip lines are quantity=1 and require no shipping.
     """
     items_iterable = cart_items if cart_items is not None else cart_or_items
 
@@ -85,15 +83,17 @@ def create_order_from_cart(
         raise ValueError("Guest checkout requires a valid email address.")
 
     cfg = get_site_config()
-    default_sales_pct = Decimal(getattr(cfg, "marketplace_sales_percent", Decimal("0.00")) or Decimal("0.00"))
+    default_sales_pct = Decimal(
+        getattr(cfg, "marketplace_sales_percent", Decimal("0.00")) or Decimal("0.00")
+    )
 
     order = Order.objects.create(
         buyer=buyer_obj,
         guest_email=guest_email if buyer_obj is None else "",
         currency=(currency or "usd").lower(),
         status=Order.Status.PENDING,
-        marketplace_sales_percent_snapshot=default_sales_pct,  # platform default at the time
-        platform_fee_cents_snapshot=0,  # legacy: no platform fee
+        marketplace_sales_percent_snapshot=default_sales_pct,
+        platform_fee_cents_snapshot=0,
     )
 
     if shipping:
@@ -109,8 +109,9 @@ def create_order_from_cart(
     items = _iter_cart_items(items_iterable)
 
     line_items: list[LineItem] = []
-    for item in items:
-        product = getattr(item, "product", None)
+
+    for line in items:
+        product = getattr(line, "product", None)
         if product is None:
             raise ValueError("Cart line missing product.")
 
@@ -118,31 +119,33 @@ def create_order_from_cart(
         if seller is None:
             raise ValueError(f"Product {getattr(product, 'pk', '')} has no seller.")
 
-        qty = int(getattr(item, "quantity", 1) or 1)
+        qty = int(getattr(line, "quantity", 1) or 1)
 
-        if hasattr(item, "unit_price_cents"):
-            unit_price_cents = int(getattr(item, "unit_price_cents") or 0)
-        else:
-            unit_price = getattr(item, "unit_price", None)
-            unit_price_cents = money_to_cents(unit_price)
+        # product pricing (not tip)
+        unit_price_cents = money_to_cents(getattr(line, "unit_price", None))
 
         is_digital = bool(getattr(product, "kind", "") == Product.Kind.FILE)
         requires_shipping = bool(getattr(product, "kind", "") == Product.Kind.MODEL)
 
         if is_digital:
             qty = 1
+            requires_shipping = False
 
         gross_cents = max(0, int(qty) * int(unit_price_cents))
 
-        # ✅ Per-seller effective percent (fee waiver => 0%)
+        # marketplace fee uses per-seller effective percent (fee waiver => 0%)
         effective_pct = get_effective_marketplace_sales_percent_for_seller(seller_user=seller)
         effective_rate = _pct_to_rate(effective_pct)
 
-        marketplace_fee_cents = _compute_marketplace_fee_cents(gross_cents=gross_cents, sales_rate=effective_rate)
+        marketplace_fee_cents = _compute_marketplace_fee_cents(
+            gross_cents=gross_cents,
+            sales_rate=effective_rate,
+        )
         seller_net_cents = max(0, gross_cents - marketplace_fee_cents)
 
-        buyer_notes = str(getattr(item, "buyer_notes", "") or "")
+        buyer_notes = str(getattr(line, "buyer_notes", "") or "")
 
+        # --- normal product line ---
         line_items.append(
             LineItem(
                 order=order,
@@ -155,8 +158,29 @@ def create_order_from_cart(
                 marketplace_fee_cents=marketplace_fee_cents,
                 seller_net_cents=seller_net_cents,
                 buyer_notes=buyer_notes,
+                is_tip=False,  # requires OrderItem.is_tip field
             )
         )
+
+        # --- optional tip line (bypasses fee) ---
+        tip_amount = getattr(line, "tip_amount", None)
+        tip_cents = money_to_cents(tip_amount) if tip_amount else 0
+        if tip_cents > 0:
+            line_items.append(
+                LineItem(
+                    order=order,
+                    product=product,   # keep context
+                    seller=seller,     # seller snapshot
+                    quantity=1,
+                    unit_price_cents=int(tip_cents),
+                    is_digital=False,
+                    requires_shipping=False,
+                    marketplace_fee_cents=0,
+                    seller_net_cents=int(tip_cents),
+                    buyer_notes="",    # keep tip clean; don’t mix notes
+                    is_tip=True,       # requires OrderItem.is_tip field
+                )
+            )
 
     LineItem.objects.bulk_create(line_items)
 

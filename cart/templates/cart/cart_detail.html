@@ -10,6 +10,7 @@
       {% endfor %}
     </div>
   {% endif %}
+
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h1 class="h4 mb-1">Cart</h1>
@@ -36,6 +37,9 @@
         <div class="small">
           One or more sellers in your cart haven’t completed Stripe payout setup yet:
           <strong>{{ unready_sellers|join:", " }}</strong>
+        </div>
+        <div class="small mt-1">
+          You can still keep these items in your cart, but you must remove them to proceed to checkout.
         </div>
       </div>
       <a class="btn btn-dark" href="{% url 'products:list' %}">
@@ -72,18 +76,22 @@
                     </div>
                   {% endif %}
 
-                  <div>
+                  <div class="w-100">
                     <div class="fw-semibold">
-                      {% if line.is_tip %}
-                        <span class="badge bg-primary me-1">Tip for Seller</span>
-                        <span>Tip for {{ line.product.seller.username }}</span>
-                      {% else %}
-                        <a class="text-decoration-none" href="{{ line.product.get_absolute_url }}">{{ line.product.title }}</a>
-                      {% endif %}
+                      <a class="text-decoration-none" href="{{ line.product.get_absolute_url }}">{{ line.product.title }}</a>
                     </div>
                     <div class="text-secondary small">
                       by {{ line.product.seller.username }} · {{ line.product.category.name }}
                     </div>
+
+                    {% if line.is_tip and line.tip_total and line.tip_total > 0 %}
+                      <div class="small mt-1">
+                        <span class="badge bg-primary me-1">Tip</span>
+                        <span class="text-secondary">Tip amount:</span>
+                        <strong>${{ line.tip_total|floatformat:2 }}</strong>
+                      </div>
+                    {% endif %}
+
                     {% if line.buyer_notes %}
                       <div class="alert alert-info mt-2 mb-0 p-2">
                         <div class="small fw-semibold">
@@ -92,6 +100,7 @@
                         <div class="small" style="white-space: pre-wrap;">{{ line.buyer_notes }}</div>
                       </div>
                     {% endif %}
+
                     <form method="post" action="{% url 'cart:update' %}" class="mt-2">
                       {% csrf_token %}
                       <input type="hidden" name="product_id" value="{{ line.product.pk }}">
@@ -125,28 +134,21 @@
                     <button class="btn btn-sm btn-outline-dark" type="submit">Update</button>
                   </form>
                   <div class="form-text">Use the remove button to delete an item.</div>
-                                  {% if line.product.max_purchases_per_buyer %}
-                                    <div class="small text-secondary mt-1">
-                                      Limit: {{ line.product.max_purchases_per_buyer }} per buyer.
-                                    </div>
-                                  {% endif %}
+                  {% if line.product.max_purchases_per_buyer %}
+                    <div class="small text-secondary mt-1">
+                      Limit: {{ line.product.max_purchases_per_buyer }} per buyer.
+                    </div>
+                  {% endif %}
                 {% endif %}
               </td>
 
-              <td class="text-end"><strong>
-                {% if line.is_tip %}
-                  ${{ line.tip_amount|floatformat:2 }}
-                {% else %}
-                  ${{ line.unit_price }}
+              <td class="text-end"><strong>${{ line.unit_price|floatformat:2 }}</strong></td>
+              <td class="text-end">
+                <div><strong>${{ line.line_total|floatformat:2 }}</strong></div>
+                {% if line.is_tip and line.tip_total and line.tip_total > 0 %}
+                  <div class="small text-secondary">+ Tip: ${{ line.tip_total|floatformat:2 }}</div>
                 {% endif %}
-              </strong></td>
-              <td class="text-end"><strong>
-                {% if line.is_tip %}
-                  ${{ line.tip_amount|floatformat:2 }}
-                {% else %}
-                  ${{ line.line_total }}
-                {% endif %}
-              </strong></td>
+              </td>
 
               <td class="text-end">
                 <form method="post" action="{% url 'cart:remove' line.product.pk %}">
@@ -166,9 +168,23 @@
       </table>
     </div>
 
-    <div class="card-footer bg-white d-flex justify-content-between align-items-center">
-      <div class="text-secondary">Subtotal</div>
-      <div class="h5 mb-0">${{ subtotal }}</div>
+    <div class="card-footer bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="text-secondary">Subtotal</div>
+        <div class="h6 mb-0">${{ subtotal|floatformat:2 }}</div>
+      </div>
+
+      {% if tips_total and tips_total > 0 %}
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <div class="text-secondary">Tips</div>
+          <div class="h6 mb-0">${{ tips_total|floatformat:2 }}</div>
+        </div>
+      {% endif %}
+
+      <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+        <div class="fw-semibold">Total</div>
+        <div class="h5 mb-0">${{ grand_total|floatformat:2 }}</div>
+      </div>
     </div>
   </div>
 
@@ -235,6 +251,7 @@
       })();
     </script>
   {% endif %}
+
   <script>
     (function () {
       var inputs = document.querySelectorAll('.buyer-notes-input');

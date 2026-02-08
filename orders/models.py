@@ -10,9 +10,9 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from django.db import models
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.template.loader import render_to_string
 
 
 def _site_base_url() -> str:
@@ -200,7 +200,8 @@ def _send_download_reminder_email(order: "Order") -> bool:
     logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
     order_link = _order_detail_link(order=order, base=base)
 
-    product_ids = list(order.items.values_list("product_id", flat=True))
+    # IMPORTANT: exclude tip lines
+    product_ids = list(order.items.filter(is_tip=False).values_list("product_id", flat=True))
     if not product_ids:
         assets = []
     else:
@@ -272,6 +273,8 @@ def _send_download_reminder_email(order: "Order") -> bool:
 def _send_review_request_email(order: "Order", item: "OrderItem") -> None:
     if not order.buyer or not order.buyer.email:
         return
+    if item.is_tip:
+        return
 
     base = _site_base_url()
     logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
@@ -333,7 +336,8 @@ def _send_paid_order_email(order: "Order") -> None:
     else:
         order_link = f"{base}{reverse('orders:purchases')}"
 
-    product_ids = list(order.items.values_list("product_id", flat=True))
+    # IMPORTANT: exclude tip lines
+    product_ids = list(order.items.filter(is_tip=False).values_list("product_id", flat=True))
     if not product_ids:
         assets = []
     else:
@@ -377,10 +381,7 @@ def _send_paid_order_email(order: "Order") -> None:
                     f"?t={order.order_token}"
                 )
             else:
-                dl = (
-                    f"{base}"
-                    f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
-                )
+                dl = f"{base}{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
             lines.append(f"- {fn}: {dl}")
         lines.append("")
 
@@ -406,10 +407,7 @@ def _send_paid_order_email(order: "Order") -> None:
                 f"?t={order.order_token}"
             )
         else:
-            dl = (
-                f"{base}"
-                f"{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
-            )
+            dl = f"{base}{reverse('orders:download_asset', kwargs={'order_id': order.pk, 'asset_id': a.pk})}"
         downloads.append({"filename": fn, "url": dl})
 
     html_message = render_to_string(
@@ -439,9 +437,10 @@ def _send_paid_order_email(order: "Order") -> None:
 def _send_seller_new_order_email(order: "Order") -> None:
     """
     Send notification to sellers when they receive paid orders with physical items.
+    IMPORTANT: excludes tip lines.
     """
     sellers_with_physical = {}
-    for item in order.items.filter(requires_shipping=True).select_related("seller"):
+    for item in order.items.filter(requires_shipping=True, is_tip=False).select_related("seller"):
         seller = item.seller
         if seller and seller.email:
             if seller.id not in sellers_with_physical:
@@ -533,6 +532,9 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
     """
     Send notification to buyer when seller ships item with tracking info.
     """
+    if item.is_tip:
+        return
+
     recipient_email = ""
     if order.buyer and order.buyer.email:
         recipient_email = order.buyer.email
@@ -608,7 +610,8 @@ def _send_guest_paid_email_with_downloads(order: "Order") -> None:
     base = _site_base_url()
     order_link = f"{base}{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={order.order_token}"
 
-    product_ids = list(order.items.values_list("product_id", flat=True))
+    # IMPORTANT: exclude tip lines
+    product_ids = list(order.items.filter(is_tip=False).values_list("product_id", flat=True))
     if not product_ids:
         assets = []
     else:
@@ -698,7 +701,6 @@ class Order(models.Model):
     shipping_cents = models.PositiveIntegerField(default=0)
     total_cents = models.PositiveIntegerField(default=0)
 
-    # Snapshot settings (historical correctness)
     marketplace_sales_percent_snapshot = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -706,7 +708,6 @@ class Order(models.Model):
         help_text="Marketplace % cut captured at order creation time.",
     )
 
-    # Legacy field: kept for compatibility, but MUST be 0 (platform fee not used).
     platform_fee_cents_snapshot = models.PositiveIntegerField(
         default=0,
         help_text="Legacy flat fee snapshot (NOT USED). Keep at 0.",
@@ -765,7 +766,8 @@ class Order(models.Model):
 
     @property
     def requires_shipping(self) -> bool:
-        return self.items.filter(requires_shipping=True).exists()
+        # IMPORTANT: tips never require shipping
+        return self.items.filter(requires_shipping=True, is_tip=False).exists()
 
     def recompute_totals(self) -> None:
         subtotal = 0
@@ -774,6 +776,11 @@ class Order(models.Model):
 
         for oi in self.items.all():
             subtotal += int(oi.line_total_cents)
+
+            # Ignore tips when determining order kind
+            if oi.is_tip:
+                continue
+
             if oi.is_digital:
                 any_digital = True
             if oi.requires_shipping:
@@ -837,13 +844,6 @@ class Order(models.Model):
         paid_at: Optional[timezone.datetime] = None,
         note: str = "",
     ) -> bool:
-        """
-        Marks order PAID and ensures a SALE ledger entry exists per seller.
-
-        IMPORTANT: Ledger rule
-          - On paid => create SellerBalanceEntry(reason=SALE, amount=+seller_net_total_for_order)
-          - On transfer => create SellerBalanceEntry(reason=PAYOUT, amount=-payout_amount)
-        """
         changed = False
         now = paid_at or timezone.now()
 
@@ -874,13 +874,12 @@ class Order(models.Model):
             update_fields.append("updated_at")
             self.save(update_fields=update_fields)
 
-        # ✅ Always ensure SALE entries exist once the order is PAID (idempotent)
         if self.status == self.Status.PAID:
             try:
                 from payments.services import ensure_sale_balance_entries_for_paid_order
+
                 ensure_sale_balance_entries_for_paid_order(order=self)
             except Exception:
-                # Do not break the paid flow on ledger write failures.
                 pass
 
         if changed:
@@ -942,6 +941,13 @@ class OrderItem(models.Model):
     is_digital = models.BooleanField(default=False)
     requires_shipping = models.BooleanField(default=True)
 
+    # ✅ NEW: tip lines (do not ship, do not affect kind, no reviews, no downloads)
+    is_tip = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True if this line is a buyer tip (100% to seller; no marketplace fee).",
+    )
+
     buyer_notes = models.TextField(
         blank=True,
         default="",
@@ -975,6 +981,7 @@ class OrderItem(models.Model):
             models.Index(fields=["order", "created_at"]),
             models.Index(fields=["product", "created_at"]),
             models.Index(fields=["seller", "created_at"]),
+            models.Index(fields=["is_tip", "created_at"]),
         ]
 
     def __str__(self) -> str:
@@ -985,6 +992,9 @@ class OrderItem(models.Model):
         return int(self.quantity) * int(self.unit_price_cents)
 
     def mark_shipped(self, tracking_number: str = "", carrier: str = "") -> bool:
+        if self.is_tip:
+            return False
+
         if self.fulfillment_status == self.FulfillmentStatus.SHIPPED:
             return False
 
@@ -993,13 +1003,25 @@ class OrderItem(models.Model):
         self.carrier = (carrier or "").strip()
         self.shipped_at = timezone.now()
         self.buyer_notified_at = timezone.now()
-        self.save(update_fields=["fulfillment_status", "tracking_number", "carrier", "shipped_at", "buyer_notified_at", "updated_at"])
+        self.save(
+            update_fields=[
+                "fulfillment_status",
+                "tracking_number",
+                "carrier",
+                "shipped_at",
+                "buyer_notified_at",
+                "updated_at",
+            ]
+        )
 
         _send_buyer_shipped_email(self.order, self)
 
         return True
 
     def mark_delivered(self) -> bool:
+        if self.is_tip:
+            return False
+
         if self.fulfillment_status == self.FulfillmentStatus.DELIVERED:
             return False
 

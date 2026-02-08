@@ -56,9 +56,15 @@ def create_checkout_session_for_order(*, request, order: Order) -> stripe.checko
     _assert_order_sellers_stripe_ready(request=request, order=order)
 
     line_items: list[dict[str, Any]] = []
-    for item in order.items.select_related("product").all():
+    for item in order.items.select_related("product", "seller").all():
         product = item.product
-        name = getattr(product, "title", None) or getattr(product, "name", None) or f"Product {item.product_id}"
+
+        if getattr(item, "is_tip", False):
+            seller_name = getattr(item.seller, "username", "seller")
+            base_title = getattr(product, "title", None) or getattr(product, "name", None) or f"Product {item.product_id}"
+            name = f"Tip for {base_title} ({seller_name})"
+        else:
+            name = getattr(product, "title", None) or getattr(product, "name", None) or f"Product {item.product_id}"
 
         line_items.append(
             {
@@ -143,11 +149,9 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
     """
     Create Stripe transfers for a PAID order.
 
-    Ledger-aware:
-      - Uses SELLER LEDGER for balance
-      - Applies prior negative balance (carry forward)
-      - Does NOT attempt to pay prior positive balances via source_transaction (Stripe restriction)
-      - Never pays more than this order's net when using source_transaction
+    Tips:
+      - Included automatically because OrderItem.seller_net_cents includes tip lines at 100%.
+      - Tip lines have marketplace_fee_cents=0 (handled at order creation).
     """
     payment_intent_id = (payment_intent_id or "").strip()
     if not payment_intent_id or payment_intent_id == "FREE":
@@ -196,17 +200,9 @@ def create_transfers_for_paid_order(*, order: Order, payment_intent_id: str) -> 
             )
             continue
 
-        # Ledger after SALE credit exists (mark_paid ensures SALE entries)
         balance_after_sale = int(get_seller_balance_cents(seller=acct.user) or 0)
-
-        # Infer the balance before this order’s SALE credit.
-        # This lets us apply prior NEGATIVE balances, without double-paying.
         balance_before_sale = balance_after_sale - net_cents
-
-        # Desired payout for this order = net_cents plus any prior negative balance
         desired_payout = max(0, net_cents + balance_before_sale)
-
-        # IMPORTANT: because we use source_transaction, do not pay more than this order's net.
         payout_cents = min(net_cents, desired_payout)
 
         if payout_cents <= 0:

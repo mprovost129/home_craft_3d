@@ -52,7 +52,7 @@ def _seller_block_reason(*, request, product: Product) -> str | None:
 
     IMPORTANT:
     - Owner bypass is based on request.user (not the product's seller).
-    - Seller readiness is enforced server-side for cart add/update and order placement.
+    - Seller readiness is enforced server-side at place_order / checkout_start too.
     """
     if _is_owner_request(request):
         return None
@@ -75,7 +75,6 @@ def _enforce_file_quantity(product: Product, quantity: int) -> int:
         if getattr(product, "kind", None) == Product.Kind.FILE:
             return 1
     except Exception:
-        # If enum isn't available for some reason, don't blow up.
         pass
     return quantity
 
@@ -99,42 +98,43 @@ def _log_add_to_cart_throttled(request, *, product: Product) -> None:
         return
 
 
-def _prune_blocked_items(request, cart: Cart) -> Tuple[List[str], List[str]]:
+def _prune_inactive_items(cart: Cart) -> List[str]:
     """
-    Remove items that are no longer purchasable (seller not ready, inactive, etc.)
-    Returns (removed_product_titles, unready_seller_usernames).
+    Remove items that are no longer available (inactive/deleted).
+    Returns removed product titles.
     """
     removed_titles: List[str] = []
-    unready: List[str] = []
-
     for line in cart.lines():
         product = line.product
-
-        # Inactive → remove
         if not getattr(product, "is_active", True):
             cart.remove(product)
             removed_titles.append(getattr(product, "title", str(product.pk)))
-            continue
+    return removed_titles
 
-        reason = _seller_block_reason(request=request, product=product)
-        if reason:
-            cart.remove(product)
-            removed_titles.append(getattr(product, "title", str(product.pk)))
-            try:
-                unready.append(getattr(product.seller, "username", "Seller"))
-            except Exception:
-                unready.append("Seller")
 
-    # de-dupe seller list while preserving order
+def _cart_unready_sellers(request, cart: Cart) -> List[str]:
+    """
+    Return list of seller usernames that are not ready for payouts.
+    IMPORTANT: Does NOT remove items — just used to block checkout.
+    """
+    if _is_owner_request(request):
+        return []
+
+    unready: List[str] = []
+    for line in cart.lines():
+        product = line.product
+        seller = getattr(product, "seller", None)
+        if seller and not seller_is_stripe_ready(seller):
+            unready.append(getattr(seller, "username", str(getattr(seller, "pk", ""))))
+
     seen = set()
-    unready_sellers: List[str] = []
+    out: List[str] = []
     for u in unready:
         if u in seen:
             continue
         seen.add(u)
-        unready_sellers.append(u)
-
-    return removed_titles, unready_sellers
+        out.append(u)
+    return out
 
 
 # ============================================================
@@ -143,16 +143,21 @@ def _prune_blocked_items(request, cart: Cart) -> Tuple[List[str], List[str]]:
 def cart_detail(request):
     cart = Cart(request)
 
-    removed_titles, unready_sellers = _prune_blocked_items(request, cart)
+    removed_titles = _prune_inactive_items(cart)
     if removed_titles:
         messages.warning(
             request,
-            "Some items were removed from your cart because they can’t be checked out right now: "
+            "Some items were removed from your cart because they’re no longer available: "
             + ", ".join(removed_titles),
         )
 
     cart_lines = cart.lines()
+    unready_sellers = _cart_unready_sellers(request, cart)
+
     subtotal = cart.subtotal()
+    tips_total = cart.tips_total()
+    grand_total = cart.grand_total()
+
     can_checkout = bool(cart_lines) and not bool(unready_sellers)
 
     return render(
@@ -162,9 +167,11 @@ def cart_detail(request):
             "cart": cart,
             "cart_lines": cart_lines,
             "subtotal": subtotal,
+            "tips_total": tips_total,
+            "grand_total": grand_total,
             "unready_sellers": unready_sellers,
             "can_checkout": can_checkout,
-            # Template helper (avoid hardcoding "FILE" in templates)
+            # Template helper
             "KIND_FILE": getattr(Product.Kind, "FILE", "file"),
         },
     )
@@ -180,21 +187,22 @@ def cart_add(request):
     custom_colors = (request.POST.get("custom_colors") or "").strip()
     buyer_notes_raw = (request.POST.get("buyer_notes") or "").strip()
     buyer_notes = buyer_notes_raw[:1000]
+
     if custom_colors:
-        # Prepend color info to notes
         color_note = f"Color(s) requested: {custom_colors}"
-        if buyer_notes:
-            buyer_notes = f"{color_note}\n{buyer_notes}"
-        else:
-            buyer_notes = color_note
-    tip_amount_raw = request.POST.get("tip_amount")
-    try:
-        tip_amount = float(tip_amount_raw) if tip_amount_raw is not None else 0.0
-        if tip_amount < 0:
-            tip_amount = 0.0
-    except Exception:
-        tip_amount = 0.0
-    is_tip = tip_amount > 0
+        buyer_notes = f"{color_note}\n{buyer_notes}" if buyer_notes else color_note
+
+    # Tip
+    tip_amount_raw = (request.POST.get("tip_amount") or "").strip()
+    is_tip = False
+    tip_amount = "0"
+    if tip_amount_raw:
+        # keep as string; cart will normalize safely
+        tip_amount = tip_amount_raw
+        try:
+            is_tip = float(tip_amount_raw) > 0
+        except Exception:
+            is_tip = False
 
     try:
         quantity = int(qty_raw)
@@ -220,25 +228,32 @@ def cart_add(request):
 
     # Enforce purchase limit
     remaining_limit = get_remaining_product_limit(product, request.user)
-    # Get in-cart quantity for this product
+
     in_cart_qty = 0
     for line in cart.lines():
         if line.product.pk == product.pk:
             in_cart_qty = line.quantity
             break
-    allowed = None if remaining_limit is None else max(0, remaining_limit - in_cart_qty)
-    if allowed is not None and quantity > allowed:
-        if allowed <= 0:
+
+    if remaining_limit is not None:
+        # remaining_limit means "how many more you can buy"
+        allowed_additional = max(0, int(remaining_limit) - int(in_cart_qty))
+        if allowed_additional <= 0:
             messages.error(request, "You have reached the purchase limit for this product.")
             return redirect(product.get_absolute_url())
-        quantity = allowed
-        messages.warning(request, f"You can only add {allowed} more of this product due to the purchase limit.")
+
+        if quantity > allowed_additional:
+            quantity = allowed_additional
+            messages.warning(
+                request,
+                f"You can only add {allowed_additional} more of this product due to the purchase limit."
+            )
 
     if quantity > 0:
         cart.add(product, quantity=quantity, buyer_notes=buyer_notes, is_tip=is_tip, tip_amount=tip_amount)
         _log_add_to_cart_throttled(request, product=product)
         if is_tip:
-            messages.success(request, f"Tip of ${tip_amount:.2f} added to cart.")
+            messages.success(request, "Added to cart (with tip).")
         else:
             messages.success(request, "Added to cart.")
 
@@ -262,6 +277,9 @@ def cart_update(request):
     qty_raw = (request.POST.get("quantity") or "1").strip()
     buyer_notes = (request.POST.get("buyer_notes") or "").strip()[:1000]
 
+    # Tip update support (optional)
+    tip_amount_raw = (request.POST.get("tip_amount") or "").strip()
+
     try:
         quantity = int(qty_raw)
     except Exception:
@@ -276,6 +294,10 @@ def cart_update(request):
 
     reason = _seller_block_reason(request=request, product=product)
     if reason:
+        # keep it in cart (blocked) if unready; remove only if inactive (handled above)
+        if "payout setup" in reason.lower():
+            messages.error(request, reason)
+            return redirect("cart:detail")
         cart.remove(product)
         messages.error(request, f"Removed from cart: {reason}")
         return redirect("cart:detail")
@@ -288,29 +310,30 @@ def cart_update(request):
 
     # Enforce purchase limit
     remaining_limit = get_remaining_product_limit(product, request.user)
-    # Get in-cart quantity for this product (excluding this update)
-    in_cart_qty = 0
-    for line in cart.lines():
-        if line.product.pk == product.pk:
-            in_cart_qty = line.quantity
-            break
-    allowed = None if remaining_limit is None else max(0, remaining_limit - in_cart_qty)
-    if allowed is not None and quantity > allowed:
-        if allowed <= 0:
-            messages.error(request, "You have reached the purchase limit for this product.")
+    if remaining_limit is not None:
+        max_allowed = int(remaining_limit)
+        if max_allowed <= 0:
             cart.set_quantity(product, 0)
+            messages.error(request, "You have reached the purchase limit for this product.")
             return redirect("cart:detail")
-        quantity = allowed
-        messages.warning(request, f"You can only have {allowed} of this product due to the purchase limit.")
+
+        if quantity > max_allowed:
+            quantity = max_allowed
+            messages.warning(request, f"You can only have {max_allowed} of this product due to the purchase limit.")
 
     if quantity > 0:
         cart.set_quantity(product, quantity)
-        if buyer_notes or "buyer_notes" in request.POST:
+        if "buyer_notes" in request.POST:
             cart.set_notes(product, buyer_notes)
+
+        # Tip change/remove if field present
+        if "tip_amount" in request.POST:
+            cart.set_tip(product, tip_amount_raw)
+
         messages.success(request, "Cart updated.")
     else:
         cart.set_quantity(product, 0)
-        messages.info(request, "Item removed (purchase limit reached).")
+        messages.info(request, "Item removed.")
     return redirect("cart:detail")
 
 
