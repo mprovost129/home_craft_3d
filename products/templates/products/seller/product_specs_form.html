@@ -84,23 +84,27 @@
               </div>
 
               <!-- Dimensions -->
+
               <div class="row">
-                <div class="col-md-4 mb-3">
-                  <label for="{{ form.width_mm.id_for_label }}" class="form-label">Width (mm)</label>
-                  {{ form.width_mm }}
-                  {% if form.width_mm.errors %}<div class="small text-danger mt-1">{{ form.width_mm.errors.0 }}</div>{% endif %}
+                <div class="col-md-3 mb-3">
+                  <label for="{{ form.width.id_for_label }}" class="form-label">Width</label>
+                  {{ form.width }}
+                  {% if form.width.errors %}<div class="small text-danger mt-1">{{ form.width.errors.0 }}</div>{% endif %}
                 </div>
-
-                <div class="col-md-4 mb-3">
-                  <label for="{{ form.height_mm.id_for_label }}" class="form-label">Height (mm)</label>
-                  {{ form.height_mm }}
-                  {% if form.height_mm.errors %}<div class="small text-danger mt-1">{{ form.height_mm.errors.0 }}</div>{% endif %}
+                <div class="col-md-3 mb-3">
+                  <label for="{{ form.height.id_for_label }}" class="form-label">Height</label>
+                  {{ form.height }}
+                  {% if form.height.errors %}<div class="small text-danger mt-1">{{ form.height.errors.0 }}</div>{% endif %}
                 </div>
-
-                <div class="col-md-4 mb-3">
-                  <label for="{{ form.depth_mm.id_for_label }}" class="form-label">Depth (mm)</label>
-                  {{ form.depth_mm }}
-                  {% if form.depth_mm.errors %}<div class="small text-danger mt-1">{{ form.depth_mm.errors.0 }}</div>{% endif %}
+                <div class="col-md-3 mb-3">
+                  <label for="{{ form.depth.id_for_label }}" class="form-label">Depth</label>
+                  {{ form.depth }}
+                  {% if form.depth.errors %}<div class="small text-danger mt-1">{{ form.depth.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="{{ form.dimension_unit.id_for_label }}" class="form-label">Units</label>
+                  {{ form.dimension_unit }}
+                  {% if form.dimension_unit.errors %}<div class="small text-danger mt-1">{{ form.dimension_unit.errors.0 }}</div>{% endif %}
                 </div>
               </div>
 

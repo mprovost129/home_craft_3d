@@ -116,12 +116,23 @@ class ProductForm(forms.ModelForm):
         elif self.instance and getattr(self.instance, "kind", None):
             kind = str(self.instance.kind).strip().upper()
         # 3. Default: show all root categories
+        posted_cat_id = (self.data.get("category") or "").strip()
+        base_qs = Category.objects.filter(parent__isnull=True, is_active=True)
         if kind == Product.Kind.MODEL:
-            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True, type=Category.CategoryType.MODEL).order_by("sort_order", "name")
+            qs = base_qs.filter(type=Category.CategoryType.MODEL)
         elif kind == Product.Kind.FILE:
-            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True, type=Category.CategoryType.FILE).order_by("sort_order", "name")
+            qs = base_qs.filter(type=Category.CategoryType.FILE)
         else:
-            self.fields["category"].queryset = Category.objects.filter(parent__isnull=True, is_active=True).order_by("type", "sort_order", "name")
+            qs = base_qs
+        # Always include the posted category if present, even if it doesn't match the kind
+        if posted_cat_id:
+            try:
+                posted_cat = Category.objects.filter(pk=int(posted_cat_id)).first()
+                if posted_cat and posted_cat not in qs:
+                    qs = qs | Category.objects.filter(pk=posted_cat.pk)
+            except Exception:
+                pass
+        self.fields["category"].queryset = qs.order_by("type", "sort_order", "name")
 
         # Subcategory dropdown: default empty; JS will populate.
         self.fields["subcategory"].queryset = Category.objects.none()
@@ -336,9 +347,10 @@ class ProductPhysicalForm(forms.ModelForm):
             "material",
             "color",
             "num_colors",
-            "width_mm",
-            "height_mm",
-            "depth_mm",
+            "width",
+            "height",
+            "depth",
+            "dimension_unit",
             "weight_grams",
             "support_required",
             "specifications",
@@ -347,10 +359,11 @@ class ProductPhysicalForm(forms.ModelForm):
             "material": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., Plastic, Resin, Metal"}),
             "color": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., White, Multi-color"}),
             "num_colors": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Number of colors"}),
-            "width_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Width in mm"}),
-            "height_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Height in mm"}),
-            "depth_mm": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Depth in mm"}),
-            "weight_grams": forms.NumberInput(attrs={"class": "form-control", "placeholder": "Weight in grams"}),
+            "width": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "Width"}),
+            "height": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "Height"}),
+            "depth": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "Depth"}),
+            "dimension_unit": forms.Select(attrs={"class": "form-select"}),
+            "weight_grams": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "placeholder": "Weight in grams"}),
             "support_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "specifications": forms.Textarea(attrs={"class": "form-control", "rows": 4, "placeholder": "Additional specs, assembly instructions, etc."}),
         }

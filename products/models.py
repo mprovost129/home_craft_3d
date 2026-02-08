@@ -520,10 +520,15 @@ class ProductPhysical(models.Model):
     material = models.CharField(max_length=120, blank=True)
     color = models.CharField(max_length=120, blank=True)
     num_colors = models.PositiveIntegerField(null=True, blank=True, help_text="Number of colors in this print")
-    width_mm = models.PositiveIntegerField(null=True, blank=True)
-    height_mm = models.PositiveIntegerField(null=True, blank=True)
-    depth_mm = models.PositiveIntegerField(null=True, blank=True)
-    weight_grams = models.PositiveIntegerField(null=True, blank=True, help_text="Weight in grams")
+    DIMENSION_UNIT_CHOICES = [
+        ("mm", "Millimeters (mm)"),
+        ("in", "Inches (in)")
+    ]
+    width = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    height = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    depth = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    dimension_unit = models.CharField(max_length=2, choices=DIMENSION_UNIT_CHOICES, default="mm")
+    weight_grams = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, help_text="Weight in grams")
     support_required = models.BooleanField(default=False, help_text="Does this model require supports for printing?")
     specifications = models.TextField(blank=True, help_text="Additional specifications (e.g., scale info, assembly instructions, etc.)")
 
