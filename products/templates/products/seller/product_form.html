@@ -116,6 +116,12 @@
             {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors }}</div>{% endif %}
             <div class="form-text">Make this listing visible to buyers.</div>
           </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Max units per buyer</label>
+            {{ form.max_purchases_per_buyer }}
+            {% if form.max_purchases_per_buyer.errors %}<div class="text-danger small mt-1">{{ form.max_purchases_per_buyer.errors }}</div>{% endif %}
+            <div class="form-text">Limit how many units a single buyer can purchase. Leave blank or set to 0 for no limit.</div>
+          </div>
         </div>
 
         <!-- Advanced Settings -->
