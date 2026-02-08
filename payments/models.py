@@ -4,14 +4,45 @@ from __future__ import annotations
 import uuid
 from datetime import timedelta
 
+from django.apps import apps
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 
+def _sync_profile_stripe_fields(*, user, stripe_account_id: str, onboarding_complete: bool) -> None:
+    """
+    Keep accounts.Profile legacy fields synced with payments.SellerStripeAccount.
+
+    We intentionally avoid importing Profile directly to prevent circular imports.
+    """
+    try:
+        Profile = apps.get_model("accounts", "Profile")
+    except Exception:
+        return
+
+    if not user:
+        return
+
+    # Update only the two legacy fields; do not touch role flags here.
+    try:
+        Profile.objects.filter(user=user).update(
+            stripe_account_id=stripe_account_id or "",
+            stripe_onboarding_complete=bool(onboarding_complete),
+            updated_at=timezone.now(),
+        )
+    except Exception:
+        # Best-effort; never break payments flow if profile update fails.
+        return
+
+
 class SellerStripeAccount(models.Model):
     """
     Stores Stripe Connect Express account linkage for a seller user.
+
+    SOURCE OF TRUTH:
+      - payments.SellerStripeAccount fields are authoritative
+      - accounts.Profile.stripe_* fields are legacy mirrors for admin/UI convenience
     """
 
     user = models.OneToOneField(
@@ -45,15 +76,36 @@ class SellerStripeAccount(models.Model):
     def is_ready(self) -> bool:
         return bool(self.stripe_account_id) and self.details_submitted and self.charges_enabled and self.payouts_enabled
 
+    def _sync_profile(self) -> None:
+        _sync_profile_stripe_fields(
+            user=self.user,
+            stripe_account_id=self.stripe_account_id or "",
+            onboarding_complete=self.is_ready,
+        )
+
     def mark_onboarding_started(self) -> None:
+        changed = False
         if not self.onboarding_started_at:
             self.onboarding_started_at = timezone.now()
+            changed = True
+
+        if changed:
             self.save(update_fields=["onboarding_started_at", "updated_at"])
 
+        # Always mirror current account id + completion flag to Profile.
+        self._sync_profile()
+
     def mark_onboarding_completed_if_ready(self) -> None:
+        changed = False
         if self.is_ready and not self.onboarding_completed_at:
             self.onboarding_completed_at = timezone.now()
+            changed = True
+
+        if changed:
             self.save(update_fields=["onboarding_completed_at", "updated_at"])
+
+        # Always mirror current truth to Profile.
+        self._sync_profile()
 
 
 class SellerFeeWaiver(models.Model):

@@ -52,6 +52,8 @@ def _refresh_connect_status(obj: SellerStripeAccount) -> None:
             "updated_at",
         ]
     )
+
+    # This will also sync Profile legacy fields now.
     obj.mark_onboarding_completed_if_ready()
 
 
@@ -102,6 +104,9 @@ def connect_start(request):
                 "updated_at",
             ]
         )
+
+        # Immediately mirror legacy Profile fields.
+        obj.mark_onboarding_completed_if_ready()
 
     obj.mark_onboarding_started()
 
@@ -267,6 +272,7 @@ def stripe_connect_webhook(request):
                         "updated_at",
                     ]
                 )
+                # This now also syncs Profile legacy fields.
                 obj.mark_onboarding_completed_if_ready()
 
     return HttpResponse(status=200)

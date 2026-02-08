@@ -108,7 +108,7 @@ LOCAL_APPS = [
     "products",
     "cart",
     "orders",
-    "payments",
+    "payments.apps.PaymentsConfig",
     "reviews",
     "dashboards",
     "refunds.apps.RefundsConfig",
