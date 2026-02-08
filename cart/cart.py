@@ -18,9 +18,12 @@ class CartLine:
     quantity: int
     buyer_notes: str = ""
     is_tip: bool = False
+    tip_amount: float = 0.0
 
     @property
     def unit_price(self) -> Decimal:
+        if self.is_tip and self.tip_amount > 0:
+            return Decimal(str(self.tip_amount))
         return product_unit_price(self.product)
 
     @property
@@ -57,7 +60,7 @@ class Cart:
         self.data = {}
         self._save()
 
-    def add(self, product: Product, quantity: int = 1, buyer_notes: str = "", is_tip: bool = False) -> None:
+    def add(self, product: Product, quantity: int = 1, buyer_notes: str = "", is_tip: bool = False, tip_amount: float = 0.0) -> None:
         if not product.is_active:
             return
 
@@ -79,15 +82,17 @@ class Cart:
             # Update notes if provided (or keep existing)
             if buyer_notes:
                 self.data[pid]["notes"] = buyer_notes
-            # Update is_tip if provided
+            # Update is_tip and tip_amount if provided
             if is_tip:
                 self.data[pid]["is_tip"] = True
+                self.data[pid]["tip_amount"] = float(tip_amount)
         else:
             self.data[pid] = {"qty": quantity}
             if buyer_notes:
                 self.data[pid]["notes"] = buyer_notes
             if is_tip:
                 self.data[pid]["is_tip"] = True
+                self.data[pid]["tip_amount"] = float(tip_amount)
 
         self._save()
 
