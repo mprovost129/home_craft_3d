@@ -38,10 +38,11 @@
     <div class="row align-items-center g-4">
       <div class="col-lg-6">
         <h1 class="display-5 fw-bold mb-3">
-          {{ site_config.home_hero_title|default:"Welcome to Home Craft 3D" }}
+          <strong> {{ site_config.home_hero_title|default:"Welcome to Home Craft 3D" }} </strong>
         </h1>
         <p class="lead text-secondary mb-4">
-          {{ site_config.home_hero_subtitle|default:"Discover high-quality 3D printable models and digital files. Buy from makers worldwide or sell your designs." }}
+          <strong> {{ site_config.home_hero_subtitle|default:"Discover high-quality 3D printable models and digital files. 
+                                                              Buy from makers worldwide or sell your designs."|linebreaksbr }} </strong>
         </p>
 
         <div class="d-flex flex-wrap gap-2">
