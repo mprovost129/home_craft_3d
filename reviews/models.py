@@ -51,6 +51,40 @@ class Review(models.Model):
         return f"Review<{self.product_id}> by {self.buyer_id} ({self.rating}/5)"
 
 
+class ReviewReply(models.Model):
+    """Seller reply to a product review.
+
+    Locked spec: seller replies are allowed.
+    We allow at most one reply per review (one-to-one).
+    """
+
+    review = models.OneToOneField(
+        Review,
+        on_delete=models.CASCADE,
+        related_name="reply",
+    )
+
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="review_replies",
+    )
+
+    body = models.TextField()
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["seller", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ReviewReply<review={self.review_id} seller={self.seller_id}>"
+
+
 class SellerReview(models.Model):
     """Purchased-only rating for a seller.
 

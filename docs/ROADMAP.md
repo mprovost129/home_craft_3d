@@ -173,6 +173,13 @@ This file is a forward plan from the current authoritative state.
 - Enforced rule: user-facing emails also create in-app notifications.
 - Added plaintext fallback for HTML-only templates.
 
+4) Unverified access limits (DONE 2026-02-09)
+- Enforced verified-email gating for registered-only features: notifications, favorites/wishlist, seller-only views.
+
+5) Seller replies to reviews (DONE 2026-02-09)
+- Added `ReviewReply` (one reply per review) and seller reply endpoint.
+- Displayed replies under reviews on product detail + product reviews page.
+
 2) Stripe event reconciliation
 - Ensure the Orders Stripe webhook (checkout/refunds/chargebacks) creates:
   - `OrderEvent` records

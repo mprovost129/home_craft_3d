@@ -193,9 +193,13 @@ This file records decisions that govern implementation and must not be silently 
 ## Favorites & Wishlist
 - Favorites and Wishlist are separate models/entities.
 - Both are shown on a single combined page for UX simplicity.
-- Favorites/Wishlist require login; no email-verification gating.
+- Favorites/Wishlist require login AND verified email (unverified users have limited access).
 
 ## Notifications parity with email (locked)
 - All user-facing emails that are sent to a **registered user** MUST also create an in-app `Notification`.
 - `notifications.services.notify_email_and_in_app(...)` is the single choke point for creating the notification and sending the email.
 - If an email has no explicit plaintext template, plaintext is derived from the HTML template via `strip_tags(...)`.
+
+## Reviews (locked)
+- Reviews are only by verified purchasers.
+- Sellers may post a public reply to a product review (one reply per review in v1).

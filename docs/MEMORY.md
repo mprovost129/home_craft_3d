@@ -400,3 +400,17 @@ Refunds is implemented and wired as a full feature.
   - Order lifecycle emails (`orders/models.py`)
   - Refund lifecycle emails (registered users) (`refunds/services.py`)
   - Seller dashboard “free unlock” email (`dashboards/views.py`) + new template `templates/emails/free_unlock.html`.
+
+## Unverified account access limits expanded (2026-02-09)
+- Locked rule enforced: unverified users can sign in and access profile/basic dashboard, but **cannot use registered-only features**.
+- Added email verification gating to:
+  - Favorites/Wishlist (`favorites/views.py`)
+  - Notifications (`notifications/views.py`)
+  - Seller-only views (via `products.permissions.seller_required`)
+
+## Seller replies to reviews (2026-02-09)
+- Locked rule implemented: sellers can reply publicly to product reviews.
+- Added `reviews.ReviewReply` (one reply per review) + seller-only reply endpoint.
+- Seller replies are displayed under reviews on:
+  - product detail Reviews tab
+  - full product reviews page

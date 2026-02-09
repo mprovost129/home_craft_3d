@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from django import forms
 
-from .models import Review, SellerReview
+from .models import Review, ReviewReply, SellerReview
 
 
 class ReviewForm(forms.ModelForm):
@@ -25,4 +25,19 @@ class SellerReviewForm(forms.ModelForm):
             "rating": forms.NumberInput(attrs={"min": 1, "max": 5, "class": "form-control"}),
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "body": forms.Textarea(attrs={"class": "form-control", "rows": 5}),
+        }
+
+
+class ReviewReplyForm(forms.ModelForm):
+    class Meta:
+        model = ReviewReply
+        fields = ["body"]
+        widgets = {
+            "body": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Reply as the seller…",
+                }
+            )
         }

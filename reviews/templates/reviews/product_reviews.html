@@ -31,6 +31,13 @@
           {% if r.body %}
             <div class="mt-2">{{ r.body|linebreaksbr }}</div>
           {% endif %}
+
+          {% if r.reply %}
+            <div class="mt-2 p-2 rounded" style="background: rgba(0,0,0,0.03);">
+              <div class="small fw-semibold">Seller reply</div>
+              <div class="small mt-1">{{ r.reply.body|linebreaksbr }}</div>
+            </div>
+          {% endif %}
         </div>
       {% empty %}
         <div class="text-secondary">No reviews yet.</div>

@@ -6,12 +6,15 @@ from django.db import IntegrityError
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from accounts.decorators import email_verified_required
+
 from products.models import Product
 
 from .models import Favorite, WishlistItem
 
 
 @login_required
+@email_verified_required
 def library(request: HttpRequest) -> HttpResponse:
     """Single page showing Favorites + Wishlist."""
     user = request.user
@@ -42,6 +45,7 @@ def library(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@email_verified_required
 def favorite_add(request: HttpRequest, product_id: int) -> HttpResponse:
     if request.method != "POST":
         return redirect("favorites:library")
@@ -57,6 +61,7 @@ def favorite_add(request: HttpRequest, product_id: int) -> HttpResponse:
 
 
 @login_required
+@email_verified_required
 def favorite_remove(request: HttpRequest, product_id: int) -> HttpResponse:
     if request.method != "POST":
         return redirect("favorites:library")
@@ -67,6 +72,7 @@ def favorite_remove(request: HttpRequest, product_id: int) -> HttpResponse:
 
 
 @login_required
+@email_verified_required
 def wishlist_add(request: HttpRequest, product_id: int) -> HttpResponse:
     if request.method != "POST":
         return redirect("favorites:library")
@@ -82,6 +88,7 @@ def wishlist_add(request: HttpRequest, product_id: int) -> HttpResponse:
 
 
 @login_required
+@email_verified_required
 def wishlist_remove(request: HttpRequest, product_id: int) -> HttpResponse:
     if request.method != "POST":
         return redirect("favorites:library")

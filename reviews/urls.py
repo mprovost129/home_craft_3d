@@ -11,4 +11,7 @@ urlpatterns = [
 
     # Purchased-only seller rating
     path("seller/<uuid:order_id>/<int:seller_id>/new/", views.seller_review_create, name="seller_review_new"),
+
+    # Seller reply to a product review
+    path("reply/<int:review_id>/", views.review_reply_create, name="review_reply_create"),
 ]

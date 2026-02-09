@@ -151,9 +151,9 @@
                       </div>
                     {% endif %}
 
-                    {% if not p.is_active and p._publish_missing %}
+                    {% if not p.is_active and product_statuses.p.pk.publish_missing %}
                       <div class="small text-warning">
-                        <i class="bi bi-exclamation-triangle me-1"></i>Complete to activate: {{ p._publish_missing|join:", " }}
+                        <i class="bi bi-exclamation-triangle me-1"></i>Complete to activate: {{ p.publish_missing|join:", " }}
                       </div>
                     {% endif %}
 

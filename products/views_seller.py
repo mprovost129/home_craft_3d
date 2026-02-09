@@ -228,14 +228,17 @@ def seller_product_list(request, *args, **kwargs):
         allow_new_listing = True
 
     products = list(qs)
+    product_statuses = {}
     for p in products:
-        p._publish_ok, p._publish_missing = _publish_checklist(p)
+        ok, missing = _publish_checklist(p)
+        product_statuses[p.pk] = {"publish_ok": ok, "publish_missing": missing}
 
     return render(
         request,
         "products/seller/product_list.html",
         {
             "products": products,
+            "product_statuses": product_statuses,
             "q": q,
             "file_type": file_type,
             "file_type_options": _file_type_options(),

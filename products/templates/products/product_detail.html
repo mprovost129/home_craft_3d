@@ -541,6 +541,24 @@
                     {% if r.body %}
                       <div class="small mt-2">{{ r.body|linebreaksbr }}</div>
                     {% endif %}
+
+                    {% if r.reply %}
+                      <div class="mt-2 p-2 rounded" style="background: rgba(0,0,0,0.03);">
+                        <div class="small fw-semibold">Seller reply</div>
+                        <div class="small mt-1">{{ r.reply.body|linebreaksbr }}</div>
+                      </div>
+                    {% endif %}
+
+                    {% if request.user.is_authenticated and request.user.id == product.seller_id and not r.reply %}
+                      <form method="post" action="{% url 'reviews:review_reply_create' r.id %}" class="mt-2">
+                        {% csrf_token %}
+                        <div class="input-group">
+                          <textarea name="body" class="form-control" rows="2" placeholder="Reply as the seller…" required></textarea>
+                          <button class="btn btn-outline-dark" type="submit">Reply</button>
+                        </div>
+                        <div class="text-secondary small mt-1">Replies are public and shown under the review.</div>
+                      </form>
+                    {% endif %}
                   </div>
                 {% empty %}
                   <div class="text-secondary small">No reviews yet.</div>

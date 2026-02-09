@@ -45,6 +45,14 @@ def seller_required(view_func: Callable[[HttpRequest, ...], HttpResponse]):
     def _wrapped(request: HttpRequest, *args, **kwargs):
         if not is_seller_user(request.user):
             return redirect(reverse("home"))
+
+        # LOCKED: unverified accounts have limited access.
+        # Allow owner/staff bypass.
+        if not is_owner_user(request.user):
+            profile = _get_profile(request.user)
+            if profile and not bool(getattr(profile, "email_verified", False)):
+                return redirect(reverse("accounts:verify_email_status"))
+
         return view_func(request, *args, **kwargs)
 
     return _wrapped

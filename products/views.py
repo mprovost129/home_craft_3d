@@ -447,7 +447,11 @@ def _render_product_detail(
 
     from reviews.models import Review, SellerReview
 
-    review_qs = Review.objects.filter(product=product).select_related("buyer").order_by("-created_at")
+    review_qs = (
+        Review.objects.filter(product=product)
+        .select_related("buyer", "reply", "reply__seller")
+        .order_by("-created_at")
+    )
     summary = review_qs.aggregate(avg=Avg("rating"), count=Count("id"))
     avg_rating = summary.get("avg") or 0
     review_count = summary.get("count") or 0
