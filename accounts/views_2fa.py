@@ -1,4 +1,4 @@
-"""Views for two-factor authentication management."""
+# accounts/views_2fa.py
 import io
 import qrcode
 from base64 import b64encode

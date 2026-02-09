@@ -1,7 +1,6 @@
+# payments/permissions.py
 from __future__ import annotations
 
-# payments/permissions.py
-#
 # Backwards-compatible re-export.
 # Canonical implementation lives in payments.decorators.
 

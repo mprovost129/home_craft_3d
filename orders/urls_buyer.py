@@ -1,3 +1,4 @@
+# orders/urls_buyer.py
 from django.urls import path
 from . import views_buyer
 

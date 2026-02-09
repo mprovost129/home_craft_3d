@@ -1,3 +1,4 @@
+# core/security_headers.py
 from __future__ import annotations
 
 from django.conf import settings

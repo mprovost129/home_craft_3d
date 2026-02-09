@@ -1,3 +1,4 @@
+# products/management/commands/update_trending_products.py
 """
 Update trending products based on recent engagement (views).
 

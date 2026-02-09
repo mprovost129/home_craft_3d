@@ -1,3 +1,4 @@
+# test_s3_upload.py
 """
 Test S3 upload configuration
 Run: python manage.py shell < test_s3_upload.py

@@ -1,3 +1,4 @@
+# payments/stripe_connect.py
 from __future__ import annotations
 
 import stripe
@@ -6,10 +7,10 @@ from django.urls import reverse
 
 
 def _base_url() -> str:
-    base = (getattr(settings, "SITE_BASE_URL", "") or "").strip()
-    if not base:
+    if not (base := (getattr(settings, "SITE_BASE_URL", "") or "").strip()):
         raise RuntimeError("SITE_BASE_URL is required for Stripe Connect links.")
-    return base.rstrip("/")
+    else:
+        return base.rstrip("/")
 
 
 def configure_stripe() -> None:

@@ -1,3 +1,4 @@
+# core/models_email.py
 from django.db import models
 
 class SiteEmailTemplate(models.Model):

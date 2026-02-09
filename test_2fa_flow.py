@@ -1,3 +1,4 @@
+# test_2fa_flow.py
 """
 Test script to verify Admin 2FA implementation.
 Run with: python manage.py shell < test_2fa_flow.py

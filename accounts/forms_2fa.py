@@ -1,4 +1,4 @@
-"""Forms for two-factor authentication."""
+# accounts/forms_2fa.py
 from django import forms
 
 

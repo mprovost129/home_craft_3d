@@ -1,3 +1,4 @@
+# products/management/commands/prune_engagement_events.py
 from __future__ import annotations
 
 from datetime import timedelta
