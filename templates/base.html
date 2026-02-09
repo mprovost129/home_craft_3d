@@ -38,17 +38,15 @@
     <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'images/homecraft3d_facebook.png' %}{% endblock %}">
   {% endblock %}
 
-  {% if ga_measurement_id %}
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-X9FW77VPFW"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-X9FW77VPFW"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
 
-      gtag('config', 'G-X9FW77VPFW');
-    </script>
-  {% endif %}
+    gtag('config', 'G-X9FW77VPFW');
+  </script>
   
 
   <!-- Bootstrap CSS (CDN) -->
