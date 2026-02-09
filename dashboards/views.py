@@ -133,7 +133,9 @@ def seller_dashboard(request):
             messages.success(request, f"{updated} listing(s) {'activated' if new_status else 'deactivated'}.")
             return redirect("dashboards:seller")
 
-    since = timezone.now() - timedelta(days=DASH_RECENT_DAYS)
+    # Use local time for analytics (America/New_York)
+    from django.utils.timezone import localtime
+    since = localtime(timezone.now()) - timedelta(days=DASH_RECENT_DAYS)
 
     stripe_obj, _ = SellerStripeAccount.objects.get_or_create(user=user)
     balance_cents = get_seller_balance_cents(seller=user)
@@ -243,7 +245,9 @@ def admin_dashboard(request):
         messages.info(request, "You don’t have access to the admin dashboard.")
         return redirect("dashboards:consumer")
 
-    since = timezone.now() - timedelta(days=DASH_RECENT_DAYS)
+    # Use local time for analytics (America/New_York)
+    from django.utils.timezone import localtime
+    since = localtime(timezone.now()) - timedelta(days=DASH_RECENT_DAYS)
 
     cfg = get_site_config()
     site_config_admin_url = reverse("admin:core_siteconfig_changelist")
@@ -311,7 +315,9 @@ def admin_dashboard(request):
     plausible_to = (request.GET.get("to") or "").strip()
 
     if selected_period in {"today", "yesterday"}:
-        base_date = timezone.now().date()
+        # Use local time for analytics (America/New_York)
+        from django.utils.timezone import localtime
+        base_date = localtime(timezone.now()).date()
         if selected_period == "yesterday":
             base_date = base_date - timedelta(days=1)
         plausible_from = base_date.isoformat()
