@@ -166,7 +166,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
+TIME_ZONE = "America/New_York"
 USE_I18N = True
 USE_TZ = True
 
@@ -259,9 +259,7 @@ if SENTRY_DSN:
 # ------------------------------------------------------------------------------
 # AWS S3 (optional)
 # ------------------------------------------------------------------------------
-USE_S3 = _bool_env("USE_S3", "False")
-
-if USE_S3:
+if (USE_S3 := _bool_env("USE_S3", "False")):
     AWS_ACCESS_KEY_ID = (os.getenv("AWS_ACCESS_KEY_ID") or "").strip()
     AWS_SECRET_ACCESS_KEY = (os.getenv("AWS_SECRET_ACCESS_KEY") or "").strip()
     AWS_S3_REGION_NAME = (os.getenv("AWS_S3_REGION_NAME") or "us-east-2").strip()

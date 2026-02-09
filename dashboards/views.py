@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.timezone import localdate
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -37,6 +38,7 @@ DASH_RECENT_DAYS = 30
 # Keep in sync with core.views
 HOME_ANON_CACHE_KEY = "home_html_anon_v2"
 
+today = localdate()
 
 def _cents_to_dollars(cents: int) -> Decimal:
     return (Decimal(int(cents or 0)) / Decimal("100")).quantize(Decimal("0.01"))
