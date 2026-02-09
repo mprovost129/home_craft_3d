@@ -33,6 +33,12 @@
           {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
         </div>
 
+        {% if profile.email_verified %}
+          <div class="help" style="color:#16A34A;"><strong>Email verified</strong></div>
+        {% else %}
+          <div class="help" style="color:#b45309;">Email not verified. <a href="{% url 'accounts:verify_email_status' %}">Verify now</a>.</div>
+        {% endif %}
+
         <div>
           <label for="{{ form.phone_1.id_for_label }}">Phone 1</label>
           {{ form.phone_1 }}

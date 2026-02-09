@@ -370,3 +370,18 @@ def coming_soon(request):
         context["feature_title"] = None
         context["feature_desc"] = None
     return render(request, "coming_soon.html", context)
+
+
+def help_page(request):
+    """Static help landing (placeholder; can evolve into full help center)."""
+    return render(request, "core/help.html", {})
+
+
+def faqs_page(request):
+    """Static FAQs page (placeholder; can evolve later)."""
+    return render(request, "core/faqs.html", {})
+
+
+def tips_page(request):
+    """Static Tips & Tricks page (locked to be static now; blog later)."""
+    return render(request, "core/tips.html", {})

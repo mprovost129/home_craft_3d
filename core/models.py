@@ -231,6 +231,17 @@ class SiteConfig(models.Model):
     x_url = models.URLField(blank=True, default="", help_text="Optional X (Twitter) profile URL for footer icon.")
     linkedin_url = models.URLField(blank=True, default="", help_text="Optional LinkedIn page URL for footer icon.")
 
+    # -------------------------
+    # LOCKED: Free digital giveaways cap (default 5)
+    # -------------------------
+    free_digital_listing_cap = models.PositiveIntegerField(
+        default=5,
+        help_text=(
+            "Max number of ACTIVE free digital FILE listings a seller may have "
+            "without completing Stripe onboarding."
+        ),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -320,6 +331,18 @@ class SiteConfig(models.Model):
 
         # If disabled, keep data but ensure title is sane; you can decide later to blank it.
         # We won't auto-clear links so you can toggle on/off without losing work.
+
+        # -------------------------
+        # LOCKED cap: clamp to sane bounds (0..1000)
+        # -------------------------
+        try:
+            cap = int(self.free_digital_listing_cap or 0)
+        except Exception:
+            cap = 0
+        if cap < 0:
+            self.free_digital_listing_cap = 0
+        elif cap > 1000:
+            self.free_digital_listing_cap = 1000
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.clean()

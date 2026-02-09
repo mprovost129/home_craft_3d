@@ -7,6 +7,8 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from accounts.decorators import email_verified_required
+
 from core.throttle import ThrottleRule, throttle
 from products.models import Product
 
@@ -30,6 +32,7 @@ QA_DELETE_RULE = ThrottleRule(key_prefix="qa_message_delete", limit=8, window_se
 
 @require_POST
 @login_required
+@email_verified_required
 @throttle(QA_THREAD_CREATE_RULE)
 def thread_create(request, product_id: int):
     product = get_object_or_404(Product.objects.filter(is_active=True), pk=product_id)
@@ -54,6 +57,7 @@ def thread_create(request, product_id: int):
 
 @require_POST
 @login_required
+@email_verified_required
 @throttle(QA_REPLY_RULE)
 def reply_create(request, thread_id: int):
     thread = get_object_or_404(
@@ -78,6 +82,7 @@ def reply_create(request, thread_id: int):
 
 @require_POST
 @login_required
+@email_verified_required
 @throttle(QA_DELETE_RULE)
 def message_delete(request, message_id: int):
     msg = get_object_or_404(
@@ -96,6 +101,7 @@ def message_delete(request, message_id: int):
 
 @require_POST
 @login_required
+@email_verified_required
 @throttle(QA_REPORT_RULE)
 def message_report(request, message_id: int):
     msg = get_object_or_404(

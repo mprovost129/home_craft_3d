@@ -45,7 +45,23 @@ Last updated: 2026-01-31 (America/New_York)
 
 # Home Craft 3D — Roadmap
 
-Last updated: 2026-02-03
+Last updated: 2026-02-09
+
+## Added in next bundle (2026-02-09)
+- Email verification gating: verification emails + in-app notifications, verify status page, and gated actions (seller onboarding, Q&A posting, reviews).
+
+
+## Recently completed (2026-02-09)
+- Free digital giveaways cap (SiteConfig-managed, default 5) enforced on activation for non-Stripe-ready sellers.
+- Bundle-level downloads counter on Product; Seller Listings shows product-level downloads.
+- Seller Listings net units sold (paid - refunded physical line items).
+ - References menu in navbar (Help, FAQs, Tips & Tricks) with static Tips & Tricks page (blog later).
+- Notifications detail now renders an email-like view by storing rendered email bodies (`email_text`, `email_html`) at send time.
+
+## Next bundle
+- Confirm all remaining email flows are routed through `notifications.services.notify_email_and_in_app` (parity audit).
+- Optional: add notification "kind" filters for any missing categories used by new flows.
+
 
 This file is a forward plan from the current authoritative state.
 
@@ -152,6 +168,10 @@ This file is a forward plan from the current authoritative state.
   - buyer list/detail templates
   - seller queue/detail templates
   - request create template
+
+3) Email/in-app notification parity (DONE 2026-02-09)
+- Enforced rule: user-facing emails also create in-app notifications.
+- Added plaintext fallback for HTML-only templates.
 
 2) Stripe event reconciliation
 - Ensure the Orders Stripe webhook (checkout/refunds/chargebacks) creates:

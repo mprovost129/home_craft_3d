@@ -114,6 +114,8 @@ LOCAL_APPS = [
     "refunds.apps.RefundsConfig",
     "qa",
     "legal.apps.LegalConfig",
+    "notifications.apps.NotificationsConfig",
+    "favorites.apps.FavoritesConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -285,3 +287,8 @@ if (USE_S3 := _bool_env("USE_S3", "False")):
         "default": {"BACKEND": "core.storage_backends.MediaStorage"},
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
     }
+
+GOOGLE_STREAM_NAME = os.getenv("GOOGLE_STREAM_NAME", "").strip()
+GOOGLE_MEASURMENT_ID = os.getenv("GOOGLE_MEASUREMENT_ID", "").strip()
+GOOGLE_STREAM_ID = os.getenv("GOOGLE_STREAM_ID", "").strip()
+GOOGLE_MEASUREMENT_API_SECRET_KEY = os.getenv("GOOGLE_MEASUREMENT_API_SECRET_KEY", "").strip()

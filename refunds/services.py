@@ -16,6 +16,9 @@ from django.conf import settings
 from orders.models import Order, OrderEvent, OrderItem, _absolute_static_url, _site_base_url
 from products.permissions import is_owner_user
 
+from notifications.models import Notification
+from notifications.services import notify_email_and_in_app
+
 from .models import AllocatedLineRefund, RefundRequest
 from .stripe_service import create_stripe_refund_for_request
 
@@ -56,8 +59,9 @@ def _format_cents(cents: int) -> str:
 
 
 def _send_refund_requested_email(rr: RefundRequest) -> None:
+    seller_user = getattr(rr, "seller", None)
     recipient = _seller_email_for_refund(rr)
-    if not recipient:
+    if not recipient or not seller_user:
         return
 
     base = _site_base_url()
@@ -92,22 +96,36 @@ def _send_refund_requested_email(rr: RefundRequest) -> None:
         },
     )
 
-    try:
-        send_mail(
-            subject,
-            body,
-            getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            [recipient],
-            html_message=html_message,
-        )
-    except Exception:
-        pass
+    # LOCKED: all emails also create in-app notifications (seller is a user).
+    notify_email_and_in_app(
+        user=seller_user,
+        kind=Notification.Kind.REFUND,
+        email_subject=subject,
+        email_template_html="emails/refund_requested.html",
+        email_template_txt=None,
+        context={
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": rr.order.pk,
+            "item_title": item_title,
+            "refund_amount": refund_amount,
+            "order_link": order_link,
+            "reason": rr.get_reason_display(),
+            "notes": rr.notes,
+        },
+        title=subject,
+        body=body,
+        action_url=reverse("orders:seller_order_detail", kwargs={"order_id": rr.order.pk}),
+        payload={"refund_request_id": rr.pk, "order_id": rr.order.pk},
+    )
 
 
 def _send_refund_decision_email(rr: RefundRequest) -> None:
     recipient = _buyer_email_for_refund(rr)
     if not recipient:
         return
+
+    buyer_user = getattr(rr, "buyer", None)
 
     base = _site_base_url()
     logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
@@ -146,6 +164,31 @@ def _send_refund_decision_email(rr: RefundRequest) -> None:
         },
     )
 
+    # If buyer is registered user, mirror to in-app notification too.
+    if buyer_user and getattr(buyer_user, "email", None):
+        notify_email_and_in_app(
+            user=buyer_user,
+            kind=Notification.Kind.REFUND,
+            email_subject=subject,
+            email_template_html=template,
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": rr.order.pk,
+                "item_title": item_title,
+                "refund_amount": refund_amount,
+                "order_link": order_link,
+                "decision_note": rr.seller_decision_note,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": rr.order.pk}),
+            payload={"refund_request_id": rr.pk, "order_id": rr.order.pk, "approved": approved},
+        )
+        return
+
+    # Guest fallback email
     try:
         send_mail(
             subject,
@@ -192,6 +235,29 @@ def _send_refund_processed_email(rr: RefundRequest) -> None:
             "order_link": order_link,
         },
     )
+
+    buyer_user = getattr(rr, "buyer", None)
+    if buyer_user and getattr(buyer_user, "email", None):
+        notify_email_and_in_app(
+            user=buyer_user,
+            kind=Notification.Kind.REFUND,
+            email_subject=subject,
+            email_template_html="emails/refund_processed.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": rr.order.pk,
+                "item_title": item_title,
+                "refund_amount": refund_amount,
+                "order_link": order_link,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": rr.order.pk}),
+            payload={"refund_request_id": rr.pk, "order_id": rr.order.pk},
+        )
+        return
 
     try:
         send_mail(

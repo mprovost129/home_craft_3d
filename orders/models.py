@@ -14,6 +14,9 @@ from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 
+from notifications.models import Notification
+from notifications.services import notify_email_and_in_app
+
 
 def _site_base_url() -> str:
     """
@@ -80,6 +83,28 @@ def _send_order_canceled_email(order: "Order") -> None:
         },
     )
 
+    # LOCKED: if buyer is a registered user, mirror email to in-app notification.
+    if order.buyer and getattr(order.buyer, "email", None):
+        notify_email_and_in_app(
+            user=order.buyer,
+            kind=Notification.Kind.ORDER,
+            email_subject=subject,
+            email_template_html="emails/order_canceled.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "order_link": order_link,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": order.pk}),
+            payload={"order_id": order.pk, "status": "CANCELED"},
+        )
+        return
+
+    # Guest fallback email
     try:
         send_mail(
             subject,
@@ -123,6 +148,27 @@ def _send_order_failed_email(order: "Order", reason: str = "") -> None:
             "reason": reason,
         },
     )
+
+    if order.buyer and getattr(order.buyer, "email", None):
+        notify_email_and_in_app(
+            user=order.buyer,
+            kind=Notification.Kind.ORDER,
+            email_subject=subject,
+            email_template_html="emails/order_failed.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "order_link": order_link,
+                "reason": reason,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": order.pk}),
+            payload={"order_id": order.pk, "status": "FAILED"},
+        )
+        return
 
     try:
         send_mail(
@@ -179,16 +225,26 @@ def _send_payout_email(
         },
     )
 
-    try:
-        send_mail(
-            subject,
-            body,
-            getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            [seller.email],
-            html_message=html_message,
-        )
-    except Exception:
-        pass
+    notify_email_and_in_app(
+        user=seller,
+        kind=Notification.Kind.SELLER,
+        email_subject=subject,
+        email_template_html="emails/payout_sent.html",
+        email_template_txt=None,
+        context={
+            "subject": subject,
+            "logo_url": logo_url,
+            "order_id": order.pk,
+            "order_link": order_link,
+            "payout_amount": f"${payout_amount:.2f}",
+            "balance_before": f"${balance_before:.2f}",
+            "transfer_id": transfer_id,
+        },
+        title=subject,
+        body=body,
+        action_url=reverse("orders:seller_order_detail", kwargs={"order_id": order.pk}),
+        payload={"order_id": order.pk, "transfer_id": transfer_id},
+    )
 
 
 def _send_download_reminder_email(order: "Order") -> bool:
@@ -257,6 +313,28 @@ def _send_download_reminder_email(order: "Order") -> bool:
         },
     )
 
+    if order.buyer and getattr(order.buyer, "email", None):
+        notify_email_and_in_app(
+            user=order.buyer,
+            kind=Notification.Kind.ORDER,
+            email_subject=subject,
+            email_template_html="emails/download_reminder.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "order_link": order_link,
+                "downloads": downloads,
+                "is_guest": bool(order.is_guest),
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": order.pk}),
+            payload={"order_id": order.pk, "type": "download_reminder"},
+        )
+        return True
+
     try:
         send_mail(
             subject,
@@ -301,16 +379,24 @@ def _send_review_request_email(order: "Order", item: "OrderItem") -> None:
         },
     )
 
-    try:
-        send_mail(
-            subject,
-            body,
-            getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            [order.buyer.email],
-            html_message=html_message,
-        )
-    except Exception:
-        pass
+    notify_email_and_in_app(
+        user=order.buyer,
+        kind=Notification.Kind.REVIEW,
+        email_subject=subject,
+        email_template_html="emails/review_request.html",
+        email_template_txt=None,
+        context={
+            "subject": subject,
+            "logo_url": logo_url,
+            "product_title": item.product.title,
+            "review_link": review_link,
+            "order_id": order.pk,
+        },
+        title=subject,
+        body=body,
+        action_url=reverse("reviews:review_for_item", kwargs={"order_item_id": item.pk}),
+        payload={"order_id": order.pk, "order_item_id": item.pk, "product_id": item.product_id},
+    )
 
 
 def _send_paid_order_email(order: "Order") -> None:
@@ -422,6 +508,29 @@ def _send_paid_order_email(order: "Order") -> None:
         },
     )
 
+    if order.buyer and getattr(order.buyer, "email", None):
+        notify_email_and_in_app(
+            user=order.buyer,
+            kind=Notification.Kind.ORDER,
+            email_subject=subject,
+            email_template_html="emails/order_paid.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "order_link": order_link,
+                "downloads": downloads,
+                "is_guest": False,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:detail", kwargs={"order_id": order.pk}),
+            payload={"order_id": order.pk, "status": "PAID"},
+        )
+        return
+
+    # Guest fallback email
     try:
         send_mail(
             subject,
@@ -516,16 +625,25 @@ def _send_seller_new_order_email(order: "Order") -> None:
             },
         )
 
-        try:
-            send_mail(
-                subject,
-                body,
-                getattr(settings, "DEFAULT_FROM_EMAIL", None),
-                [seller.email],
-                html_message=html_message,
-            )
-        except Exception:
-            pass
+        notify_email_and_in_app(
+            user=seller,
+            kind=Notification.Kind.SELLER,
+            email_subject=subject,
+            email_template_html="emails/seller_new_order.html",
+            email_template_txt=None,
+            context={
+                "subject": subject,
+                "logo_url": logo_url,
+                "order_id": order.pk,
+                "fulfillment_link": fulfillment_link,
+                "items": [f"{item.quantity}x {item.product.title} (${item.line_total_cents / 100:.2f})" for item in items],
+                "shipping_lines": shipping_lines,
+            },
+            title=subject,
+            body=body,
+            action_url=reverse("orders:seller_order_detail", kwargs={"order_id": order.pk}),
+            payload={"order_id": order.pk, "type": "seller_new_order"},
+        )
 
 
 def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
@@ -585,6 +703,30 @@ def _send_buyer_shipped_email(order: "Order", item: "OrderItem") -> None:
             "tracking_number": item.tracking_number,
         },
     )
+
+    if order.buyer and getattr(order.buyer, "email", None):
+        notify_email_and_in_app(
+           user=order.buyer,
+           kind=Notification.Kind.ORDER,
+           email_subject=subject,
+           email_template_html="emails/buyer_shipped.html",
+           email_template_txt=None,
+           context={
+               "subject": subject,
+               "logo_url": logo_url,
+               "order_id": order.pk,
+               "order_link": order_link,
+               "item_title": item.product.title,
+               "quantity": item.quantity,
+               "carrier": item.carrier,
+               "tracking_number": item.tracking_number,
+           },
+           title=subject,
+           body=body,
+           action_url=reverse("orders:detail", kwargs={"order_id": order.pk}),
+           payload={"order_id": order.pk, "order_item_id": item.pk, "type": "shipped"},
+        )
+        return
 
     try:
         send_mail(

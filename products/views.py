@@ -11,6 +11,8 @@ from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.db.models import F
+from products.models import Product
 
 from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount
@@ -406,6 +408,9 @@ def product_free_asset_download(request: HttpRequest, pk: int, slug: str, asset_
     # Increment counter (atomic)
     DigitalAsset.objects.filter(pk=asset.pk).update(download_count=F("download_count") + 1)
 
+    # LOCKED: bundle-level count (Seller Listings)
+    Product.objects.filter(pk=product.pk).update(download_count=F("download_count") + 1)
+
     # Serve file
     try:
         fh = asset.file.open("rb")
@@ -505,6 +510,18 @@ def _render_product_detail(
     qa_thread_count = ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True).count()
 
     remaining_limit = get_remaining_product_limit(product, request.user)
+
+    is_favorited = False
+    is_wishlisted = False
+    if request.user.is_authenticated:
+        try:
+            from favorites.models import Favorite, WishlistItem
+
+            is_favorited = Favorite.objects.filter(user=request.user, product=product).exists()
+            is_wishlisted = WishlistItem.objects.filter(user=request.user, product=product).exists()
+        except Exception:
+            is_favorited = False
+            is_wishlisted = False
     return render(
         request,
         "products/product_detail.html",
@@ -524,6 +541,8 @@ def _render_product_detail(
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
             "remaining_limit": remaining_limit,
+            "is_favorited": is_favorited,
+            "is_wishlisted": is_wishlisted,
         },
     )
 

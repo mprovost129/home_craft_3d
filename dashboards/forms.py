@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from django import forms
 from django.contrib.auth import get_user_model
-from products.models import Product
-from .models import ProductFreeUnlock
 
 from core.models import SiteConfig
+from products.models import Product
+
+from .models import ProductFreeUnlock
 
 
 class SiteConfigForm(forms.ModelForm):
@@ -59,6 +60,10 @@ class SiteConfigForm(forms.ModelForm):
             # Marketplace
             "marketplace_sales_percent",
             "platform_fee_cents",
+
+            # LOCKED: free digital giveaways cap
+            "free_digital_listing_cap",
+
             "default_currency",
             "allowed_shipping_countries_csv",
             "plausible_shared_url",
@@ -121,6 +126,12 @@ class SiteConfigForm(forms.ModelForm):
             # Marketplace
             "marketplace_sales_percent": forms.NumberInput(attrs={"class": "form-control"}),
             "platform_fee_cents": forms.NumberInput(attrs={"class": "form-control"}),
+
+            # LOCKED cap
+            "free_digital_listing_cap": forms.NumberInput(
+                attrs={"class": "form-control", "min": 0, "max": 1000}
+            ),
+
             "default_currency": forms.TextInput(attrs={"class": "form-control"}),
 
             # Theme
@@ -201,23 +212,23 @@ class ProductFreeUnlockForm(forms.Form):
     product = forms.ModelChoiceField(
         queryset=Product.objects.none(),
         label="Product",
-        widget=forms.Select(attrs={"class": "form-control"})
+        widget=forms.Select(attrs={"class": "form-control"}),
     )
     username = forms.CharField(
         label="Username",
         max_length=150,
-        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "off"})
+        widget=forms.TextInput(attrs={"class": "form-control", "autocomplete": "off"}),
     )
     user_email = forms.EmailField(
         label="User Email",
         required=False,
-        widget=forms.EmailInput(attrs={"readonly": "readonly", "class": "form-control"})
+        widget=forms.EmailInput(attrs={"readonly": "readonly", "class": "form-control"}),
     )
     send_email = forms.BooleanField(
         label="Send download email?",
         required=False,
         initial=True,
-        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
     def __init__(self, *args, **kwargs):

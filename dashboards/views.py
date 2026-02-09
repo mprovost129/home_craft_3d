@@ -15,6 +15,7 @@ from django.db.models.expressions import ExpressionWrapper
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.templatetags.static import static
 from django.utils.timezone import localdate
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
@@ -31,6 +32,9 @@ from payments.models import SellerStripeAccount, SellerBalanceEntry
 from products.models import Product
 from products.permissions import is_owner_user, is_seller_user
 from payments.services import get_seller_balance_cents
+
+from notifications.models import Notification
+from notifications.services import notify_email_and_in_app
 
 
 DASH_RECENT_DAYS = 30
@@ -197,14 +201,37 @@ def seller_dashboard(request):
             if created:
                 if grant_form.cleaned_data.get("send_email"):
                     recipient = grant_form.cleaned_data["user_email"]
+                    recipient_user = grant_form.cleaned_data.get("user")
                     product = grant_form.cleaned_data["product"]
-                    send_mail(
-                        subject=f"Free Download Unlocked: {product.title}",
-                        message=f"You have been granted a free download for {product.title}.",
-                        from_email=None,
-                        recipient_list=[recipient],
-                        fail_silently=True,
-                    )
+                    # LOCKED: all emails also create in-app notifications.
+                    if recipient_user and getattr(recipient_user, "email", None):
+                        subject = f"Free Download Unlocked: {product.title}"
+                        logo_url = request.build_absolute_uri(static("images/homecraft3d_icon.svg"))
+                        notify_email_and_in_app(
+                            user=recipient_user,
+                            kind=Notification.Kind.SYSTEM,
+                            email_subject=subject,
+                            email_template_html="emails/free_unlock.html",
+                            email_template_txt=None,
+                            context={
+                                "subject": subject,
+                                "logo_url": logo_url,
+                                "product": product,
+                                "seller": user,
+                            },
+                            title=f"Free download unlocked: {product.title}",
+                            body=f"You have been granted a free download for {product.title}.",
+                            action_url=product.get_absolute_url(),
+                            payload={"product_id": product.pk, "granted_by": user.pk},
+                        )
+                    else:
+                        send_mail(
+                            subject=f"Free Download Unlocked: {product.title}",
+                            message=f"You have been granted a free download for {product.title}.",
+                            from_email=None,
+                            recipient_list=[recipient],
+                            fail_silently=True,
+                        )
                 messages.success(request, "Free download unlocked and user notified.")
             else:
                 messages.info(request, "User already has free access to this product.")

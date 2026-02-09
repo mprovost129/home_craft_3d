@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from django.contrib import messages
+
+from accounts.decorators import email_verified_required
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -78,6 +80,7 @@ def connect_status(request):
 
 
 @seller_required
+@email_verified_required
 def connect_start(request):
     """Create Stripe Express account if needed, then redirect to onboarding link."""
     obj, _ = SellerStripeAccount.objects.get_or_create(user=request.user)
@@ -116,6 +119,7 @@ def connect_start(request):
 
 
 @seller_required
+@email_verified_required
 @require_POST
 def connect_sync(request):
     """Manual refresh button for sellers (handy if webhook delivery is delayed)."""

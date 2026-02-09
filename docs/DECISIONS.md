@@ -59,7 +59,34 @@ Implementation:
 
 # Home Craft 3D — Decisions (Locked + Current)
 
-Last updated: 2026-02-03
+Last updated: 2026-02-09
+
+## Email verification gating (LOCKED)
+- Users must verify email before: posting Q&A, starting seller Stripe onboarding, or leaving reviews.
+- Unverified users can still browse the marketplace and manage their profile.
+
+## Notifications rendering (LOCKED)
+- All emails also create in-app notifications.
+- Notifications are categorized by type (verification, refund, password, etc.).
+- In-app notification detail should resemble the email that was sent.
+- Implementation: store rendered email bodies (`Notification.email_text`, `Notification.email_html`) at send time and render an "Email view" tab when available.
+
+
+## Free digital giveaways cap (LOCKED)
+- Non-Stripe-ready sellers may have at most **SiteConfig.free_digital_listing_cap** active FREE digital FILE listings (default **5**).
+- Enforcement occurs at **activation** time (draft-first remains soft until activation).
+
+## Downloads counting (LOCKED)
+- Downloads are counted at the **product/bundle** level via `Product.download_count`.
+- Per-asset download counts may exist, but Seller Listings displays bundle-level downloads.
+
+## Tips & Tricks content (LOCKED)
+- Tips & Tricks lives under Navbar → References.
+- Tips & Tricks is a static page for now; it will be migrated into the Blog later.
+
+## Seller Listings units sold (CURRENT)
+- Units sold displayed to sellers is **net**: paid quantity minus refunded physical line items (RefundRequest status=refunded).
+
 
 This file records decisions that govern implementation and must not be silently changed.
 
@@ -162,3 +189,13 @@ This file records decisions that govern implementation and must not be silently 
 ## Code Organization
 - Canonical seller gating decorator lives in `payments.decorators`.
 - `payments.permissions` exists only as a backwards-compatible re-export to prevent import breakage.
+
+## Favorites & Wishlist
+- Favorites and Wishlist are separate models/entities.
+- Both are shown on a single combined page for UX simplicity.
+- Favorites/Wishlist require login; no email-verification gating.
+
+## Notifications parity with email (locked)
+- All user-facing emails that are sent to a **registered user** MUST also create an in-app `Notification`.
+- `notifications.services.notify_email_and_in_app(...)` is the single choke point for creating the notification and sending the email.
+- If an email has no explicit plaintext template, plaintext is derived from the HTML template via `strip_tags(...)`.

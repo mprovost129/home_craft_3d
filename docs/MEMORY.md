@@ -7,6 +7,10 @@ A working marketplace for:
 - Physical 3D printed models (shipped by sellers)
 - Digital 3D print files (downloadable assets)
 
+References / support content:
+- Navbar includes a "References" dropdown with Help, FAQs, and Tips & Tricks.
+- Tips & Tricks is a static page for now (it will become the Blog later).
+
 Logged-out users can browse. Users have public usernames.
 
 ---
@@ -117,7 +121,20 @@ Trending badge membership on browse needs a strict rule:
 
 # Home Craft 3D — Project Memory (Authoritative Snapshot)
 
-Last updated: 2026-02-03
+Last updated: 2026-02-09
+
+## 2026-02-09 — Change Pack: Email Verification Gating
+- Added Profile email verification fields (email_verified, email_verification_token, email_verification_sent_at).
+- Added /accounts/verify/ status page + resend flow; verification link sets email_verified true.
+- Gated actions behind verified email: Stripe Connect onboarding, Q&A posting/report/delete, and review creation.
+
+
+## 2026-02-09 — Change Pack: Free Digital Cap + Downloads + Seller Listings
+- Added **SiteConfig.free_digital_listing_cap** (default 5) and wired it into the dashboard settings form.
+- Enforced **free digital activation cap** for non-Stripe-ready sellers (cap blocks activation beyond limit; redirects to Stripe status).
+- Added **Product.download_count** for bundle-level download tracking; Seller Listings uses this as `total_downloads`.
+- Seller Listings now computes **net units sold** as paid quantity minus refunded physical line items (RefundRequest status=refunded).
+
 
 This file is the “what exists right now” ledger. It should match the codebase.
 
@@ -359,3 +376,27 @@ Refunds is implemented and wired as a full feature.
 ## Code hygiene fixes applied (2026-02-03)
 - Removed duplicate `stripe_ready_required` logic by making `payments/permissions.py` a re-export.
 - Removed duplicated block in `payments/services.py` (function was defined twice).
+
+---
+
+## Favorites & Wishlist
+- Implemented as separate entities (Favorites vs WishlistItems) in new `favorites` app.
+- Single combined page: `/favorites/` with tabs.
+- Add/remove actions exposed on product detail pages (logged-in users).
+- Linked from navbar user menu and Consumer Dashboard.
+
+## Free digital listing cap hardening
+- Enforced **SiteConfig.free_digital_listing_cap** server-side in seller **create** and **duplicate** flows (not just UI), preventing cap bypass when Stripe is not ready.
+
+## Notifications email-like rendering
+- Notifications now store rendered email bodies (`email_text`, `email_html`) at send time.
+- Notification detail page renders an **Email view** tab (HTML if available) plus a **Text** tab to mirror what was sent.
+
+## Email → In‑app notification parity (2026-02-09)
+- Locked rule implemented: **user-facing emails also create an in-app Notification** with the same subject/body and an action link.
+- `notifications.services.notify_email_and_in_app(...)` now supports `email_template_txt=None` and falls back to `strip_tags(html)` for plaintext.
+- Wired into:
+  - Welcome email (`accounts/signals.py`)
+  - Order lifecycle emails (`orders/models.py`)
+  - Refund lifecycle emails (registered users) (`refunds/services.py`)
+  - Seller dashboard “free unlock” email (`dashboards/views.py`) + new template `templates/emails/free_unlock.html`.

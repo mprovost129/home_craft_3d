@@ -37,8 +37,39 @@
             <li class="nav-item"><a class="nav-link" href="{% url 'products:models' %}">3D Models</a></li>
             <li class="nav-item"><a class="nav-link" href="{% url 'products:files' %}">3D Files</a></li>
 
-            <li class="nav-item"><a class="nav-link" href="{% url 'core:coming_soon' %}?feature=blog">Blog</a></li>
-            <li class="nav-item"><a class="nav-link" href="{% url 'core:coming_soon' %}?feature=community">Community</a></li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="referencesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                References
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="referencesDropdown">
+                <li>
+                  <a class="dropdown-item" href="{% url 'core:help' %}">
+                    <i class="bi bi-life-preserver me-1"></i>Help
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'core:faqs' %}">
+                    <i class="bi bi-question-circle me-1"></i>FAQs
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'core:tips' %}">
+                    <i class="bi bi-lightbulb me-1"></i>Tips &amp; Tricks
+                  </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'core:coming_soon' %}?feature=blog">
+                    <i class="bi bi-journal-text me-1"></i>Blog (coming soon)
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'core:coming_soon' %}?feature=community">
+                    <i class="bi bi-people me-1"></i>Community (coming soon)
+                  </a>
+                </li>
+              </ul>
+            </li>
 
             {% if user.is_authenticated %}
               {% with user_is_seller=user_is_seller|default:False user_is_owner=user_is_owner|default:False %}
@@ -158,6 +189,11 @@
                 <li>
                   <a class="dropdown-item" href="{% url 'dashboards:consumer' %}">
                     <i class="bi bi-person-badge me-1"></i>Account
+                  </a>
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{% url 'favorites:library' %}">
+                    <i class="bi bi-heart me-1"></i>Favorites &amp; Wishlist
                   </a>
                 </li>
                 {% if user.is_staff or user.is_superuser %}

@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
+
+from accounts.decorators import email_verified_required
 
 from .forms import ReviewForm, SellerReviewForm
 from .models import Review, SellerReview
@@ -33,6 +36,8 @@ def product_reviews(request, product_id: int):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required
+@email_verified_required
 def review_create_for_order_item(request, order_item_id: int):
     try:
         item = get_reviewable_order_item_or_403(user=request.user, order_item_id=order_item_id)
@@ -64,6 +69,8 @@ def review_create_for_order_item(request, order_item_id: int):
 
 
 @require_http_methods(["GET", "POST"])
+@login_required
+@email_verified_required
 def seller_review_create(request, order_id: int, seller_id: int):
     """Create a seller rating for a seller within a specific PAID order."""
     try:

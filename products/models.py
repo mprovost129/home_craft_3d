@@ -108,8 +108,11 @@ class Product(models.Model):
 
     @property
     def total_downloads(self) -> int:
-        # Sum download_count for all digital assets of this product
-        return sum(asset.download_count for asset in self.digital_assets.all())
+        # LOCKED: bundle-level
+        try:
+            return int(getattr(self, "download_count", 0) or 0)
+        except Exception:
+            return sum(int(getattr(a, "download_count", 0) or 0) for a in self.digital_assets.all())
 
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -152,6 +155,12 @@ class Product(models.Model):
         validators=[MinValueValidator(Decimal("0.00"))],
     )
     is_free = models.BooleanField(default=False)
+
+    # LOCKED: bundle-level download tracking (shown on Seller Listings)
+    download_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Total download actions for this product (bundle-level).",
+    )
 
     max_purchases_per_buyer = models.PositiveIntegerField(
         null=True,

@@ -49,6 +49,11 @@ class Profile(models.Model):
     # Used for correspondence; username is public
     email = models.EmailField(blank=True)
 
+    # Email verification (LOCKED: gated actions require verified email)
+    email_verified = models.BooleanField(default=False)
+    email_verification_token = models.UUIDField(null=True, blank=True, db_index=True)
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
+
     phone_regex = RegexValidator(
         regex=r"^[0-9\-\+\(\) ]{7,20}$",
         message="Enter a valid phone number (digits and - + ( ) allowed).",

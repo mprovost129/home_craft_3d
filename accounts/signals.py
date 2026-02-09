@@ -7,6 +7,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.template.loader import render_to_string
 
+from notifications.models import Notification
+from notifications.services import notify_email_and_in_app
+
 from .models import Profile
 
 
@@ -35,30 +38,29 @@ def _send_welcome_email(user) -> None:
     subject = "Welcome to Home Craft 3D"
     logo_url = _absolute_static_url("images/homecraft3d_icon.svg")
 
-    html_message = render_to_string(
-        "emails/welcome.html",
-        {
-            "subject": subject,
-            "logo_url": logo_url,
-            "username": getattr(user, "username", "") or "",
-            "profile_url": f"{_site_base_url()}/accounts/profile/",
-            "shop_url": f"{_site_base_url()}/products/",
-            "seller_url": f"{_site_base_url()}/payments/connect/start/",
-        },
+    ctx = {
+        "subject": subject,
+        "logo_url": logo_url,
+        "username": getattr(user, "username", "") or "",
+        "profile_url": f"{_site_base_url()}/accounts/profile/",
+        "shop_url": f"{_site_base_url()}/products/",
+        "seller_url": f"{_site_base_url()}/payments/connect/start/",
+    }
+
+    # LOCKED: all emails also create in-app notifications.
+    # Welcome email uses HTML template; plaintext is derived via strip_tags.
+    notify_email_and_in_app(
+        user=user,
+        kind=Notification.Kind.SYSTEM,
+        email_subject=subject,
+        email_template_html="emails/welcome.html",
+        email_template_txt=None,
+        context=ctx,
+        title="Welcome to Home Craft 3D",
+        body="Welcome to Home Craft 3D!",
+        action_url="/products/",
+        payload={"type": "welcome"},
     )
-
-    body = "Welcome to Home Craft 3D!"
-
-    try:
-        send_mail(
-            subject,
-            body,
-            getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            [recipient],
-            html_message=html_message,
-        )
-    except Exception:
-        pass
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

@@ -11,6 +11,8 @@ urlpatterns = [
     path("logout/", views.logout_view, name="logout"),
     path("register/", views.register_view, name="register"),
     path("profile/", views.profile_view, name="profile"),
+    path("verify/", views.verify_email_status, name="verify_email_status"),
+    path("verify/<str:token>/", views.verify_email_confirm, name="verify_email_confirm"),
     # 2FA URLs
     path("2fa/setup/", views_2fa.setup_2fa, name="setup_2fa"),
     path("2fa/status/", views_2fa.view_2fa_status, name="view_2fa_status"),

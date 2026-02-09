@@ -23,6 +23,8 @@ urlpatterns = [
     path("products/", include("products.urls")),
     path("cart/", include("cart.urls")),
     path("legal/", include(("legal.urls", "legal"), namespace="legal")),
+    path("notifications/", include("notifications.urls")),
+    path("favorites/", include(("favorites.urls", "favorites"), namespace="favorites")),
 
     # Orders include refunds under /orders/refunds/ via orders.urls
     path("orders/", include("orders.urls")),
@@ -31,7 +33,7 @@ urlpatterns = [
     path("payments/", include("payments.urls")),
 
     path("reviews/", include("reviews.urls")),
-    path("qa/", include("qa.urls")),          # ✅ IMPORTANT: add Q&A routes
+    path("qa/", include("qa.urls")),
     path("dashboard/", include("dashboards.urls")),
 ]
 

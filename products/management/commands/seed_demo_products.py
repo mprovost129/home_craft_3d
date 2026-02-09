@@ -173,21 +173,21 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"Reset: deleted {count} existing demo products."))
 
     def _ensure_seller_ready_flag(self, seller) -> None:
-    if SellerStripeAccount is None:
-        self.stdout.write(self.style.WARNING("SellerStripeAccount model not available; skipping ready flag."))
-        return
+        if SellerStripeAccount is None:
+            self.stdout.write(self.style.WARNING("SellerStripeAccount model not available; skipping ready flag."))
+            return
 
-    try:
-        SellerStripeAccount.objects.update_or_create(
-            user_id=seller.id,
-            defaults={
-                "charges_enabled": True,
-                "payouts_enabled": True,
-                "details_submitted": True,
-            },
-        )
-    except Exception:
-        self.stdout.write(self.style.WARNING("Could not set Stripe readiness flags (schema mismatch)."))
+        try:
+            SellerStripeAccount.objects.update_or_create(
+                user_id=seller.id,
+                defaults={
+                    "charges_enabled": True,
+                    "payouts_enabled": True,
+                    "details_submitted": True,
+                },
+            )
+        except Exception:
+            self.stdout.write(self.style.WARNING("Could not set Stripe readiness flags (schema mismatch)."))
 
     def _get_or_create_category_for_kind(self, kind: str, *, name: str):
         """
