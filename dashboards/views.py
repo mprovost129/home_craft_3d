@@ -27,8 +27,8 @@ from .forms import SiteConfigForm, ProductFreeUnlockForm
 from .plausible import get_summary as plausible_get_summary
 from .plausible import get_top_pages as plausible_get_top_pages
 from .plausible import is_configured as plausible_is_configured
-from orders.models import Order, OrderItem
-from refunds.models import RefundRequest
+from orders.models import Order, OrderItem, OrderEvent, StripeWebhookDelivery
+from refunds.models import RefundRequest, RefundAttempt
 from payments.models import SellerStripeAccount, SellerBalanceEntry
 from products.models import Product, ProductEngagementEvent, ProductDownloadEvent
 from products.permissions import is_owner_user, is_seller_user
@@ -649,6 +649,58 @@ def admin_dashboard(request):
 
 
 @login_required
+
+
+@login_required
+def admin_ops(request):
+    user = request.user
+    if not (is_owner_user(user) or getattr(user, "is_staff", False) or getattr(user, "is_superuser", False)):
+        messages.info(request, "You don’t have access to admin ops.")
+        return redirect("dashboards:home")
+
+    now = timezone.now()
+    since_24h = now - timedelta(hours=24)
+    since_7d = now - timedelta(days=7)
+
+    webhook_recent = (
+        StripeWebhookDelivery.objects.filter(received_at__gte=since_7d)
+        .order_by("-received_at")
+        .only("stripe_event_id", "event_type", "status", "received_at", "processed_at", "request_id", "error_message")[:200]
+    )
+
+    webhook_counts = StripeWebhookDelivery.objects.filter(received_at__gte=since_7d).values("status").annotate(c=Count("id"))
+    webhook_count_map = {row["status"]: row["c"] for row in webhook_counts}
+
+    refund_attempts_recent = (
+        RefundAttempt.objects.select_related("refund_request", "actor")
+        .filter(created_at__gte=since_7d)
+        .order_by("-created_at")[:200]
+    )
+    refund_fail_24h = RefundAttempt.objects.filter(created_at__gte=since_24h, status=RefundAttempt.Status.ERROR).count()
+
+    refund_open = RefundRequest.objects.filter(status__in=[RefundRequest.Status.REQUESTED, RefundRequest.Status.APPROVED]).count()
+
+    warnings_recent = (
+        OrderEvent.objects.select_related("order")
+        .filter(type=OrderEvent.Type.WARNING, created_at__gte=since_7d)
+        .order_by("-created_at")[:100]
+    )
+
+    return render(
+        request,
+        "dashboards/admin_ops.html",
+        {
+            "since_7d": since_7d,
+            "webhook_recent": webhook_recent,
+            "webhook_count_map": webhook_count_map,
+            "refund_attempts_recent": refund_attempts_recent,
+            "refund_fail_24h": refund_fail_24h,
+            "refund_open": refund_open,
+            "warnings_recent": warnings_recent,
+        },
+    )
+
+
 def admin_settings(request):
     user = request.user
 

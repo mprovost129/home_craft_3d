@@ -6,7 +6,7 @@ from django.contrib import admin, messages
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import RefundRequest
+from .models import RefundRequest, RefundAttempt
 
 
 @admin.register(RefundRequest)
@@ -129,3 +129,11 @@ class RefundRequestAdmin(admin.ModelAdmin):
             messages.success(request, f"Processed {count_ok} refund(s).")
         if count_skip:
             messages.info(request, f"Skipped {count_skip} refund(s).")
+
+
+@admin.register(RefundAttempt)
+class RefundAttemptAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "status", "refund_request", "actor", "stripe_refund_id")
+    list_filter = ("status", "created_at")
+    search_fields = ("refund_request__id", "stripe_refund_id", "actor__username", "error_message", "request_id")
+    ordering = ("-created_at",)

@@ -28,7 +28,7 @@ from django.utils.html import format_html
 from payments.models import SellerStripeAccount
 from payments.services import get_seller_balance_cents
 
-from .models import Order, OrderItem, OrderEvent, StripeWebhookEvent
+from .models import Order, OrderItem, OrderEvent, StripeWebhookEvent, StripeWebhookDelivery
 from .stripe_service import create_transfers_for_paid_order
 
 # IMPORTANT: must match the stored DB value (lowercase)
@@ -805,6 +805,15 @@ class OrderEventAdmin(admin.ModelAdmin):
 # =========================
 # Stripe Webhook Event Admin (idempotency audit)
 # =========================
+
+@admin.register(StripeWebhookDelivery)
+class StripeWebhookDeliveryAdmin(admin.ModelAdmin):
+    list_display = ("received_at", "event_type", "status", "stripe_event_id", "request_id")
+    list_filter = ("status", "event_type", "received_at")
+    search_fields = ("stripe_event_id", "request_id", "event_type", "error_message")
+    ordering = ("-received_at",)
+
+
 @admin.register(StripeWebhookEvent)
 class StripeWebhookEventAdmin(admin.ModelAdmin):
     date_hierarchy = "created_at"
