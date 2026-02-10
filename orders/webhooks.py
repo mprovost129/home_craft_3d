@@ -162,11 +162,11 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     stripe_event_id = (event.get("id") or "").strip()
     event_type = (event.get("type") or "").strip()
     if not stripe_event_id or not event_type:
-        _mark_delivery_error(delivery, ValueError("missing order mapping"))
         return HttpResponse(status=200)
+
     if not _record_event_once(stripe_event_id=stripe_event_id, event_type=event_type):
-        _mark_delivery_processed(delivery)
         return HttpResponse(status=200)
+
     obj = (event.get("data") or {}).get("object") or {}
     order_id = _get_order_id_from_event(event)
 
@@ -179,8 +179,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
     if not order_id:
         logger.warning("Stripe event %s (%s) missing order_id mapping", stripe_event_id, event_type)
-        _mark_delivery_error(delivery, ValueError("missing order mapping"))
         return HttpResponse(status=200)
+
     try:
         with transaction.atomic():
             order = Order.objects.select_for_update().get(pk=order_id)
@@ -213,12 +213,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
                 # 4) Create transfers/payouts (this is where your -PAYOUT entries are created)
                 create_transfers_for_paid_order(order=order, payment_intent_id=payment_intent_id)
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
+
             if event_type == "checkout.session.expired":
                 order.mark_canceled(note="Checkout session expired")
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
+
             if event_type == "payment_intent.payment_failed":
                 failure_message = (obj.get("last_payment_error") or {}).get("message") or "Payment failed"
                 OrderEvent.objects.create(
@@ -227,8 +227,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     message=f"Payment failed (event={stripe_event_id})",
                 )
                 _send_order_failed_email(order, reason=failure_message)
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
+
             if event_type in {"charge.refunded", "refund.created", "refund.updated"}:
                 refunded_cents = int(obj.get("amount_refunded") or obj.get("amount") or 0)
                 payout_created = _transfers_already_created(order)
@@ -269,8 +269,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     refunded_total_cents=refunded_cents,
                     note=f"Stripe refund observed ({event_type}, {refunded_cents}c, event={stripe_event_id})",
                 )
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
+
             if event_type in {"charge.dispute.created", "charge.dispute.updated"}:
                 status = (obj.get("status") or "").strip().lower()
                 OrderEvent.objects.create(
@@ -278,8 +278,8 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     type=OrderEvent.Type.WARNING,
                     message=f"Dispute event: {event_type} status={status or 'unknown'} event={stripe_event_id}",
                 )
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
+
             if event_type == "charge.dispute.closed":
                 status = (obj.get("status") or "").strip().lower()
                 payout_created = _transfers_already_created(order)
@@ -320,28 +320,24 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                         order.save(update_fields=["status", "updated_at"])
                         OrderEvent.objects.create(order=order, type=OrderEvent.Type.REFUNDED, message="Chargeback lost")
 
-                    _mark_delivery_processed(delivery)
-
                     return HttpResponse(status=200)
+
                 OrderEvent.objects.create(
                     order=order,
                     type=OrderEvent.Type.WARNING,
                     message=f"Chargeback closed with status={status or 'unknown'} event={stripe_event_id}",
                 )
-                _mark_delivery_processed(delivery)
                 return HttpResponse(status=200)
-            _mark_delivery_processed(delivery)
 
             return HttpResponse(status=200)
+
     except Order.DoesNotExist:
-        _mark_delivery_error(delivery, ValueError("order not found"))
         return HttpResponse(status=200)
-    except Exception as e:
-        _mark_delivery_error(delivery, e)
+    except Exception:
         logger.exception(
             "Stripe webhook processing failed event=%s type=%s order=%s",
             stripe_event_id,
             event_type,
             order_id,
         )
-        return HttpResponse(status=500)
+        return HttpResponse(status=200)

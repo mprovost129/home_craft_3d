@@ -1217,38 +1217,3 @@ class StripeWebhookEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event_type} ({self.stripe_event_id})"
-
-
-class StripeWebhookDelivery(models.Model):
-    """
-    Observability for Stripe webhooks (received / processed / error).
-
-    We keep StripeWebhookEvent for strict idempotency (processed events),
-    and store delivery outcomes here for debugging and ops dashboards.
-    """
-
-    class Status(models.TextChoices):
-        RECEIVED = "received", "Received"
-        PROCESSED = "processed", "Processed"
-        ERROR = "error", "Error"
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    stripe_event_id = models.CharField(max_length=255, unique=True)
-    event_type = models.CharField(max_length=255, blank=True, default="")
-    status = models.CharField(max_length=32, choices=Status.choices, default=Status.RECEIVED)
-
-    request_id = models.CharField(max_length=64, blank=True, default="", help_text="X-Request-ID if present.")
-    error_message = models.TextField(blank=True, default="")
-
-    received_at = models.DateTimeField(default=timezone.now)
-    processed_at = models.DateTimeField(null=True, blank=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["status", "-received_at"]),
-            models.Index(fields=["event_type", "-received_at"]),
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.event_type} {self.status} ({self.stripe_event_id})"
-

@@ -1,21 +1,26 @@
 {# templates/partials/sidebar_dashboard.html #}
-<div class="p-3">
+{% comment %}
+Dashboard sidebar.
 
-  <div class="d-flex align-items-center justify-content-between mb-2">
-    <div class="text-uppercase small text-secondary fw-semibold">
-      <i class="bi bi-speedometer2 me-1"></i>Dashboard
-    </div>
-    <a class="text-decoration-none small" href="{% url 'core:home' %}">
-      <i class="bi bi-arrow-left"></i> Store
-    </a>
+Flags are provided by core.context_processors.sidebar_flags:
+  - user_is_owner
+  - user_is_seller
+  - seller_stripe_ready
+
+Keep this template conservative: only reference public attributes and valid url tags.
+{% endcomment %}
+
+<div class="p-2">
+  <div class="text-uppercase small text-secondary fw-semibold mb-2">
+    <i class="bi bi-speedometer2 me-1"></i>Dashboard
   </div>
 
   <ul class="list-unstyled mb-4">
     <li class="mb-1">
       <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
          href="{% url 'dashboards:home' %}">
-        <i class="bi bi-house-door"></i>
-        <span>Dashboard Home</span>
+        <i class="bi bi-house"></i>
+        <span>Overview</span>
       </a>
     </li>
   </ul>
@@ -28,16 +33,15 @@
     <li class="mb-1">
       <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
          href="{% url 'dashboards:consumer' %}">
-        <i class="bi bi-bar-chart"></i>
-        <span>Overview</span>
+        <i class="bi bi-bag"></i>
+        <span>My Orders</span>
       </a>
     </li>
-
     <li class="mb-1">
       <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-         href="{% url 'orders:my_orders' %}">
-        <i class="bi bi-bag-check"></i>
-        <span>My Orders</span>
+         href="{% url 'accounts:profile' %}">
+        <i class="bi bi-person-circle"></i>
+        <span>Profile</span>
       </a>
     </li>
   </ul>
@@ -56,27 +60,19 @@
         </a>
       </li>
 
-      
       <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-           href="{% url \'dashboards:seller_analytics\' %}">
+           href="{% url 'dashboards:seller_analytics' %}">
           <i class="bi bi-bar-chart"></i>
           <span>Analytics</span>
         </a>
       </li>
-<li class="mb-1">
+
+      <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'products:seller_list' %}">
           <i class="bi bi-box"></i>
           <span>My Listings</span>
-        </a>
-      </li>
-
-      <li class="mb-1">
-        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row ms-3"
-           href="{% url 'products:seller_shop' user.id %}">
-          <i class="bi bi-shop"></i>
-          <span>My Storefront</span>
         </a>
       </li>
 
@@ -88,16 +84,13 @@
         </a>
       </li>
 
-      <li class="mb-1">
-        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-           href="{% url 'payments:connect_status' %}">
-          <i class="bi bi-credit-card-2-front"></i>
-          <span>Stripe Payouts</span>
-          {% if seller_stripe_ready is not None and not seller_stripe_ready %}
-            <span class="ms-auto badge text-bg-warning text-dark">Action</span>
-          {% endif %}
-        </a>
-      </li>
+      {% if seller_stripe_ready is not None and not seller_stripe_ready %}
+        <li class="mt-2">
+          <div class="alert alert-warning py-2 px-2 small mb-0">
+            Stripe Connect isn’t fully set up yet. Some selling actions may be gated.
+          </div>
+        </li>
+      {% endif %}
     </ul>
   {% endif %}
 
@@ -106,53 +99,45 @@
       <i class="bi bi-shield-lock me-1"></i>Admin
     </div>
 
-    <ul class="list-unstyled mb-0">
+    <ul class="list-unstyled mb-4">
       <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'dashboards:admin' %}">
-          <i class="bi bi-clipboard-data"></i>
-          <span>Admin Overview</span>
+          <i class="bi bi-speedometer"></i>
+          <span>Admin Dashboard</span>
         </a>
       </li>
 
       <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'dashboards:admin_settings' %}">
-          <i class="bi bi-sliders"></i>
-          <span>Admin Settings</span>
-        </a>
-      </li>
-
-      <li class="mb-1">
-        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
-           href="{% url 'admin:index' %}">
           <i class="bi bi-gear"></i>
-          <span>Django Admin</span>
+          <span>Site Settings</span>
         </a>
       </li>
     </ul>
   {% endif %}
 
-</div>
-
-
-  {% if user.is_staff or user.is_superuser %}
-    <div class="text-uppercase small text-secondary fw-semibold mb-2 mt-3">
+  {% if user.is_staff %}
+    <div class="text-uppercase small text-secondary fw-semibold mb-2">
       <i class="bi bi-flag me-1"></i>Moderation
     </div>
-    <ul class="list-unstyled mb-0">
+
+    <ul class="list-unstyled mb-2">
       <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'qa:staff_reports_queue' %}">
           <i class="bi bi-exclamation-triangle"></i>
           <span>Q&amp;A Reports</span>
         </a>
+      </li>
+      <li class="mb-1">
         <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
            href="{% url 'qa:staff_suspensions_list' %}">
-          <i class="bi bi-person-slash"></i>
+          <i class="bi bi-person-x"></i>
           <span>Suspensions</span>
         </a>
       </li>
     </ul>
   {% endif %}
-
+</div>
