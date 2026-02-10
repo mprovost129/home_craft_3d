@@ -504,7 +504,7 @@
           <ul class="nav nav-tabs" id="productTabs" role="tablist">
             <li class="nav-item" role="presentation">
               <button class="nav-link active" id="qa-tab" data-bs-toggle="tab" data-bs-target="#qa-pane" type="button" role="tab" aria-controls="qa-pane" aria-selected="true">
-                Q&amp;A <span class="badge text-bg-light text-dark ms-1">{{ qa_thread_count }}</span>
+                Q&amp;A <span class="badge text-bg-light text-dark ms-1">{{ qa_thread_count }}</span>{% if request.user.is_staff and qa_open_report_count %} <span class="badge text-bg-danger ms-1" title="Open reports">{{ qa_open_report_count }}</span>{% endif %}
               </button>
             </li>
             <li class="nav-item" role="presentation">

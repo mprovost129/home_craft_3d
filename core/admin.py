@@ -13,7 +13,7 @@ from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils import timezone
 
-from .models import SiteConfig
+from .models import SiteConfig, StaffActionLog
 from orders.models import Order, OrderItem
 from products.models import ProductEngagementEvent
 from .models_advert import AdvertisementBanner
@@ -243,3 +243,11 @@ class SiteEmailTemplateAdmin(admin.ModelAdmin):
                 send_mass_mail(datatuple, fail_silently=False)
             self.message_user(request, f"Sent '{template.name}' to {len(datatuple)} staff members.", messages.SUCCESS)
     send_email_to_all_staff.short_description = "Send selected template to all staff"
+
+
+@admin.register(StaffActionLog)
+class StaffActionLogAdmin(admin.ModelAdmin):
+    list_display = ("id", "created_at", "action", "actor", "target_user", "qa_report", "qa_message")
+    list_filter = ("action", "created_at")
+    search_fields = ("notes", "actor__username", "target_user__username")
+    ordering = ("-created_at",)

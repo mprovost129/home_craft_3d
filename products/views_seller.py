@@ -8,7 +8,7 @@ from typing import Optional, List, Tuple
 from django.contrib import messages
 from django.core.files import File
 from django.db import transaction
-from django.db.models import Q, Sum, F, IntegerField, Value
+from django.db.models import Q, Sum, F, Count, IntegerField, Value
 from django.db.models.expressions import ExpressionWrapper
 from django.db.models.functions import Coalesce
 from django.http import Http404, JsonResponse
@@ -169,6 +169,24 @@ def seller_product_list(request, *args, **kwargs):
                 F("paid_qty") - F("refunded_qty"),
                 output_field=IntegerField(),
             ),
+            download_user_count=Coalesce(
+                Count("download_events__user", distinct=True, filter=Q(download_events__user__isnull=False)),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+            download_guest_count=Coalesce(
+                Count(
+                    "download_events__session_key",
+                    distinct=True,
+                    filter=Q(download_events__user__isnull=True) & Q(download_events__session_key__gt=""),
+                ),
+                Value(0),
+                output_field=IntegerField(),
+            ),
+            unique_downloaders=ExpressionWrapper(
+                F("download_user_count") + F("download_guest_count"),
+                output_field=IntegerField(),
+            ),
         )
         .order_by("-created_at")
     )
@@ -231,6 +249,9 @@ def seller_product_list(request, *args, **kwargs):
     product_statuses = {}
     for p in products:
         ok, missing = _publish_checklist(p)
+        # Template-safe public attributes (never use _private attrs in templates)
+        p.publish_ok = ok
+        p.publish_missing = missing
         product_statuses[p.pk] = {"publish_ok": ok, "publish_missing": missing}
 
     return render(

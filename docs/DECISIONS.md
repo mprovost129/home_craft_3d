@@ -203,3 +203,31 @@ This file records decisions that govern implementation and must not be silently 
 ## Reviews (locked)
 - Reviews are only by verified purchasers.
 - Sellers may post a public reply to a product review (one reply per review in v1).
+
+## Digital download metrics (locked)
+- Digital download metrics are tracked and displayed at the **product (bundle)** level.
+- Seller Listings for FILE products show:
+  - **Unique downloaders** = distinct registered users + distinct guest sessions.
+  - **Total download clicks** = `Product.download_count`.
+- Guest uniqueness excludes blank session keys so missing sessions cannot inflate unique counts.
+- Both free and paid download endpoints increment these metrics (best-effort; never block downloads).
+
+## Trending badge membership (computed)
+- Decision: Trending badge is limited to manual `Product.is_trending` plus computed Top N by `trending_score` where `trending_score > 0`.
+- Computed membership is cached (15 min) and reused across Home and Browse for consistency.
+
+
+## Seller analytics windows (7/30/90)
+- Seller analytics are presented as rolling windows (last 7, 30, or 90 days).
+- Refund impact for net units sold is computed using refund_request.refunded_at within the window (and paid units use order.paid_at within the window).
+- Digital download analytics are counted at the product (bundle) level; unique downloaders include distinct logged-in users plus distinct guest sessions.
+
+- Moderation actions (Q&A): reports do not auto-hide; staff resolves reports manually. Staff may remove messages (soft delete) and suspend users via moderation queue; all actions are recorded in StaffActionLog.
+
+- Moderation UX: staff can filter Q&A reports by status (open/resolved/all). Product Q&A tab shows staff-only open reports count badge. Suspended users review list is available to staff; suspensions remain recorded in StaffActionLog.
+
+- Moderation UX: staff can unsuspend users from the suspensions review page; unsuspension is recorded in StaffActionLog. Product Q&A threads show staff-only per-message open-report count badges.
+
+## Launch hardening (observability + abuse controls)
+- All high-value/abuse-prone GET endpoints (digital downloads) are throttled via core.throttle(throttle_rule, methods=("GET",)).
+- Every request gets a request id (X-Request-ID) and logs include rid/user_id/path for traceability.

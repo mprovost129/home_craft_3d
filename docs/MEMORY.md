@@ -1,6 +1,6 @@
 # Home Craft 3D — MEMORY
 
-Last updated: 2026-01-31 (America/New_York)
+Last updated: 2026-02-09 (America/New_York)
 
 ## Goal
 A working marketplace for:
@@ -117,11 +117,28 @@ Trending badge membership on browse needs a strict rule:
 - avoid marking *every* item as “Trending” when sort=trending
 - badge should represent a subset (top N or score threshold), not “everything in the list”
 
-# docs/MEMORY.md
+---
 
-# Home Craft 3D — Project Memory (Authoritative Snapshot)
+## Digital download metrics (bundle-level)
 
-Last updated: 2026-02-09
+LOCKED (Updated Platform Outline, Feb 2026):
+- Seller Listings for digital products display **unique downloaders** and **total download clicks**.
+- Counts are tracked at the **product/bundle level** (not per-asset) for seller-facing metrics.
+
+Implementation (current):
+- `Product.download_count` stores total download clicks (bundle-level).
+- `products.ProductDownloadEvent` records each download action with:
+  - optional `user` (logged-in)
+  - `session_key` for guest uniqueness approximation
+- Free downloads (`products:free_asset_download`) and paid downloads (`orders:download_asset`, `orders:download_all_assets`) both:
+  - increment `DigitalAsset.download_count` (per-asset display)
+  - increment `Product.download_count` (bundle-level)
+  - create `ProductDownloadEvent` (best-effort; never blocks downloads)
+
+Seller Listings metrics:
+- Physical products show **net units sold** (PAID minus refunded).
+- Digital products show **unique_downloaders / total_downloads**.
+
 
 ## 2026-02-09 — Change Pack: Email Verification Gating
 - Added Profile email verification fields (email_verified, email_verification_token, email_verification_sent_at).
@@ -414,3 +431,33 @@ Refunds is implemented and wired as a full feature.
 - Seller replies are displayed under reviews on:
   - product detail Reviews tab
   - full product reviews page
+
+## Trending badge hardening (2026-02-09)
+- Locked rule enforced consistently across Home + Browse: 🔥 Trending badge shows only for:
+  - manual `Product.is_trending=True`, OR
+  - computed Top N by `trending_score` with `trending_score > 0` (cached).
+- Home and Products list now share one computed badge-membership function (`products.services.trending.get_trending_badge_ids`).
+
+
+## Seller analytics summary (2026-02-09)
+- Added Seller Analytics page with 7/30/90 day windows.
+- Metrics include: views/clicks/add-to-cart (ProductEngagementEvent), orders + paid units, refunded units (RefundRequest REFUNDED), net units sold, gross/net revenue, and bundle-level download metrics (unique/total via ProductDownloadEvent).
+- Added dashboard sidebar link: Seller → Analytics.
+
+## Seller listings metrics polish (2026-02-09)
+- Seller Listings now strictly matches locked metric definitions:
+  - Physical: **NET units sold** (paid − refunded).
+  - Digital: **unique downloaders + total download clicks** at the product (bundle) level.
+- Uniqueness logic excludes blank guest session keys so guest counts cannot be inflated by missing sessions.
+
+- 2026-02-09: Added staff Q&A moderation queue actions (resolve report, remove message, suspend user) with audit trail via core.StaffActionLog. Fixed staff reports template URL name mismatch.
+
+- 2026-02-09: Moderation UX polish: staff Q&A reports filter (open/resolved/all), product Q&A tab shows staff-only open-report count badge, added staff suspensions list page.
+
+- 2026-02-09: Moderation UX polish: added staff unsuspend action (with StaffActionLog), and staff-only per-message open-report badges in product Q&A threads.
+
+## 2026-02-09 — Launch hardening
+- Added RequestIDMiddleware with X-Request-ID response header and request-context logging filter.
+- Enhanced dev/prod LOGGING to include request_id/user_id/path and configurable LOG_LEVEL.
+- Extended core throttle decorator to support GET endpoints (methods=...).
+- Added throttles to digital download endpoints (paid + free) to prevent abuse/inflated counts.

@@ -14,6 +14,7 @@ from .models import (
     ProductPhysical,
     DigitalAsset,
     ProductEngagementEvent,
+    ProductDownloadEvent,
     FilamentRecommendation,
 )
 
@@ -193,6 +194,14 @@ class ProductEngagementEventAdmin(admin.ModelAdmin):
     list_display = ("id", "event_type", "product", "created_at")
     list_filter = ("event_type",)
     search_fields = ("product__title", "product__seller__username")
+    date_hierarchy = "created_at"
+
+
+@admin.register(ProductDownloadEvent)
+class ProductDownloadEventAdmin(admin.ModelAdmin):
+    list_display = ("id", "product", "user", "session_key", "created_at")
+    list_filter = ()
+    search_fields = ("product__title", "product__seller__username", "user__username", "session_key")
     date_hierarchy = "created_at"
 
 

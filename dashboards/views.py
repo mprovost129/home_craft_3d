@@ -28,8 +28,9 @@ from .plausible import get_summary as plausible_get_summary
 from .plausible import get_top_pages as plausible_get_top_pages
 from .plausible import is_configured as plausible_is_configured
 from orders.models import Order, OrderItem
+from refunds.models import RefundRequest
 from payments.models import SellerStripeAccount, SellerBalanceEntry
-from products.models import Product
+from products.models import Product, ProductEngagementEvent, ProductDownloadEvent
 from products.permissions import is_owner_user, is_seller_user
 from payments.services import get_seller_balance_cents
 
@@ -265,6 +266,147 @@ def seller_dashboard(request):
 
 
 @login_required
+
+def seller_analytics(request):
+    user = request.user
+    if not is_seller_user(user):
+        messages.info(request, "You don’t have access to seller analytics.")
+        return redirect("dashboards:consumer")
+
+    try:
+        days = int(request.GET.get("days") or 30)
+    except Exception:
+        days = 30
+    if days not in (7, 30, 90):
+        days = 30
+
+    # Local time for analytics (America/New_York)
+    from django.utils.timezone import localtime
+    since = localtime(timezone.now()) - timedelta(days=days)
+
+    # --- Engagement (views/clicks/add-to-cart) ---
+    engagement_qs = ProductEngagementEvent.objects.filter(
+        product__seller=user,
+        created_at__gte=since,
+    )
+    engagement_totals = {
+        row["event_type"]: int(row["c"] or 0)
+        for row in engagement_qs.values("event_type").annotate(c=Count("id"))
+    }
+    total_views = engagement_totals.get(ProductEngagementEvent.EventType.VIEW, 0)
+    total_clicks = engagement_totals.get(ProductEngagementEvent.EventType.CLICK, 0)
+    total_add_to_cart = engagement_totals.get(ProductEngagementEvent.EventType.ADD_TO_CART, 0)
+
+    # --- Downloads (bundle/product-level) ---
+    downloads_qs = ProductDownloadEvent.objects.filter(
+        product__seller=user,
+        created_at__gte=since,
+    )
+    downloads_total = downloads_qs.count()
+    unique_user_downloaders = downloads_qs.exclude(user__isnull=True).values("user_id").distinct().count()
+    unique_session_downloaders = downloads_qs.filter(user__isnull=True).exclude(session_key="").values("session_key").distinct().count()
+    downloads_unique = int(unique_user_downloaders) + int(unique_session_downloaders)
+
+    # --- Sales (paid minus refunded) ---
+    line_total_expr = ExpressionWrapper(
+        F("quantity") * F("unit_price_cents"),
+        output_field=IntegerField(),
+    )
+
+    paid_items_qs = OrderItem.objects.filter(
+        seller=user,
+        is_tip=False,
+        order__status=Order.Status.PAID,
+        order__paid_at__gte=since,
+    )
+
+    paid_totals = paid_items_qs.aggregate(
+        paid_qty=Sum("quantity"),
+        gross_cents=Sum(line_total_expr),
+        net_cents=Sum("seller_net_cents"),
+        order_count=Count("order_id", distinct=True),
+    )
+    paid_qty = int(paid_totals["paid_qty"] or 0)
+
+    refunded_items_qs = OrderItem.objects.filter(
+        seller=user,
+        is_tip=False,
+        refund_request__status=RefundRequest.Status.REFUNDED,
+        refund_request__refunded_at__gte=since,
+    )
+    refunded_qty = int(refunded_items_qs.aggregate(qty=Sum("quantity"))["qty"] or 0)
+
+    net_units_sold = max(0, paid_qty - refunded_qty)
+
+    # --- Per product table data ---
+    products = (
+        Product.objects.filter(seller=user)
+        .select_related("category")
+        .prefetch_related("images")
+        .order_by("-created_at")
+    )
+
+    # engagement per product per type
+    per_eng = {}
+    for row in engagement_qs.values("product_id", "event_type").annotate(c=Count("id")):
+        per_eng.setdefault(row["product_id"], {})[row["event_type"]] = int(row["c"] or 0)
+
+    # downloads per product
+    per_dl_total = {row["product_id"]: int(row["c"] or 0) for row in downloads_qs.values("product_id").annotate(c=Count("id"))}
+    per_dl_user_unique = {row["product_id"]: int(row["c"] or 0) for row in downloads_qs.exclude(user__isnull=True).values("product_id").annotate(c=Count("user_id", distinct=True))}
+    per_dl_sess_unique = {row["product_id"]: int(row["c"] or 0) for row in downloads_qs.filter(user__isnull=True).exclude(session_key="").values("product_id").annotate(c=Count("session_key", distinct=True))}
+
+    # sales per product
+    per_paid_qty = {row["product_id"]: int(row["qty"] or 0) for row in paid_items_qs.values("product_id").annotate(qty=Sum("quantity"))}
+    per_ref_qty = {row["product_id"]: int(row["qty"] or 0) for row in refunded_items_qs.values("product_id").annotate(qty=Sum("quantity"))}
+
+    per_rows = []
+    for p in products:
+        eng = per_eng.get(p.id, {})
+        views = int(eng.get(ProductEngagementEvent.EventType.VIEW, 0))
+        clicks = int(eng.get(ProductEngagementEvent.EventType.CLICK, 0))
+        adds = int(eng.get(ProductEngagementEvent.EventType.ADD_TO_CART, 0))
+        paid_q = per_paid_qty.get(p.id, 0)
+        ref_q = per_ref_qty.get(p.id, 0)
+        net_sold = max(0, int(paid_q) - int(ref_q))
+
+        dl_total = per_dl_total.get(p.id, 0)
+        dl_unique = per_dl_user_unique.get(p.id, 0) + per_dl_sess_unique.get(p.id, 0)
+
+        per_rows.append(
+            {
+                "product": p,
+                "views": views,
+                "clicks": clicks,
+                "add_to_cart": adds,
+                "paid_qty": paid_q,
+                "refunded_qty": ref_q,
+                "net_units_sold": net_sold,
+                "downloads_total": dl_total,
+                "downloads_unique": dl_unique,
+            }
+        )
+
+    context = {
+        "days": days,
+        "since": since,
+        "total_views": total_views,
+        "total_clicks": total_clicks,
+        "total_add_to_cart": total_add_to_cart,
+        "downloads_total": downloads_total,
+        "downloads_unique": downloads_unique,
+        "paid_qty": paid_qty,
+        "refunded_qty": refunded_qty,
+        "net_units_sold": net_units_sold,
+        "gross_dollars": _cents_to_dollars(int(paid_totals["gross_cents"] or 0)),
+        "net_dollars": _cents_to_dollars(int(paid_totals["net_cents"] or 0)),
+        "order_count": int(paid_totals["order_count"] or 0),
+        "rows": per_rows,
+    }
+    return render(request, "dashboards/seller_analytics.html", context)
+
+
+
 def admin_dashboard(request):
     user = request.user
 

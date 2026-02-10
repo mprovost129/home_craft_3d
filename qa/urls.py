@@ -20,4 +20,9 @@ urlpatterns = [
     # Staff moderation queue/actions
     path("staff/reports/", views.staff_reports_queue, name="staff_reports_queue"),
     path("staff/reports/<int:report_id>/resolve/", views.staff_resolve_report, name="staff_resolve_report"),
+    path("staff/messages/<int:message_id>/remove/", views.staff_remove_message, name="staff_remove_message"),
+    path("staff/users/<int:user_id>/suspend/", views.staff_suspend_user, name="staff_suspend_user"),
+    path("staff/suspensions/", views.staff_suspensions_list, name="staff_suspensions_list"),
+    path("staff/users/<int:user_id>/unsuspend/", views.staff_unsuspend_user, name="staff_unsuspend_user"),
 ]
+

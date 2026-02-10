@@ -12,6 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
+from django.db.models import F
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,7 +23,7 @@ from cart.cart import Cart
 from core.throttle import ThrottleRule, throttle
 from core.recaptcha import require_recaptcha_v3
 from payments.utils import seller_is_stripe_ready
-from products.models import DigitalAsset, Product
+from products.models import DigitalAsset, Product, ProductDownloadEvent
 from products.permissions import is_owner_user, is_seller_user
 
 from .models import Order
@@ -33,6 +34,10 @@ logger = logging.getLogger(__name__)
 
 CHECKOUT_PLACE_RULE = ThrottleRule(key_prefix="checkout_place_order", limit=6, window_seconds=60)
 CHECKOUT_START_RULE = ThrottleRule(key_prefix="checkout_start", limit=8, window_seconds=60)
+
+# Download endpoints are GETs and can be abused to inflate metrics or waste bandwidth.
+DOWNLOAD_ASSET_RULE = ThrottleRule(key_prefix="download_asset", limit=20, window_seconds=60)
+DOWNLOAD_BUNDLE_RULE = ThrottleRule(key_prefix="download_bundle", limit=8, window_seconds=60)
 
 
 def _token_from_request(request) -> str:
@@ -383,7 +388,9 @@ def checkout_cancel(request, order_id):
     return redirect("orders:detail", order_id=order.pk)
 
 
+@throttle(DOWNLOAD_ASSET_RULE, methods=("GET",))
 def download_asset(request, order_id, asset_id):
+    logger.info("download_asset start order=%s asset=%s", order_id, asset_id)
     order = get_object_or_404(
         Order.objects.prefetch_related("items", "items__product"),
         pk=order_id,
@@ -406,12 +413,30 @@ def download_asset(request, order_id, asset_id):
     if asset.product.kind != Product.Kind.FILE:
         raise Http404("Not found")
 
+    # Metrics (best-effort): total download clicks + unique downloaders
+    try:
+        DigitalAsset.objects.filter(pk=asset.pk).update(download_count=F("download_count") + 1)
+        Product.objects.filter(pk=asset.product_id).update(download_count=F("download_count") + 1)
+
+        if not request.session.session_key:
+            request.session.create()
+        sess = request.session.session_key or ""
+        ProductDownloadEvent.objects.create(
+            product=asset.product,
+            user=request.user if request.user.is_authenticated else None,
+            session_key=sess,
+        )
+    except Exception:
+        pass
+
     file_handle = asset.file.open("rb")
     filename = asset.original_filename or asset.file.name.rsplit("/", 1)[-1]
     return FileResponse(file_handle, as_attachment=True, filename=filename)
 
 
+@throttle(DOWNLOAD_BUNDLE_RULE, methods=("GET",))
 def download_all_assets(request, order_id):
+    logger.info("download_all_assets start order=%s", order_id)
     order = get_object_or_404(
         Order.objects.prefetch_related("items", "items__product", "items__product__digital_assets"),
         pk=order_id,
@@ -440,6 +465,34 @@ def download_all_assets(request, order_id):
 
     if not assets:
         raise Http404("Not found")
+
+    # Metrics (best-effort): count this "Download all" click once per product,
+    # and bump per-asset counters for visibility on detail pages.
+    try:
+        if not request.session.session_key:
+            request.session.create()
+        sess = request.session.session_key or ""
+
+        product_ids = sorted({p.pk for p, _ in assets})
+        if product_ids:
+            Product.objects.filter(pk__in=product_ids).update(download_count=F("download_count") + 1)
+            ProductDownloadEvent.objects.bulk_create(
+                [
+                    ProductDownloadEvent(
+                        product_id=pid,
+                        user=request.user if request.user.is_authenticated else None,
+                        session_key=sess,
+                    )
+                    for pid in product_ids
+                ],
+                ignore_conflicts=False,
+            )
+
+        asset_ids = [a.pk for _, a in assets]
+        if asset_ids:
+            DigitalAsset.objects.filter(pk__in=asset_ids).update(download_count=F("download_count") + 1)
+    except Exception:
+        pass
 
     buffer = SpooledTemporaryFile(max_size=20 * 1024 * 1024)
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:

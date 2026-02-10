@@ -5,25 +5,36 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import models
-from django.db.models import Avg, Count, F, FloatField, Q, Value
+from django.db.models import Avg, Count, F, FloatField, Q, Value, Prefetch
 from django.db.models.functions import Coalesce
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from django.db.models import F
-from products.models import Product
+
+from core.throttle import ThrottleRule, throttle
 
 from orders.models import Order, OrderItem
 from payments.models import SellerStripeAccount
 from products.permissions import is_owner_user
-from .models import Product, ProductEngagementEvent, ALLOWED_ASSET_EXTS, FilamentRecommendation, DigitalAsset
+from products.services.trending import annotate_trending, get_trending_badge_ids
+from .models import (
+    Product,
+    ProductEngagementEvent,
+    ProductDownloadEvent,
+    ALLOWED_ASSET_EXTS,
+    FilamentRecommendation,
+    DigitalAsset,
+)
 from reviews.models import SellerReview
 from dashboards.models import ProductFreeUnlock
 
 
 MIN_REVIEWS_TOP_RATED = 3
 TRENDING_WINDOW_DAYS = 30
+
+# Free downloads are GETs and can be abused to inflate counts.
+FREE_DOWNLOAD_RULE = ThrottleRule(key_prefix="free_download", limit=25, window_seconds=60)
 
 VIEW_THROTTLE_MINUTES = 10
 CLICK_THROTTLE_MINUTES = 5
@@ -257,14 +268,14 @@ def _product_list_common(request: HttpRequest, *, kind: str | None, page_title: 
 
     trending_fallback = False
     top_fallback = False
-    computed_ids: set[int] = set()
+    computed_ids: set[int] = get_trending_badge_ids(
+        since_days=TRENDING_WINDOW_DAYS,
+        top_n=TRENDING_BADGE_TOP_N,
+    )
 
     if sort == "trending":
-        qs = _annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS)
+        qs = annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS)
         qs = qs.order_by("-trending_score", "-avg_rating", "-created_at")
-
-        top_rows = list(qs.filter(trending_score__gt=0).values_list("id", flat=True)[:TRENDING_BADGE_TOP_N])
-        computed_ids = set(top_rows)
 
     elif sort == "top":
         filtered = qs.filter(review_count__gte=MIN_REVIEWS_TOP_RATED).order_by(
@@ -372,6 +383,7 @@ def product_go(request: HttpRequest, pk: int, slug: str) -> HttpResponse:
     return redirect("products:detail", pk=product.pk, slug=product.slug)
 
 
+@throttle(FREE_DOWNLOAD_RULE, methods=("GET",))
 def product_free_asset_download(request: HttpRequest, pk: int, slug: str, asset_id: int) -> HttpResponse:
     """
     Free-download endpoint:
@@ -405,11 +417,25 @@ def product_free_asset_download(request: HttpRequest, pk: int, slug: str, asset_
     # If draft and not owner/seller, it won't be reachable due to query above.
     asset = get_object_or_404(DigitalAsset.objects.select_related("product"), pk=asset_id, product=product)
 
-    # Increment counter (atomic)
+    # Increment counters (atomic)
     DigitalAsset.objects.filter(pk=asset.pk).update(download_count=F("download_count") + 1)
-
     # LOCKED: bundle-level count (Seller Listings)
     Product.objects.filter(pk=product.pk).update(download_count=F("download_count") + 1)
+
+    # LOCKED: unique downloaders metric (users + guest sessions)
+    try:
+        if not request.session.session_key:
+            # Ensure a stable key for guest uniqueness.
+            request.session.create()
+        sess = request.session.session_key or ""
+        ProductDownloadEvent.objects.create(
+            product=product,
+            user=request.user if request.user.is_authenticated else None,
+            session_key=sess,
+        )
+    except Exception:
+        # Never block downloads due to metrics
+        pass
 
     # Serve file
     try:
@@ -501,17 +527,41 @@ def _render_product_detail(
         FilamentRecommendation.objects.filter(product=product, is_active=True).order_by("sort_order", "material", "id")
     )
 
-    from qa.models import ProductQuestionThread
+    from qa.models import ProductQuestionThread, ProductQuestionReport, ProductQuestionMessage
 
     qa_threads = (
         ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True)
         .select_related("buyer", "product", "product__seller")
-        .prefetch_related("messages", "messages__author")
         .order_by("-updated_at", "-created_at")
     )
 
+    if request.user.is_authenticated and request.user.is_staff:
+        message_qs = (
+            ProductQuestionMessage.objects.select_related("author")
+            .annotate(
+                open_report_count=Coalesce(
+                    Count(
+                        "reports",
+                        filter=Q(reports__status=ProductQuestionReport.Status.OPEN),
+                        distinct=True,
+                    ),
+                    Value(0),
+                )
+            )
+        )
+        qa_threads = qa_threads.prefetch_related(Prefetch("messages", queryset=message_qs))
+    else:
+        qa_threads = qa_threads.prefetch_related("messages", "messages__author")
+
     qa_threads_list = list(qa_threads[:20])
     qa_thread_count = ProductQuestionThread.objects.filter(product=product, deleted_at__isnull=True).count()
+
+    qa_open_report_count = 0
+    if request.user.is_authenticated and request.user.is_staff:
+        qa_open_report_count = ProductQuestionReport.objects.filter(
+            status=ProductQuestionReport.Status.OPEN,
+            message__thread__product=product,
+        ).count()
 
     remaining_limit = get_remaining_product_limit(product, request.user)
 
@@ -544,6 +594,7 @@ def _render_product_detail(
             "filament_recommendations": filament_recommendations,
             "qa_threads": qa_threads_list,
             "qa_thread_count": qa_thread_count,
+            "qa_open_report_count": qa_open_report_count,
             "remaining_limit": remaining_limit,
             "is_favorited": is_favorited,
             "is_wishlisted": is_wishlisted,

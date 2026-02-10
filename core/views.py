@@ -17,6 +17,7 @@ from orders.models import Order
 from payments.models import SellerStripeAccount
 from products.models import Product, ProductEngagementEvent
 from products.permissions import is_owner_user
+from products.services.trending import annotate_trending, get_trending_badge_ids
 
 
 HOME_BUCKET_SIZE = 8
@@ -177,14 +178,13 @@ def _build_home_context(request):
 
     trending_needed = max(0, HOME_BUCKET_SIZE - len(manual_trending))
     computed_trending: list[Product] = []
-    computed_ids: set[int] = set()
+    computed_ids: set[int] = get_trending_badge_ids(since_days=TRENDING_WINDOW_DAYS)
 
     if trending_needed > 0:
-        trending_qs = _annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS).exclude(id__in=manual_ids)
+        trending_qs = annotate_trending(qs, since_days=TRENDING_WINDOW_DAYS).exclude(id__in=manual_ids)
         computed_trending = list(
             trending_qs.order_by("-trending_score", "-avg_rating", "-created_at")[:trending_needed]
         )
-        computed_ids = {p.id for p in computed_trending if getattr(p, "trending_score", 0) > 0}
 
     trending = manual_trending + computed_trending
 

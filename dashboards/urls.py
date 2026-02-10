@@ -9,6 +9,7 @@ urlpatterns = [
     path("", views.dashboard_home, name="home"),
     path("consumer/", views.consumer_dashboard, name="consumer"),
     path("seller/", views.seller_dashboard, name="seller"),
+    path("seller/analytics/", views.seller_analytics, name="seller_analytics"),
     path("admin/", views.admin_dashboard, name="admin"),
     path("admin/settings/", views.admin_settings, name="admin_settings"),
     path("ajax/verify-username/", views.ajax_verify_username, name="ajax_verify_username"),

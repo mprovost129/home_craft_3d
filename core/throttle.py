@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterable, Tuple
 
 from django.conf import settings
 from django.core.cache import cache
@@ -29,7 +29,6 @@ def _get_client_ip(request: HttpRequest) -> str:
     if trust_proxy:
         xff = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
         if xff:
-            # first IP is the original client
             ip = xff.split(",")[0].strip()
             if ip:
                 return ip
@@ -56,19 +55,23 @@ def _client_fingerprint(request: HttpRequest) -> str:
     return f"{ip}|{ua}|{user_part}"
 
 
-def throttle(rule: ThrottleRule) -> Callable:
+def throttle(rule: ThrottleRule, *, methods: Iterable[str] | None = None) -> Callable:
     """
     Cache-based throttle.
 
-    Intended for POST/PUT/PATCH/DELETE endpoints that can be abused:
+    Intended for endpoints that can be abused:
+    - Auth (login/register)
     - Q&A create/reply/report/delete
-    - refund create/approve/decline/trigger
-    - checkout place + checkout start
-    - auth login/register
+    - cart mutation
+    - checkout start
+    - download endpoints (GET)  <-- pass methods=("GET",)
+    - refund create/trigger
     """
+    allowed: Tuple[str, ...] = tuple((m.upper() for m in methods)) if methods else ("POST", "PUT", "PATCH", "DELETE")
+
     def decorator(view_func: Callable) -> Callable:
         def wrapped(request: HttpRequest, *args, **kwargs) -> HttpResponse:
-            if request.method not in ("POST", "PUT", "PATCH", "DELETE"):
+            if request.method.upper() not in allowed:
                 return view_func(request, *args, **kwargs)
 
             fp = _client_fingerprint(request)
@@ -77,23 +80,28 @@ def throttle(rule: ThrottleRule) -> Callable:
 
             current = int(cache.get(cache_key, 0) or 0)
             if current >= rule.limit:
-                # For typical browser POST form flows, redirect back and show a friendly message.
-                # Fall back to 429 if we can't.
+                retry_after = max(1, int(rule.window_seconds - (time.time() % max(1, rule.window_seconds))))
+
+                # For typical browser flows, redirect back and show a friendly message when possible.
                 try:
                     accept = (request.META.get("HTTP_ACCEPT") or "").lower()
                     referer = (request.META.get("HTTP_REFERER") or "").strip()
-                    if "text/html" in accept and referer:
+                    if "text/html" in accept and referer and request.method.upper() != "GET":
                         try:
                             from django.contrib import messages
+
                             messages.error(request, "Too many requests. Please try again in a moment.")
                         except Exception:
                             pass
                         from django.shortcuts import redirect
+
                         return redirect(referer)
                 except Exception:
                     pass
 
-                return HttpResponse("Too many requests. Please try again shortly.", status=429)
+                resp = HttpResponse("Too many requests. Please try again shortly.", status=429)
+                resp["Retry-After"] = str(retry_after)
+                return resp
 
             cache.set(cache_key, current + 1, timeout=rule.window_seconds + 5)
             return view_func(request, *args, **kwargs)
@@ -102,4 +110,5 @@ def throttle(rule: ThrottleRule) -> Callable:
         wrapped.__doc__ = getattr(view_func, "__doc__", "")
         wrapped.__module__ = getattr(view_func, "__module__", "")
         return wrapped
+
     return decorator

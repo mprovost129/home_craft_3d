@@ -120,8 +120,8 @@
             <th>Category</th>
             <th>Price</th>
             <th>Status</th>
-            <th>Units Sold</th>
-            <th>Downloads</th>
+            <th>Units Sold (net)</th>
+            <th>Downloads (unique / total)</th>
             <th class="text-end">Actions</th>
           </tr>
         </thead>
@@ -151,7 +151,7 @@
                       </div>
                     {% endif %}
 
-                    {% if not p.is_active and product_statuses.p.pk.publish_missing %}
+                    {% if not p.is_active and p.publish_missing %}
                       <div class="small text-warning">
                         <i class="bi bi-exclamation-triangle me-1"></i>Complete to activate: {{ p.publish_missing|join:", " }}
                       </div>
@@ -194,9 +194,23 @@
                 {% endif %}
               </td>
 
-              <td>{{ p.units_sold|default:0 }}</td>
+              <td>
+                {% if p.kind == "MODEL" %}
+                  {{ p.units_sold|default:0 }}
+                {% else %}
+                  <span class="text-secondary">—</span>
+                {% endif %}
+              </td>
 
-              <td>{{ p.total_downloads|default:0 }}</td>
+              <td>
+                {% if p.kind == "FILE" %}
+                  <span class="badge text-bg-light text-dark">{{ p.unique_downloaders|default:0 }}</span>
+                  <span class="text-secondary">/</span>
+                  <span class="badge text-bg-light text-dark">{{ p.total_downloads|default:0 }}</span>
+                {% else %}
+                  <span class="text-secondary">—</span>
+                {% endif %}
+              </td>
 
               <td class="text-end">
                 <div class="btn-group">

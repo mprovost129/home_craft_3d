@@ -114,6 +114,27 @@ class Product(models.Model):
         except Exception:
             return sum(int(getattr(a, "download_count", 0) or 0) for a in self.digital_assets.all())
 
+    @property
+    def unique_downloaders(self) -> int:
+        """Unique downloaders (users + guest sessions).
+
+        LOCKED: Seller Listings for digital products display:
+        - unique downloaders
+        - total download clicks
+
+        This property is a safe fallback. Seller listing views should prefer
+        queryset annotations for performance.
+        """
+        try:
+            rel = getattr(self, "download_events", None)
+            if rel is None:
+                return 0
+            user_unique = rel.filter(user__isnull=False).values("user_id").distinct().count()
+            guest_unique = rel.filter(user__isnull=True).exclude(session_key="").values("session_key").distinct().count()
+            return int(user_unique) + int(guest_unique)
+        except Exception:
+            return 0
+
     seller = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -568,3 +589,44 @@ class ProductEngagementEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.event_type} product={self.product.pk} at {self.created_at}"
+
+
+class ProductDownloadEvent(models.Model):
+    """A download action for a product bundle.
+
+    LOCKED:
+    - Digital products show download metrics at the product (bundle) level.
+    - We track both total download clicks (Product.download_count) and
+      unique downloaders (distinct users + guest sessions).
+
+    Notes:
+    - user is optional (guest downloads allowed via tokenized links).
+    - session_key is used to approximate uniqueness for guests.
+    """
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="download_events",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="product_download_events",
+    )
+    session_key = models.CharField(max_length=40, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["product", "created_at"]),
+            models.Index(fields=["product", "user", "created_at"]),
+            models.Index(fields=["product", "session_key", "created_at"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        who = f"user={self.user_id}" if self.user_id else (f"sess={self.session_key}" if self.session_key else "guest")
+        return f"DOWNLOAD product={self.product_id} {who} at {self.created_at}"

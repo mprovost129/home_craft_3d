@@ -27,6 +27,25 @@ CSRF_COOKIE_SECURE = False
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": "INFO"},
+    "filters": {
+        "request_context": {
+            "()": "core.logging_filters.RequestContextFilter",
+        },
+    },
+    "formatters": {
+        "standard": {
+            "format": "[%(levelname)s] %(asctime)s rid=%(request_id)s user=%(user_id)s path=%(path)s %(name)s: %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["request_context"],
+            "formatter": "standard",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("LOG_LEVEL", "INFO"),
+    },
 }

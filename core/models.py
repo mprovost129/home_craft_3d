@@ -4,6 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 
+from django.conf import settings
 from django.db import models
 
 
@@ -355,3 +356,63 @@ class SiteConfig(models.Model):
             invalidate_site_config_cache()
         except Exception:
             pass
+
+class StaffActionLog(models.Model):
+    """Staff/admin action log (v1: moderation + sensitive actions).
+
+    Provides a minimal audit trail for actions taken by staff, including Q&A moderation.
+    """
+
+    class Action(models.TextChoices):
+        QA_REPORT_RESOLVED = "qa_report_resolved", "Q&A report resolved"
+        QA_MESSAGE_REMOVED = "qa_message_removed", "Q&A message removed"
+        USER_SUSPENDED = "user_suspended", "User suspended"
+        USER_UNSUSPENDED = "user_unsuspended", "User unsuspended"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_actions",
+        help_text="Staff user who performed the action.",
+    )
+
+    action = models.CharField(max_length=40, choices=Action.choices, db_index=True)
+
+    # Optional targets
+    target_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_actions_targeted",
+    )
+    qa_report = models.ForeignKey(
+        "qa.ProductQuestionReport",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_actions",
+    )
+    qa_message = models.ForeignKey(
+        "qa.ProductQuestionMessage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_actions",
+    )
+
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["action", "-created_at"]),
+            models.Index(fields=["-created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"StaffAction<{self.pk}> {self.action}"
+

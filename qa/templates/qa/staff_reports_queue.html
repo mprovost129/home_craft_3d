@@ -7,7 +7,17 @@
 <div class="container py-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h1 class="h4 mb-0">Q&amp;A Reports</h1>
-    <span class="badge text-bg-secondary">Open: {{ reports|length }}</span>
+    <div class="d-flex align-items-center gap-2">
+      <a class="btn btn-sm {% if status == "open" %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?status=open">
+        Open <span class="badge text-bg-light text-dark ms-1">{{ counts.open }}</span>
+      </a>
+      <a class="btn btn-sm {% if status == "resolved" %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?status=resolved">
+        Resolved <span class="badge text-bg-light text-dark ms-1">{{ counts.resolved }}</span>
+      </a>
+      <a class="btn btn-sm {% if status == "all" %}btn-dark{% else %}btn-outline-dark{% endif %}" href="?status=all">
+        All <span class="badge text-bg-light text-dark ms-1">{{ counts.open|add:counts.resolved }}</span>
+      </a>
+    </div>
   </div>
 
   <div class="card shadow-sm">
@@ -40,10 +50,29 @@
                   {% if r.details %}<div class="text-secondary">Details: {{ r.details }}</div>{% endif %}
                 </td>
                 <td class="text-end">
-                  <form method="post" action="{% url 'qa:staff_report_resolve' r.id %}">
-                    {% csrf_token %}
-                    <button class="btn btn-sm btn-outline-success" type="submit">Resolve</button>
-                  </form>
+                  <div class="d-flex flex-column align-items-end gap-2">
+                    <form method="post" action="{% url 'qa:staff_resolve_report' r.id %}">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-success" type="submit">
+                        <i class="bi bi-check2-circle me-1"></i>Resolve
+                      </button>
+                    </form>
+
+                    <form method="post" action="{% url 'qa:staff_remove_message' r.message.id %}">
+                      {% csrf_token %}
+                      <button class="btn btn-sm btn-outline-danger" type="submit">
+                        <i class="bi bi-trash me-1"></i>Remove message
+                      </button>
+                    </form>
+
+                    <form method="post" action="{% url 'qa:staff_suspend_user' r.message.author.id %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="report_id" value="{{ r.id }}">
+                      <button class="btn btn-sm btn-outline-warning" type="submit">
+                        <i class="bi bi-person-x me-1"></i>Suspend user
+                      </button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             {% empty %}

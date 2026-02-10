@@ -63,7 +63,14 @@
             <div class="border rounded p-2 mb-2 {% if m.is_deleted %}opacity-75{% endif %}">
               <div class="d-flex justify-content-between align-items-center">
                 <div class="small fw-semibold">{{ m.author.username }}</div>
-                <div class="small text-secondary">{{ m.created_at|naturaltime }}</div>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="small text-secondary">{{ m.created_at|naturaltime }}</div>
+                  {% if user.is_staff %}
+                    {% if m.open_report_count %}
+                      <span class="badge text-bg-danger" title="Open reports">{{ m.open_report_count }}</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
               </div>
 
               {% if m.is_deleted %}
