@@ -1,0 +1,324 @@
+{# templates/products/seller/product_form.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Seller · {% if mode == "create" %}New Listing{% else %}Edit Listing{% endif %} · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 980px;">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h4 mb-1">{% if mode == "create" %}New Listing{% else %}Edit Listing{% endif %}</h1>
+      <div class="text-secondary small">Fill in the details for your listing.</div>
+    </div>
+    <a class="btn btn-outline-dark" href="{% url 'products:seller_list' %}">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger mb-3">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <!-- Basic Information -->
+        <h5 class="border-bottom pb-2 mb-3">Basic Information</h5>
+        <div class="row g-3 mb-4">
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Kind <span class="text-danger">*</span></label>
+            {{ form.kind }}
+            {% if form.kind.errors %}<div class="text-danger small mt-1">{{ form.kind.errors }}</div>{% endif %}
+            <div class="form-text">File (digital download) or Model (physical print).</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+            <select name="category" id="id_category" class="form-select">
+              <option value="">Loading categories…</option>
+            </select>
+            {% if form.category.errors %}<div class="text-danger small mt-1">{{ form.category.errors }}</div>{% endif %}
+            <div class="form-text">Choose a main category (filtered by Kind).</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Subcategory</label>
+            <select name="subcategory" id="id_subcategory" class="form-select" disabled>
+              <option value="">Select a category first…</option>
+            </select>
+            {% if form.subcategory.errors %}<div class="text-danger small mt-1">{{ form.subcategory.errors }}</div>{% endif %}
+            <div class="form-text">Locked until you pick a Category.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Title <span class="text-danger">*</span></label>
+            {{ form.title }}
+            {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+            <div class="form-text">Give your listing a clear, descriptive title.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Short Description</label>
+            {{ form.short_description }}
+            {% if form.short_description.errors %}<div class="text-danger small mt-1">{{ form.short_description.errors }}</div>{% endif %}
+            <div class="form-text">A brief summary shown in search results and cards.</div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label fw-semibold">Full Description</label>
+            {{ form.description }}
+            {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors }}</div>{% endif %}
+            <div class="form-text">Detailed information about your product.</div>
+          </div>
+        </div>
+
+        <!-- Pricing -->
+        <h5 class="border-bottom pb-2 mb-3">Pricing</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Price <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              {{ form.price }}
+            </div>
+            {% if form.price.errors %}<div class="text-danger small mt-1">{{ form.price.errors }}</div>{% endif %}
+            <div class="form-text">Set to $0.00 if offering for free.</div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-check mt-4">
+              {{ form.is_free }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_free.id_for_label }}">
+                <i class="bi bi-gift me-1"></i>Free item
+              </label>
+            </div>
+            {% if form.is_free.errors %}<div class="text-danger small mt-1">{{ form.is_free.errors }}</div>{% endif %}
+            <div class="form-text ms-4">Check this if offering your product for free.</div>
+          </div>
+        </div>
+
+        <!-- Visibility Settings -->
+        <h5 class="border-bottom pb-2 mb-3">Visibility & Settings</h5>
+        <div class="row g-3 mb-4">
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.is_active }}
+              <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">
+                <i class="bi bi-eye me-1"></i>Active (visible)
+              </label>
+            </div>
+            {% if form.is_active.errors %}<div class="text-danger small mt-1">{{ form.is_active.errors }}</div>{% endif %}
+            <div class="form-text">Make this listing visible to buyers.</div>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label fw-semibold">Max units per buyer</label>
+            {{ form.max_purchases_per_buyer }}
+            {% if form.max_purchases_per_buyer.errors %}<div class="text-danger small mt-1">{{ form.max_purchases_per_buyer.errors }}</div>{% endif %}
+            <div class="form-text">Limit how many units a single buyer can purchase. Leave blank or set to 0 for no limit.</div>
+          </div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="accordion mb-3" id="advancedSettings">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAdvanced">
+                <i class="bi bi-gear me-2"></i>Advanced Settings (Optional)
+              </button>
+            </h2>
+            <div id="collapseAdvanced" class="accordion-collapse collapse" data-bs-parent="#advancedSettings">
+              <div class="accordion-body">
+                <div class="row g-3">
+                  <div class="col-12">
+                    <label class="form-label fw-semibold">URL Slug</label>
+                    {{ form.slug }}
+                    {% if form.slug.errors %}<div class="text-danger small mt-1">{{ form.slug.errors }}</div>{% endif %}
+                    <div class="form-text">
+                      <i class="bi bi-info-circle me-1"></i>
+                      <strong>For advanced users:</strong> Customize the URL for this product. Leave blank to auto-generate from the title.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex gap-2 pt-3 border-top">
+          <button class="btn btn-dark btn-lg" type="submit">
+            <i class="bi bi-save me-1"></i>Save Listing
+          </button>
+
+          {% if mode == "edit" %}
+            <a class="btn btn-outline-dark" href="{% url 'products:seller_images' product.pk %}">
+              <i class="bi bi-images me-1"></i>Manage Images
+            </a>
+            <a class="btn btn-outline-dark" href="{% url 'products:seller_specs' product.pk %}">
+              <i class="bi bi-rulers me-1"></i>Manage Specs
+            </a>
+            {% if product.kind == "FILE" %}
+              <a class="btn btn-outline-dark" href="{% url 'products:seller_assets' product.pk %}">
+                <i class="bi bi-paperclip me-1"></i>Manage Assets
+              </a>
+            {% endif %}
+          {% endif %}
+
+          <a class="btn btn-outline-secondary ms-auto" href="{% url 'products:seller_list' %}">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mt-3">
+      {% for message in messages %}
+        <div class="alert alert-info mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const kindSelect = document.getElementById("id_kind");
+  const categorySelect = document.getElementById("id_category");
+  const subcategorySelect = document.getElementById("id_subcategory");
+
+  if (!kindSelect || !categorySelect || !subcategorySelect) return;
+
+  const CATEGORIES_URL = "{% url 'catalog:api_categories' %}";
+  const SUBCATEGORIES_URL = "{% url 'catalog:api_subcategories' %}";
+
+  // Preserve selection on edit/postback:
+  // Prefer POSTed values, then initial, then blank.
+  const initialKind = (kindSelect.value || "").trim() || "FILE";
+  const initialCategory =
+    ("{{ form.data.category|default_if_none:'' }}".trim()) ||
+    ("{{ form.initial.category|default_if_none:'' }}".trim()) ||
+    "";
+  const initialSubcategory =
+    ("{{ form.data.subcategory|default_if_none:'' }}".trim()) ||
+    ("{{ form.initial.subcategory|default_if_none:'' }}".trim()) ||
+    "";
+
+  function setCategoryOptions(items) {
+    categorySelect.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Select a category…";
+    categorySelect.appendChild(ph);
+
+    for (const c of items) {
+      const opt = document.createElement("option");
+      opt.value = String(c.id);
+      opt.textContent = c.name;
+      categorySelect.appendChild(opt);
+    }
+  }
+
+  function setSubcategoryOptions(items) {
+    subcategorySelect.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = items.length ? "Select a subcategory…" : "No subcategories";
+    subcategorySelect.appendChild(ph);
+
+    for (const s of items) {
+      const opt = document.createElement("option");
+      opt.value = String(s.id);
+      opt.textContent = s.name;
+      subcategorySelect.appendChild(opt);
+    }
+
+    subcategorySelect.disabled = (items.length === 0);
+  }
+
+  async function fetchJSON(url) {
+    const resp = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    if (!resp.ok) return null;
+    try { return await resp.json(); } catch (e) { return null; }
+  }
+
+  async function loadCategories(kind, desiredCategoryId) {
+    // Reset
+    categorySelect.innerHTML = '<option value="">Loading categories…</option>';
+    subcategorySelect.innerHTML = '<option value="">Select a category first…</option>';
+    subcategorySelect.disabled = true;
+
+    const data = await fetchJSON(CATEGORIES_URL + "?kind=" + encodeURIComponent(kind));
+    const cats = (data && data.categories) ? data.categories : [];
+
+    setCategoryOptions(cats);
+
+    // Determine selection:
+    // 1) desiredCategoryId (edit/postback)
+    // 2) first category
+    // 3) blank
+    let selectId = (desiredCategoryId || "").trim();
+    if (selectId && !Array.from(categorySelect.options).some(o => o.value === selectId)) {
+      selectId = "";
+    }
+    if (!selectId && cats.length) {
+      selectId = String(cats[0].id);
+    }
+
+    categorySelect.value = selectId;
+
+    // Load subcategories for selected category (if any)
+    await loadSubcategories(categorySelect.value, initialSubcategory);
+  }
+
+  async function loadSubcategories(categoryId, desiredSubId) {
+    if (!categoryId) {
+      setSubcategoryOptions([]);
+      return;
+    }
+
+    const data = await fetchJSON(SUBCATEGORIES_URL + "?category_id=" + encodeURIComponent(categoryId));
+    const subs = (data && data.subcategories) ? data.subcategories : [];
+
+    setSubcategoryOptions(subs);
+
+    // Determine selection:
+    // 1) desiredSubId (edit/postback)
+    // 2) first subcategory
+    // 3) blank
+    let subId = (desiredSubId || "").trim();
+    if (subId && !Array.from(subcategorySelect.options).some(o => o.value === subId)) {
+      subId = "";
+    }
+    if (!subId && subs.length) {
+      subId = String(subs[0].id);
+    }
+
+    subcategorySelect.value = subId;
+  }
+
+  // Events
+  kindSelect.addEventListener("change", async function () {
+    const kind = (kindSelect.value || "FILE").trim().toUpperCase();
+    await loadCategories(kind, "");
+  });
+
+  categorySelect.addEventListener("change", async function () {
+    await loadSubcategories((categorySelect.value || "").trim(), "");
+  });
+
+  // Init: default to FILE on create
+  kindSelect.value = (initialKind || "FILE").trim().toUpperCase();
+  loadCategories(kindSelect.value, initialCategory);
+});
+</script>
+{% endblock %}

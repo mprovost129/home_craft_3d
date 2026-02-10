@@ -1,0 +1,167 @@
+{# orders/templates/orders/seller_orders_detail.html #}
+{% extends "base.html" %}
+{% block title %}Order · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h4 mb-0">Order #{{ order.id }}</h1>
+      <div class="text-secondary small">{{ order.get_status_display }}{% if order.paid_at %} · Paid {{ order.paid_at }}{% endif %}</div>
+    </div>
+    <a class="btn btn-outline-dark" href="{% url 'orders:seller_orders_list' %}">Back</a>
+  </div>
+
+  <!-- Shipping Address -->
+  {% if order.shipping_name %}
+  <div class="card mb-3">
+    <div class="card-header bg-light">
+      <h5 class="mb-0">Shipping Address</h5>
+    </div>
+    <div class="card-body">
+      <p class="mb-1"><strong>{{ order.shipping_name }}</strong></p>
+      <p class="mb-1">{{ order.shipping_line1 }}{% if order.shipping_line2 %}<br>{{ order.shipping_line2 }}{% endif %}</p>
+      <p class="mb-1">{{ order.shipping_city }}, {{ order.shipping_state }} {{ order.shipping_postal_code }}</p>
+      <p class="mb-0">{{ order.shipping_country }}</p>
+      {% if order.shipping_phone %}<p class="mb-0 small text-secondary">{{ order.shipping_phone }}</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Items Table -->
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Item</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Unit</th>
+            <th class="text-end">Marketplace fee</th>
+            <th class="text-end">Seller net</th>
+            <th>Status</th>
+            <th>Tracking</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in seller_items %}
+            <tr>
+              <td class="fw-semibold">{{ it.product.title }}</td>
+              <td class="text-end">{{ it.quantity }}</td>
+              <td class="text-end">${{ it.unit_price_cents|add:0 }}</td>
+              <td class="text-end">${{ it.marketplace_fee_cents|add:0 }}</td>
+              <td class="text-end fw-semibold">${{ it.seller_net_cents|add:0 }}</td>
+              <td>
+                {% if it.requires_shipping %}
+                  <span class="badge {% if it.fulfillment_status == 'shipped' %}bg-success{% elif it.fulfillment_status == 'pending' %}bg-warning{% else %}bg-secondary{% endif %}">
+                    {{ it.get_fulfillment_status_display }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-info">Digital</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if it.requires_shipping %}
+                  {% if it.fulfillment_status == 'pending' %}
+                    <!-- Show form to mark as shipped -->
+                    <form method="post" action="{% url 'orders:mark_item_shipped' order.id it.id %}" class="d-flex gap-2 flex-wrap">
+                      {% csrf_token %}
+                      <select name="carrier" class="form-select form-select-sm" style="max-width: 160px;">
+                        <option value="">Carrier (optional)</option>
+                        <option>USPS</option>
+                        <option>UPS</option>
+                        <option>FedEx</option>
+                        <option>DHL</option>
+                        <option>Other</option>
+                      </select>
+                      <input type="text" name="carrier_other" class="form-control form-control-sm d-none" placeholder="Enter carrier" style="max-width: 160px;" data-carrier-other>
+                      <input type="text" name="tracking_number" class="form-control form-control-sm" placeholder="Tracking #" style="max-width: 160px;">
+                      <button type="submit" class="btn btn-sm btn-primary">Ship</button>
+                    </form>
+                  {% elif it.fulfillment_status == 'shipped' %}
+                    <div class="small mb-1">
+                      {% if it.carrier %}<span class="text-monospace">{{ it.carrier }}</span>{% endif %}
+                      {% if it.tracking_number %}
+                        {% if it.carrier %} · {% endif %}
+                        <span class="text-monospace">{{ it.tracking_number }}</span>
+                        <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-copy-tracking="{{ it.tracking_number }}">Copy</button>
+                      {% endif %}
+                    </div>
+                    <form method="post" action="{% url 'orders:mark_item_delivered' order.id it.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-dark">Mark delivered</button>
+                    </form>
+                  {% elif it.carrier or it.tracking_number %}
+                    <div class="small">
+                      {% if it.carrier %}<span class="text-monospace">{{ it.carrier }}</span>{% endif %}
+                      {% if it.tracking_number %}
+                        {% if it.carrier %} · {% endif %}
+                        <span class="text-monospace">{{ it.tracking_number }}</span>
+                        <a class="ms-2" href="https://trackingmore.com/track/?tracknumber={{ it.tracking_number|urlencode }}" target="_blank" rel="noopener">Track</a>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-copy-tracking="{{ it.tracking_number }}">Copy</button>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <small class="text-secondary">N/A</small>
+                  {% endif %}
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-secondary py-4">No items for this seller.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('[data-copy-tracking]');
+    if (!btn) return;
+
+    const value = btn.getAttribute('data-copy-tracking') || '';
+    if (!value) return;
+
+    navigator.clipboard.writeText(value).then(function () {
+      const original = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(function () {
+        btn.textContent = original;
+      }, 1200);
+    });
+  });
+
+  document.addEventListener('change', function (event) {
+    const select = event.target.closest('select[name="carrier"]');
+    if (!select) return;
+    const form = select.closest('form');
+    if (!form) return;
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!otherInput) return;
+
+    if (select.value === 'Other') {
+      otherInput.classList.remove('d-none');
+      otherInput.focus();
+    } else {
+      otherInput.classList.add('d-none');
+      otherInput.value = '';
+    }
+  });
+
+  document.addEventListener('submit', function (event) {
+    const form = event.target.closest('form');
+    if (!form) return;
+    const select = form.querySelector('select[name="carrier"]');
+    const otherInput = form.querySelector('[data-carrier-other]');
+    if (!select || !otherInput) return;
+    if (select.value === 'Other' && otherInput.value.trim()) {
+      select.value = otherInput.value.trim();
+    }
+  });
+</script>
+{% endblock %}

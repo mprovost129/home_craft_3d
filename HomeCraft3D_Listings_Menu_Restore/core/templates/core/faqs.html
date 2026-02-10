@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}FAQs · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 980px;">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">FAQs</h1>
+      <div class="text-secondary">Common questions about buying, selling, downloads, and refunds.</div>
+    </div>
+  </div>
+
+  <div class="accordion" id="faqsAccordion">
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqOne">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+          Can I browse without creating an account?
+        </button>
+      </h2>
+      <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="faqOne" data-bs-parent="#faqsAccordion">
+        <div class="accordion-body">
+          Yes. You can browse products while logged out. An account is required to purchase, download, post Q&amp;A, or sell.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqTwo">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+          When do digital downloads become available?
+        </button>
+      </h2>
+      <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="faqTwo" data-bs-parent="#faqsAccordion">
+        <div class="accordion-body">
+          Digital downloads are available after payment is confirmed. You can find them under <strong>My Orders → Purchases &amp; downloads</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqThree">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+          Are refunds available for digital files?
+        </button>
+      </h2>
+      <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="faqThree" data-bs-parent="#faqsAccordion">
+        <div class="accordion-body">
+          No. Refunds are supported for <strong>physical items only</strong>. Digital items remain accessible after purchase.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqFour">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+          Do I need Stripe onboarding to sell?
+        </button>
+      </h2>
+      <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="faqFour" data-bs-parent="#faqsAccordion">
+        <div class="accordion-body">
+          Stripe onboarding is required to activate paid listings and physical listings. You can create listings as drafts first, and you may activate a limited number of free digital listings before onboarding.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item">
+      <h2 class="accordion-header" id="faqFive">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+          Why am I being asked to verify my email?
+        </button>
+      </h2>
+      <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="faqFive" data-bs-parent="#faqsAccordion">
+        <div class="accordion-body">
+          Email verification reduces abuse and protects the marketplace. Some actions require verification: posting Q&amp;A, starting seller onboarding, and leaving reviews.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'core:help' %}"><i class="bi bi-arrow-left me-1"></i>Back to Help</a>
+  </div>
+</div>
+{% endblock %}

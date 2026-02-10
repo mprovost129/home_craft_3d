@@ -1,0 +1,62 @@
+{# orders/templates/orders/checkout_success.html #}
+{% extends "base.html" %}
+
+{% block title %}Payment successful · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 900px;">
+  <div class="text-center">
+    <h1 class="h3 mb-2">Payment successful</h1>
+    <p class="text-muted mb-4">Thanks, your order is confirmed.</p>
+
+    {% if order %}
+      <div class="card shadow-sm mx-auto" style="max-width: 720px;">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <div class="text-muted small">Order</div>
+              <div class="fw-semibold">{{ order.id }}</div>
+            </div>
+            <div class="col-md-6">
+              <div class="text-muted small">Status</div>
+              <div class="fw-semibold">{{ order.get_status_display }}</div>
+            </div>
+          </div>
+
+          <hr>
+
+          <a class="btn btn-primary" href="{% url 'orders:detail' order_id=order.id %}">
+            View order
+          </a>
+
+          {% if user.is_authenticated %}
+            <a class="btn btn-outline-secondary ms-2" href="{% url 'orders:purchases' %}">
+              Go to purchases
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info mx-auto" style="max-width: 720px;">
+        Your payment completed. If your order doesn’t appear immediately, refresh in a moment.
+      </div>
+    {% endif %}
+
+    <div class="mt-4">
+      <a href="{% url 'products:list' %}" class="btn btn-outline-secondary">Continue shopping</a>
+    </div>
+  </div>
+</div>
+
+{% if ga_measurement_id and order %}
+  <script>
+    if (typeof gtag === 'function') {
+      gtag('event', 'purchase', {
+        transaction_id: '{{ order.id }}',
+        value: {{ order.total_cents|default:0|floatformat:2 }} / 100,
+        currency: '{{ order.currency|default:"usd"|upper }}'
+      });
+    }
+  </script>
+{% endif %}
+{% endblock %}

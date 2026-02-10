@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Admin Ops · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 1100px;">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Admin Ops</h1>
+      <div class="text-secondary small">Operational signals (last 7 days).</div>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-dark" href="{% url 'dashboards:admin' %}">
+        <i class="bi bi-arrow-left me-1"></i>Admin dashboard
+      </a>
+      <a class="btn btn-outline-dark" href="{% url 'admin:index' %}">
+        <i class="bi bi-box-arrow-up-right me-1"></i>Django admin
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">Stripe Webhook Deliveries</div>
+            <div class="small text-secondary">Last 7 days</div>
+          </div>
+          <div class="mt-2 small">
+            <div class="d-flex flex-wrap gap-2">
+              <span class="badge text-bg-secondary">received: {{ deliveries_counts.received|default:0 }}</span>
+              <span class="badge text-bg-success">processed: {{ deliveries_counts.processed|default:0 }}</span>
+              <span class="badge text-bg-warning">duplicate: {{ deliveries_counts.duplicate|default:0 }}</span>
+              <span class="badge text-bg-danger">error: {{ deliveries_counts.error|default:0 }}</span>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <div class="fw-semibold small">Recent errors</div>
+            {% if webhook_errors %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Request</th>
+                      <th>Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for d in webhook_errors %}
+                      <tr>
+                        <td class="text-nowrap">{{ d.received_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-nowrap">{{ d.event_type }}</td>
+                        <td><span class="badge text-bg-danger">{{ d.status }}</span></td>
+                        <td class="text-nowrap">{{ d.request_id|default:"" }}</td>
+                        <td class="small text-truncate" style="max-width: 340px;">{{ d.error_message }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-secondary small">No webhook errors recorded.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">Refund Trigger Attempts</div>
+            <div class="small text-secondary">Last 7 days</div>
+          </div>
+
+          <div class="mt-2 small">
+            <div class="d-flex flex-wrap gap-2">
+              <span class="badge text-bg-success">success: {{ refund_attempt_counts.success|default:0 }}</span>
+              <span class="badge text-bg-danger">error: {{ refund_attempt_counts.error|default:0 }}</span>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <div class="fw-semibold small">Failures (last 24h)</div>
+            {% if refund_failures_24h %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>When</th>
+                      <th>Refund</th>
+                      <th>Actor</th>
+                      <th>Request</th>
+                      <th>Error</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for a in refund_failures_24h %}
+                      <tr>
+                        <td class="text-nowrap">{{ a.created_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-nowrap">{{ a.refund_request_id }}</td>
+                        <td class="text-nowrap">{% if a.actor %}{{ a.actor.username }}{% else %}—{% endif %}</td>
+                        <td class="text-nowrap">{{ a.request_id|default:"" }}</td>
+                        <td class="small text-truncate" style="max-width: 340px;">{{ a.error_message }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-secondary small">No refund failures recorded in the last 24 hours.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="fw-semibold">Recent Order Warnings</div>
+        <div class="small text-secondary">Last 7 days</div>
+      </div>
+
+      {% if recent_order_warnings %}
+        <div class="table-responsive mt-2">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Order</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ev in recent_order_warnings %}
+                <tr>
+                  <td class="text-nowrap">{{ ev.created_at|date:"Y-m-d H:i" }}</td>
+                  <td class="text-nowrap">{{ ev.order_id }}</td>
+                  <td class="small">{{ ev.message }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-secondary small mt-2">No warnings recorded.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

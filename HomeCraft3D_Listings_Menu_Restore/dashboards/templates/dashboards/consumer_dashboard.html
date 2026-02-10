@@ -1,0 +1,144 @@
+{# dashboards/templates/dashboards/consumer_dashboard.html #}
+{% extends "base.html" %}
+{% load money %}
+{% block title %}Consumer Dashboard · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Consumer Dashboard</h1>
+      <div class="text-secondary small">Your purchases, downloads, and account activity.</div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-outline-dark" href="{% url 'orders:my_orders' %}">
+        <i class="bi bi-bag-check me-1"></i>My Orders
+      </a>
+      <a class="btn btn-outline-dark" href="{% url 'favorites:library' %}">
+        <i class="bi bi-heart me-1"></i>Favorites &amp; Wishlist
+      </a>
+      <a class="btn btn-outline-dark" href="{% url 'accounts:profile' %}">
+        <i class="bi bi-person-circle me-1"></i>Profile
+      </a>
+      <a class="btn btn-dark" href="{% url 'products:list' %}">
+        <i class="bi bi-shop me-1"></i>Browse Store
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-secondary small">Total spent</div>
+              <div class="h4 mb-0">${{ total_spent|default:"0" }}</div>
+            </div>
+            <i class="bi bi-currency-dollar fs-2 text-secondary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-secondary small">Paid orders</div>
+              <div class="h4 mb-0">{{ paid_count|default:"0" }}</div>
+            </div>
+            <i class="bi bi-receipt fs-2 text-secondary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="text-secondary small">Quick links</div>
+              <div class="d-flex flex-wrap gap-2 mt-2">
+                <a class="btn btn-sm btn-outline-dark" href="{% url 'products:models' %}">Models</a>
+                <a class="btn btn-sm btn-outline-dark" href="{% url 'products:files' %}">Files</a>
+              </div>
+            </div>
+            <i class="bi bi-link-45deg fs-2 text-secondary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if not user.profile.is_seller %}
+  <div class="card mb-3 border-primary bg-light">
+    <div class="card-body">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h5 class="card-title mb-2">Ready to become a seller?</h5>
+          <p class="text-secondary mb-3">Upload your designs, reach customers worldwide, and start earning today.</p>
+          <a href="{% url 'payments:connect_status' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-shop me-1"></i>Set Up Selling
+          </a>
+        </div>
+        <i class="bi bi-rocket fs-2 text-primary"></i>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+      <div class="fw-semibold">Recent Orders</div>
+      <a class="small text-decoration-none" href="{% url 'orders:my_orders' %}">View all</a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Ordered</th>
+            <th>Order</th>
+            <th>Status</th>
+            <th>Items</th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for o in orders %}
+            <tr>
+              <td class="text-muted small">{{ o.created_at|date:"M j, Y" }}</td>
+              <td class="fw-semibold">#{{ o.id }}</td>
+              <td>
+                {% if o.status == "PAID" %}
+                  <span class="badge text-bg-success">{{ o.get_status_display }}</span>
+                {% elif o.status == "PENDING" %}
+                  <span class="badge text-bg-secondary">{{ o.get_status_display }}</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">{{ o.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-secondary">
+                {{ o.items.count }} item{{ o.items.count|pluralize }}
+              </td>
+              <td class="text-end"><strong>${{ o.total_cents|cents_to_dollars }}</strong></td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-dark" href="{% url 'orders:detail' o.id %}">View</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-secondary py-4">No orders yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

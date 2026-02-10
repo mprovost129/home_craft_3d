@@ -1,0 +1,36 @@
+{% extends "dashboards/admin_dashboard.html" %}
+
+{% block dashboard_content %}
+<h2 class="mb-3">Order Reconciliation</h2>
+
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Order</th>
+      <th>Snapshot Net</th>
+      <th>Transfers</th>
+      <th>Refunds</th>
+      <th>Delta</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr class="{% if row.delta != 0 %}table-warning{% else %}table-success{% endif %}">
+        <td>#{{ row.order.id }}</td>
+        <td>${{ row.snapshot_net|floatformat:2 }}</td>
+        <td>${{ row.transfers_total|floatformat:2 }}</td>
+        <td>${{ row.refunds_total|floatformat:2 }}</td>
+        <td class="fw-semibold">
+          ${{ row.delta|floatformat:2 }}
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="5" class="text-secondary">
+          No orders to reconcile.
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
