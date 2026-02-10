@@ -55,8 +55,7 @@
 
   {% if products %}
     <div class="row g-3">
-      {% for row in products %}
-        {% with p=row.obj %}
+      {% for p in products %}
           <div class="col-12">
             <div class="card shadow-sm">
               <div class="card-body">
@@ -84,7 +83,7 @@
                           <span class="badge text-bg-secondary">Draft</span>
                         {% endif %}
 
-                        {% if p.is_digital %}
+                        {% if p.kind == 'FILE' %}
                           <span class="badge text-bg-info text-dark">FILE</span>
                         {% else %}
                           <span class="badge text-bg-light text-dark">MODEL</span>
@@ -100,16 +99,18 @@
                       </div>
 
                       <div class="d-flex flex-wrap gap-2 mt-2">
-                        <span class="badge text-bg-light text-dark">
-                          Units sold: <span class="fw-semibold">{{ p.units_sold|default:0 }}</span>
-                        </span>
+                        {% if p.kind == 'MODEL' %}
+                          <span class="badge text-bg-light text-dark">
+                            Net units sold: <span class="fw-semibold">{{ p.units_sold|default:0 }}</span>
+                          </span>
+                        {% endif %}
 
-                        {% if p.is_digital %}
+                        {% if p.kind == 'FILE' %}
                           <span class="badge text-bg-light text-dark">
                             Unique downloaders: <span class="fw-semibold">{{ p.unique_downloaders_count|default:0 }}</span>
                           </span>
                           <span class="badge text-bg-light text-dark">
-                            Total downloads: <span class="fw-semibold">{{ p.download_total|default:0 }}</span>
+                            Total downloads: <span class="fw-semibold">{{ p.download_count|default:0 }}</span>
                           </span>
                         {% endif %}
                       </div>
@@ -125,7 +126,7 @@
                       <i class="bi bi-images me-1"></i>Images
                     </a>
 
-                    {% if p.is_digital %}
+                    {% if p.kind == 'FILE' %}
                       <a class="btn btn-sm btn-outline-dark" href="{% url 'products:seller_assets' p.pk %}">
                         <i class="bi bi-file-earmark-arrow-up me-1"></i>Files
                       </a>
@@ -137,13 +138,13 @@
                   </div>
                 </div>
 
-                {% if not row.publish_ok %}
+                {% if not p.publish_ok %}
                   <div class="alert alert-warning mt-3 mb-0">
                     <div class="fw-semibold mb-1">This listing can’t be activated yet.</div>
                     <div class="small">
                       Missing:
                       <ul class="mb-0">
-                        {% for item in row.publish_missing %}
+                        {% for item in p.publish_missing %}
                           <li>{{ item }}</li>
                         {% endfor %}
                       </ul>
@@ -153,7 +154,6 @@
               </div>
             </div>
           </div>
-        {% endwith %}
       {% endfor %}
     </div>
   {% else %}

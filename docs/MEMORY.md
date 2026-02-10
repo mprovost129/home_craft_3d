@@ -1,6 +1,11 @@
 # Home Craft 3D — MEMORY
 
-Last updated: 2026-02-09 (America/New_York)
+Last updated: 2026-02-10 (America/New_York)
+
+## 2026-02-10 — Native analytics dashboard filters
+- Admin Dashboard native analytics panel now supports range filters: **Today**, **Last 7 days**, **Last 30 days**, and **Custom date range**.
+- Server-side aggregation functions accept explicit start/end datetimes (end is exclusive) for consistent reporting.
+
 
 ## 2026-02-10 — Local DB + migration recovery (launch hardening)
 - Fixed schema drift for `orders.StripeWebhookDelivery` by aligning the **model** to the already-created migration/table shape:
@@ -478,3 +483,29 @@ Refunds is implemented and wired as a full feature.
   - `refunds.RefundAttempt` to log each attempt to trigger a Stripe refund (success/failure, request_id).
 - Stripe webhook now returns **HTTP 500 on internal processing errors** (after signature verification) so Stripe retries; status is tracked in `StripeWebhookDelivery`.
 - Added **Admin Ops** dashboard (`/dashboard/admin/ops/`) showing recent webhook errors, refund failures, and order warnings.
+
+## 2026-02-10 — Seller Listings stabilization + deploy docs
+- Fixed Seller Listings rendering:
+  - Template now iterates `products` as Product instances (no `row.obj` wrapper).
+  - Removed non-existent template attributes (`is_digital`, `download_total`).
+  - Digital metrics display uses `unique_downloaders_count` + bundle-level `Product.download_count`.
+  - Physical listings display **Net units sold** label.
+- Added production playbooks:
+  - `docs/DEPLOY_RENDER.md` (Render-safe deployment plan)
+  - `docs/POST_DEPLOY_CHECKLIST.md` (verification checklist)
+
+## 2026-02-10 — Analytics: migrate Plausible → Google Analytics 4
+- Replaced Plausible client script with GA4 `gtag.js` snippet (uses `GA_MEASUREMENT_ID` from settings/env via context processor).
+- Added GA4 Data API reporting module (`dashboards/analytics_google.py`) and wrapper (`dashboards/analytics.py`) for Admin Dashboard summaries/top pages.
+- Admin dashboard analytics panel updated to 'Google Analytics' (30-day summary + top pages) and optional outbound link via `SiteConfig.google_analytics_dashboard_url`.
+- CSP updated to remove Plausible frame-src and allow Google Tag Manager host.
+
+
+## 2026-02-10 Native analytics (server-side)
+
+
+- Implemented first-party server-side pageview analytics via new `analytics` app (AnalyticsEvent + admin).
+- Added `analytics.middleware.RequestAnalyticsMiddleware` to record HTML GET/HEAD pageviews (bot filtered, throttled).
+- Replaced Admin Dashboard analytics panel to use native analytics (30-day summary + top pages); Google Analytics link remains optional.
+- Added SiteConfig toggles: `analytics_enabled`, `analytics_retention_days` with Admin Settings form support.
+- Added management command `prune_analytics_events` to enforce retention policy.

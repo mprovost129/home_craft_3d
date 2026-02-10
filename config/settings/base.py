@@ -110,6 +110,7 @@ LOCAL_APPS = [
     "orders",
     "payments.apps.PaymentsConfig",
     "reviews",
+    "analytics.apps.AnalyticsConfig",
     "dashboards",
     "refunds.apps.RefundsConfig",
     "qa",
@@ -126,6 +127,7 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "core.middleware.RequestIDMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "analytics.middleware.RequestAnalyticsMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django_otp.middleware.OTPMiddleware",
@@ -289,7 +291,19 @@ if (USE_S3 := _bool_env("USE_S3", "False")):
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
     }
 
+# -------------------------
+# Analytics (Google Analytics 4)
+# -------------------------
+# Client-side GA tag (gtag.js) measurement ID (e.g. G-XXXXXXX)
+GA_MEASUREMENT_ID = os.getenv("GOOGLE_MEASUREMENT_ID", "").strip()
+
+# Optional: GA4 Data API (server-side reporting for admin dashboard)
+# Provide either a service-account JSON string OR a file path.
+GA4_PROPERTY_ID = os.getenv("GOOGLE_ANALYTICS_PROPERTY_ID", "").strip()
+GA4_CREDENTIALS_JSON = os.getenv("GOOGLE_ANALYTICS_CREDENTIALS_JSON", "").strip()
+GA4_CREDENTIALS_FILE = os.getenv("GOOGLE_ANALYTICS_CREDENTIALS_FILE", "").strip()
+
+# (Optional) GA4 Measurement Protocol values (future server-side event ingestion)
 GOOGLE_STREAM_NAME = os.getenv("GOOGLE_STREAM_NAME", "").strip()
-GOOGLE_MEASURMENT_ID = os.getenv("GOOGLE_MEASUREMENT_ID", "").strip()
 GOOGLE_STREAM_ID = os.getenv("GOOGLE_STREAM_ID", "").strip()
 GOOGLE_MEASUREMENT_API_SECRET_KEY = os.getenv("GOOGLE_MEASUREMENT_API_SECRET_KEY", "").strip()

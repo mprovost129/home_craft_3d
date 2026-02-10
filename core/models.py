@@ -134,6 +134,25 @@ class SiteConfig(models.Model):
         help_text="Plausible shared dashboard URL (read-only). Example: https://plausible.io/share/<site>?auth=...",
     )
 
+    google_analytics_dashboard_url = models.URLField(
+        blank=True,
+        default="",
+        help_text="Google Analytics dashboard URL (for quick access from the admin dashboard).",
+    )
+
+    # -------------------------
+    # Native Analytics (server-side, v1)
+    # -------------------------
+    analytics_enabled = models.BooleanField(
+        default=True,
+        help_text="If enabled, record lightweight pageview analytics for the admin dashboard.",
+    )
+    analytics_retention_days = models.PositiveIntegerField(
+        default=90,
+        help_text="How many days of analytics events to retain (pruned by management command).",
+    )
+
+
     # -------------------------
     # Theme / Branding (Palette A + Light/Dark)
     # -------------------------

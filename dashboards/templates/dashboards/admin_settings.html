@@ -95,19 +95,30 @@
         </div>
 
         <div class="col-12 mt-3">
-          <label class="form-label">Plausible shared dashboard URL</label>
-          {{ form.plausible_shared_url }}
-          {% if form.plausible_shared_url.help_text %}
-            <div class="form-text">{{ form.plausible_shared_url.help_text }}</div>
-          {% else %}
-            <div class="form-text">
-              Paste your Plausible shared link (ex: https://plausible.io/share/homecraft3d.com?auth=...).
+          <div class="row g-3">
+            <div class="col-12 col-lg-6">
+              <label class="form-label">Google Analytics dashboard URL</label>
+              {{ form.google_analytics_dashboard_url }}
+              <div class="form-text">
+                Optional: paste a Google Analytics link (Property or Reports page) for quick access from the admin dashboard.
+              </div>
+              {% if form.google_analytics_dashboard_url.errors %}
+                <div class="text-danger small mt-1">{{ form.google_analytics_dashboard_url.errors }}</div>
+              {% endif %}
             </div>
-          {% endif %}
-          {% if form.plausible_shared_url.errors %}
-            <div class="text-danger small mt-1">{{ form.plausible_shared_url.errors }}</div>
-          {% endif %}
-        </div>
+
+            <div class="col-12 col-lg-6">
+              <label class="form-label">Plausible shared dashboard URL <span class="badge text-bg-secondary ms-1">Deprecated</span></label>
+              {{ form.plausible_shared_url }}
+              <div class="form-text">
+                Kept for legacy reference. Home Craft 3D is transitioning to Google Analytics.
+              </div>
+              {% if form.plausible_shared_url.errors %}
+                <div class="text-danger small mt-1">{{ form.plausible_shared_url.errors }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>>
 
         <hr class="my-4">
 

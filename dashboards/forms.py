@@ -66,7 +66,11 @@ class SiteConfigForm(forms.ModelForm):
 
             "default_currency",
             "allowed_shipping_countries_csv",
-            "plausible_shared_url",
+            "google_analytics_dashboard_url",
+            "analytics_enabled",
+            "analytics_retention_days",
+            "plausible_shared_url",  # deprecated
+
 
             # Home page
             "home_hero_title",

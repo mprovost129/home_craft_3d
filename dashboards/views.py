@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from datetime import timedelta
 from decimal import Decimal
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -24,9 +25,9 @@ from django.core.cache import cache
 from core.config import get_site_config, invalidate_site_config_cache
 from core.models import SiteConfig
 from .forms import SiteConfigForm, ProductFreeUnlockForm
-from .plausible import get_summary as plausible_get_summary
-from .plausible import get_top_pages as plausible_get_top_pages
-from .plausible import is_configured as plausible_is_configured
+from .analytics import get_summary as analytics_get_summary
+from .analytics import get_top_pages as analytics_get_top_pages
+from .analytics import is_configured as analytics_is_configured
 from orders.models import Order, OrderItem, OrderEvent, StripeWebhookDelivery
 from refunds.models import RefundRequest, RefundAttempt
 from payments.models import SellerStripeAccount, SellerBalanceEntry
@@ -49,36 +50,88 @@ def _cents_to_dollars(cents: int) -> Decimal:
     return (Decimal(int(cents or 0)) / Decimal("100")).quantize(Decimal("0.01"))
 
 
-def _build_plausible_embed_url(shared_url: str, *, theme: str = "light") -> str:
+def _build_analytics_link_url(url: str) -> str:
+    """Return a safe analytics dashboard URL for templates.
+
+    For Google Analytics we do not embed via iframes in-app (avoids CSP/cookie issues).
+    We expose a simple outbound link if configured.
     """
-    Plausible shared links embed by adding query params (not by swapping /share/ to /embed/).
+    return (url or "").strip()
 
-    Example:
-      https://plausible.io/share/homecraft3d.com?auth=XYZ
-    becomes:
-      https://plausible.io/share/homecraft3d.com?auth=XYZ&embed=true&theme=light
+
+def _analytics_time_range_from_request(request):
+    """Parse analytics range filters from query params.
+
+    Supported:
+      - a_range=today|7d|30d|custom  (default 30d)
+      - a_start=YYYY-MM-DD (for custom)
+      - a_end=YYYY-MM-DD   (for custom, inclusive)
+    Returns: (start_dt, end_dt_exclusive, range_key, label, start_date, end_date)
     """
-    shared_url = (shared_url or "").strip()
-    if not shared_url:
-        return ""
+    from django.utils import timezone
+    from django.utils.timezone import localdate
 
-    def _parse_url_and_query(url):
-        parsed = urlparse(url)
-        qs = dict(parse_qsl(parsed.query, keep_blank_values=True))
-        return parsed, qs
+    range_key = (request.GET.get("a_range") or "30d").strip().lower()
+    tz = timezone.get_current_timezone()
+    now = timezone.now()
 
-    try:
-        parsed, qs = _parse_url_and_query(shared_url)
-        qs["embed"] = "true"
-        if theme:
-            qs["theme"] = theme
-        new_query = urlencode(qs, doseq=True)
-        return urlunparse(parsed._replace(query=new_query))
-    except Exception:
-        return ""
+    def _midnight_aware(d):
+        return timezone.make_aware(timezone.datetime(d.year, d.month, d.day, 0, 0, 0), tz)
+
+    start_dt = None
+    end_dt = None
+    start_date = None
+    end_date = None
+    label = "Last 30 days"
+
+    if range_key == "today":
+        start_date = localdate()
+        end_date = start_date
+        start_dt = _midnight_aware(start_date)
+        end_dt = start_dt + timezone.timedelta(days=1)
+        label = "Today"
+    elif range_key == "7d":
+        start_dt = now - timezone.timedelta(days=7)
+        label = "Last 7 days"
+    elif range_key == "30d":
+        start_dt = now - timezone.timedelta(days=30)
+        label = "Last 30 days"
+    elif range_key == "custom":
+        raw_start = (request.GET.get("a_start") or "").strip()
+        raw_end = (request.GET.get("a_end") or "").strip()
+        try:
+            if raw_start:
+                start_date = timezone.datetime.fromisoformat(raw_start).date()
+            if raw_end:
+                end_date = timezone.datetime.fromisoformat(raw_end).date()
+        except Exception:
+            # Leave as None; view will fall back.
+            start_date = None
+            end_date = None
+
+        if start_date and end_date and end_date >= start_date:
+            start_dt = _midnight_aware(start_date)
+            end_dt = _midnight_aware(end_date) + timezone.timedelta(days=1)
+            label = f"{start_date.isoformat()} → {end_date.isoformat()}"
+        else:
+            # Fall back to 30d if custom is invalid.
+            range_key = "30d"
+            start_dt = now - timezone.timedelta(days=30)
+            label = "Last 30 days"
+            start_date = None
+            end_date = None
+    else:
+        range_key = "30d"
+        start_dt = now - timezone.timedelta(days=30)
+        label = "Last 30 days"
+
+    return start_dt, end_dt, range_key, label, start_date, end_date
 
 
-@login_required
+
+
+
+
 def dashboard_home(request):
     user = request.user
 
@@ -362,16 +415,16 @@ def seller_analytics(request):
 
     per_rows = []
     for p in products:
-        eng = per_eng.get(p.id, {})
+        eng = per_eng.get(p.pk, {})
         views = int(eng.get(ProductEngagementEvent.EventType.VIEW, 0))
         clicks = int(eng.get(ProductEngagementEvent.EventType.CLICK, 0))
         adds = int(eng.get(ProductEngagementEvent.EventType.ADD_TO_CART, 0))
-        paid_q = per_paid_qty.get(p.id, 0)
-        ref_q = per_ref_qty.get(p.id, 0)
+        paid_q = per_paid_qty.get(p.pk, 0)
+        ref_q = per_ref_qty.get(p.pk, 0)
         net_sold = max(0, int(paid_q) - int(ref_q))
 
-        dl_total = per_dl_total.get(p.id, 0)
-        dl_unique = per_dl_user_unique.get(p.id, 0) + per_dl_sess_unique.get(p.id, 0)
+        dl_total = per_dl_total.get(p.pk, 0)
+        dl_unique = per_dl_user_unique.get(p.pk, 0) + per_dl_sess_unique.get(p.pk, 0)
 
         per_rows.append(
             {
@@ -419,6 +472,7 @@ def admin_dashboard(request):
     since = localtime(timezone.now()) - timedelta(days=DASH_RECENT_DAYS)
 
     cfg = get_site_config()
+    analytics_dashboard_url = (getattr(cfg, "google_analytics_dashboard_url", "") or "").strip()
     site_config_admin_url = reverse("admin:core_siteconfig_changelist")
 
     products_total = Product.objects.count()
@@ -458,165 +512,39 @@ def admin_dashboard(request):
         .order_by("-revenue_cents")[:10]
     )
 
-    top_sellers_display = []
-    for row in top_sellers:
-        top_sellers_display.append(
-            {
-                "seller__username": row.get("seller__username") or "",
-                "revenue": _cents_to_dollars(int(row.get("revenue_cents") or 0)),
-                "qty": row.get("qty") or 0,
-                "orders": row.get("orders") or 0,
-            }
-        )
+    top_sellers_display = [
+        {
+            "seller__username": row.get("seller__username") or "",
+            "revenue": _cents_to_dollars(int(row.get("revenue_cents") or 0)),
+            "qty": row.get("qty") or 0,
+            "orders": row.get("orders") or 0,
+        }
+        for row in top_sellers
+    ]
 
-    plausible_shared_url = (getattr(cfg, "plausible_shared_url", "") or "").strip()
-    plausible_embed_url = _build_plausible_embed_url(plausible_shared_url, theme="light")
+    # -------------------------
+    # Analytics (Native, server-side)
+    # -------------------------
+    analytics_enabled = bool(getattr(cfg, "analytics_enabled", True))
+    analytics_retention_days = int(getattr(cfg, "analytics_retention_days", 90) or 90)
 
-    plausible_period = (request.GET.get("period") or "today").strip()
-    allowed_periods = {"7d", "30d", "90d", "6mo", "12mo", "year", "today", "yesterday", "custom"}
-    if plausible_period not in allowed_periods:
-        plausible_period = "30d"
+    analytics_summary_display: dict[str, Any] = {}
+    analytics_top_pages: list[dict[str, Any]] = []
+    analytics_api_error = ""
 
-    selected_period = plausible_period
-    api_period = plausible_period
+    # Range filters (today / 7d / 30d / custom)
+    analytics_start_dt, analytics_end_dt, analytics_range_key, analytics_range_label, analytics_start_date, analytics_end_date = (
+        _analytics_time_range_from_request(request)
+    )
 
-    plausible_from = (request.GET.get("from") or "").strip()
-    plausible_to = (request.GET.get("to") or "").strip()
-
-    if selected_period in {"today", "yesterday"}:
-        # Use local time for analytics (America/New_York)
-        from django.utils.timezone import localtime
-        base_date = localtime(timezone.now()).date()
-        if selected_period == "yesterday":
-            base_date = base_date - timedelta(days=1)
-        plausible_from = base_date.isoformat()
-        plausible_to = base_date.isoformat()
-        api_period = "custom"
-    elif selected_period != "custom":
-        plausible_from = ""
-        plausible_to = ""
-
-    page_filter_raw = (request.GET.get("page") or "").strip()
-    plausible_filters = ""
-    if page_filter_raw:
-        if page_filter_raw.startswith("="):
-            value = page_filter_raw[1:].strip()
-            if value:
-                plausible_filters = f"event:page=={value}"
-        else:
-            value = re.escape(page_filter_raw)
-            plausible_filters = f"event:page~={value}"
-
-    try:
-        plausible_top_limit = int(request.GET.get("limit") or 8)
-    except ValueError:
-        plausible_top_limit = 8
-    plausible_top_limit = max(5, min(plausible_top_limit, 50))
-
-    labels = {
-        "7d": "Last 7 days",
-        "30d": "Last 30 days",
-        "90d": "Last 90 days",
-        "6mo": "Last 6 months",
-        "12mo": "Last 12 months",
-        "year": "Year to date",
-        "today": "Today",
-        "yesterday": "Yesterday",
-        "custom": "Custom range",
-    }
-    plausible_period_label = labels.get(selected_period, "Last 30 days")
-    if plausible_period == "custom" and selected_period == "custom" and (plausible_from or plausible_to):
-        plausible_period_label = f"{plausible_from or '…'} to {plausible_to or '…'}"
-
-    plausible_api_enabled = plausible_is_configured()
-    plausible_summary_display = {}
-    plausible_top_pages = []
-    plausible_api_error = ""
-
-    if plausible_api_enabled:
+    if analytics_enabled:
         try:
-            if api_period == "custom" and not (plausible_from and plausible_to):
-                plausible_api_error = "Select both From and To dates for a custom range."
-                plausible_top_pages_raw = []
-                plausible_summary = {}
-            else:
-                plausible_summary = plausible_get_summary(
-                    period=api_period,
-                    from_date=plausible_from or None,
-                    to_date=plausible_to or None,
-                    filters=plausible_filters or None,
-                )
-                plausible_top_pages_raw = plausible_get_top_pages(
-                    period=api_period,
-                    limit=plausible_top_limit,
-                    from_date=plausible_from or None,
-                    to_date=plausible_to or None,
-                    filters=plausible_filters or None,
-                )
-
-            def _safe_int(value, default=0):
-                try:
-                    if isinstance(value, dict) and "value" in value:
-                        value = value.get("value")
-                    return int(value)  # type: ignore[arg-type]
-                except (TypeError, ValueError):
-                    return default
-
-            def _safe_float(value, default=0.0):
-                try:
-                    if isinstance(value, dict) and "value" in value:
-                        value = value.get("value")
-                    return float(value)  # type: ignore[arg-type]
-                except (TypeError, ValueError):
-                    return default
-
-            def _format_duration(seconds):
-                try:
-                    if isinstance(seconds, dict) and "value" in seconds:
-                        seconds = seconds.get("value")
-                    total_seconds = int(float(seconds or 0))  # type: ignore[arg-type]
-                except (TypeError, ValueError):
-                    total_seconds = 0
-
-                mins, secs = divmod(total_seconds, 60)
-                hours, mins = divmod(mins, 60)
-                if hours:
-                    return f"{hours}h {mins}m"
-                else:
-                    return f"{mins}m {secs}s" if mins else f"{secs}s"
-
-            plausible_summary_display = {
-                "visitors": _safe_int(plausible_summary.get("visitors")),
-                "pageviews": _safe_int(plausible_summary.get("pageviews")),
-                "visits": _safe_int(plausible_summary.get("visits")),
-                "bounce_rate": round(_safe_float(plausible_summary.get("bounce_rate")), 1),
-                "visit_duration": _format_duration(plausible_summary.get("visit_duration")),
-            }
-
-            plausible_top_pages = []
-            for row in plausible_top_pages_raw or []:
-                plausible_top_pages.append(
-                    {
-                        "page": row.get("page") or row.get("name") or "",
-                        "pageviews": _safe_int(row.get("pageviews")),
-                        "visitors": _safe_int(row.get("visitors")),
-                    }
-                )
-        except Exception as e:
-            plausible_api_error = "Plausible API request failed."
-            resp = getattr(e, "response", None)
-            if resp is not None:
-                try:
-                    detail = (resp.text or "").strip()
-                    if detail:
-                        plausible_api_error = f"Plausible API request failed ({resp.status_code}). {detail[:200]}"
-                    else:
-                        plausible_api_error = f"Plausible API request failed ({resp.status_code})."
-                except Exception:
-                    plausible_api_error = "Plausible API request failed."
-            plausible_summary_display = {}
-            plausible_top_pages = []
-
+            analytics_summary_display = analytics_get_summary(start=analytics_start_dt, end=analytics_end_dt) or {}
+            analytics_top_pages = analytics_get_top_pages(start=analytics_start_dt, end=analytics_end_dt, limit=10) or []
+        except Exception:
+            analytics_api_error = "Native analytics aggregation failed."
+            analytics_summary_display = {}
+            analytics_top_pages = []
     return render(
         request,
         "dashboards/admin_dashboard.html",
@@ -632,18 +560,16 @@ def admin_dashboard(request):
             "site_config_admin_url": site_config_admin_url,
             "marketplace_sales_percent": getattr(cfg, "marketplace_sales_percent", 0) or 0,
             "platform_fee_cents": int(getattr(cfg, "platform_fee_cents", 0) or 0),
-            "plausible_shared_url": plausible_shared_url,
-            "plausible_embed_url": plausible_embed_url,
-            "plausible_api_enabled": plausible_api_enabled,
-            "plausible_summary": plausible_summary_display,
-            "plausible_top_pages": plausible_top_pages,
-            "plausible_period": plausible_period,
-            "plausible_from": plausible_from,
-            "plausible_to": plausible_to,
-            "plausible_page_filter": page_filter_raw,
-            "plausible_top_limit": plausible_top_limit,
-            "plausible_period_label": plausible_period_label,
-            "plausible_api_error": plausible_api_error,
+            "analytics_dashboard_url": analytics_dashboard_url,
+            "analytics_enabled": analytics_enabled,
+            "analytics_retention_days": analytics_retention_days,
+            "analytics_range_key": analytics_range_key,
+            "analytics_range_label": analytics_range_label,
+            "analytics_start_date": analytics_start_date,
+            "analytics_end_date": analytics_end_date,
+            "analytics_summary_display": analytics_summary_display,
+            "analytics_top_pages": analytics_top_pages,
+            "analytics_api_error": analytics_api_error,
         },
     )
 
@@ -704,7 +630,7 @@ def admin_ops(request):
     deliveries_counts_raw = deliveries_qs.values("status").annotate(count=Count("id"))
     deliveries_counts = {row["status"]: int(row["count"] or 0) for row in deliveries_counts_raw}
 
-    webhook_errors = deliveries_qs.filter(status=StripeWebhookDelivery.Status.ERROR).order_by("-received_at")[:25]
+    webhook_errors = deliveries_qs.filter(status="error").order_by("-received_at")[:25]
 
     attempts_qs = RefundAttempt.objects.filter(created_at__gte=since_7d)
     attempts_counts_raw = attempts_qs.values("success").annotate(count=Count("id"))

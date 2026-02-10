@@ -1,6 +1,6 @@
 # Home Craft 3D — ROADMAP
 
-Last updated: 2026-02-09 (America/New_York)
+Last updated: 2026-02-10 (America/New_York)
 
 This roadmap is a living doc: completed items stay visible, and the next
 phase is always explicit.
@@ -31,6 +31,16 @@ phase is always explicit.
   - New `ProductDownloadEvent` model (user + guest session)
   - Seller Listings shows **unique / total** for FILE products
 ✅ Seller Listings metrics polish: unique downloaders excludes blank guest sessions; physical listings show NET units sold.
+
+## Recently completed (2026-02-10)
+
+### Seller Listings stability
+✅ Fixed Seller Listings template/context mismatch (template iterates Product instances directly).
+✅ Digital listings show bundle-level total downloads via `Product.download_count`.
+
+### Deployment readiness
+✅ Added Render deployment playbook (`docs/DEPLOY_RENDER.md`).
+✅ Added post-deploy verification checklist (`docs/POST_DEPLOY_CHECKLIST.md`).
 
 ---
 
@@ -87,3 +97,17 @@ phase is always explicit.
 - Add admin reconciliation page per-order (ledger totals vs transfers) + export.
 - Expand Admin Ops with: failed emails panel, payout/backlog summary, webhook latency histogram.
 - Add staff tooling for manual reprocessing of a Stripe event **only** via a guarded, audited workflow (v2).
+
+## 2026-02-10 — Launch hardening: analytics migration
+- Confirm Render environment variables: `GOOGLE_MEASUREMENT_ID` (required) and optional GA4 Data API vars (`GOOGLE_ANALYTICS_PROPERTY_ID`, `GOOGLE_ANALYTICS_CREDENTIALS_JSON` or `GOOGLE_ANALYTICS_CREDENTIALS_FILE`).
+- Verify GA events are firing on production and real-time reports populate.
+- Remove Plausible-specific UI remnants once GA is confirmed stable (optional cleanup).
+
+
+## Completed
+- Native analytics: server-side pageview capture + admin dashboard panel + retention pruning + range filters (today/7d/30d/custom).
+
+## Next
+- Add rate limiting for cart/checkout/Q&A/reviews.
+- Seller payout reconciliation UI (pending vs available).
+- References pages (Help/FAQ/Tips & Tricks).

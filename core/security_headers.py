@@ -27,7 +27,7 @@ class SecurityHeadersMiddleware:
             "script-src 'self' 'unsafe-inline' https://js.stripe.com https:; "
             "font-src 'self' https: data:; "
             "connect-src 'self' https://api.stripe.com https:; "
-            "frame-src https://js.stripe.com https://hooks.stripe.com https://plausible.io; "
+            "frame-src https://js.stripe.com https://hooks.stripe.com https://www.googletagmanager.com; "
             "frame-ancestors 'none'; "
             "base-uri 'self';",
         )

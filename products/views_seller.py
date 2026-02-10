@@ -248,21 +248,19 @@ def seller_product_list(request, *args, **kwargs):
         free_digital_cap = 5
         allow_new_listing = True
 
+    # Template expects Product instances directly.
+    # Attach publish checklist attributes (public names only).
     products = list(qs)
-    product_statuses = {}
     for p in products:
         ok, missing = _publish_checklist(p)
-        # Template-safe public attributes (never use _private attrs in templates)
         p.publish_ok = ok
         p.publish_missing = missing
-        product_statuses[p.pk] = {"publish_ok": ok, "publish_missing": missing}
 
     return render(
         request,
         "products/seller/product_list.html",
         {
             "products": products,
-            "product_statuses": product_statuses,
             "q": q,
             "file_type": file_type,
             "file_type_options": _file_type_options(),

@@ -241,3 +241,15 @@ This file records decisions that govern implementation and must not be silently 
 - Do not change primary key types for already-shipped tables via migrations (UUID↔bigint casts are brittle and commonly fail).
 - `orders.StripeWebhookDelivery` is treated as append-only ops logging; schema is aligned to its initial migration (UUID pk + received_at).
 - If local dev migration history becomes inconsistent (e.g., a downstream app migration is marked applied before its dependency), the supported recovery is: **drop/recreate the local DB and rerun migrations**.
+
+## 2026-02-10 — Analytics provider
+- Google Analytics 4 is the active analytics provider (Plausible deprecated).
+- Client-side tracking uses GA4 Measurement ID from environment variable `GOOGLE_MEASUREMENT_ID` mapped to `settings.GA_MEASUREMENT_ID`.
+- Server-side dashboard reporting (optional) uses GA4 Data API with service-account credentials provided via env (`GOOGLE_ANALYTICS_*`). If not configured, admin dashboard links out to GA.
+
+
+## Native analytics (v1)
+- Home Craft 3D uses first-party server-side pageview analytics for in-app dashboard metrics (no external analytics required).
+- Analytics stores hashed IPs (salted) and session keys; no raw IPs are persisted.
+- Collection is throttled and bot-filtered; retention is configurable via SiteConfig.
+- External analytics (GA) may be used optionally via outbound link, but is not required for dashboard metrics.
