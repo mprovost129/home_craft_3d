@@ -78,3 +78,8 @@ phase is always explicit.
 - Request IDs + log context filter (rid/user/path)
 - Throttle GET download endpoints (paid + free)
 - Add lightweight audit/operational log lines for moderation + downloads
+
+### Next: Ops + launch readiness
+- Add admin reconciliation page per-order (ledger totals vs transfers) + export.
+- Expand Admin Ops with: failed emails panel, payout/backlog summary, webhook latency histogram.
+- Add staff tooling for manual reprocessing of a Stripe event **only** via a guarded, audited workflow (v2).

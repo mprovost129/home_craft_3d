@@ -183,7 +183,10 @@ def seller_product_list(request, *args, **kwargs):
                 Value(0),
                 output_field=IntegerField(),
             ),
-            unique_downloaders=ExpressionWrapper(
+            # NOTE: Do NOT annotate as "unique_downloaders" because Product defines
+            # a @property with that name (no setter). Django attaches annotations as
+            # attributes during iteration, which would raise AttributeError.
+            unique_downloaders_count=ExpressionWrapper(
                 F("download_user_count") + F("download_guest_count"),
                 output_field=IntegerField(),
             ),

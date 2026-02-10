@@ -231,3 +231,8 @@ This file records decisions that govern implementation and must not be silently 
 ## Launch hardening (observability + abuse controls)
 - All high-value/abuse-prone GET endpoints (digital downloads) are throttled via core.throttle(throttle_rule, methods=("GET",)).
 - Every request gets a request id (X-Request-ID) and logs include rid/user_id/path for traceability.
+
+## Webhook reliability + ops visibility (2026-02-09)
+- Stripe webhooks must be **idempotent** (StripeWebhookEvent) and **observable** (StripeWebhookDelivery).
+- After signature verification, **internal processing exceptions return HTTP 500** so Stripe will retry. Failures are logged in StripeWebhookDelivery with request_id.
+- Refund triggers must be logged with `refunds.RefundAttempt` so staff can diagnose misconfig/Stripe errors without digging through logs.

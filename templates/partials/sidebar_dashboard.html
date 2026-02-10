@@ -115,7 +115,15 @@ Keep this template conservative: only reference public attributes and valid url 
           <span>Site Settings</span>
         </a>
       </li>
-    </ul>
+    
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:admin_ops' %}">
+          <i class="bi bi-wrench-adjustable"></i>
+          <span>Admin Ops</span>
+        </a>
+      </li>
+</ul>
   {% endif %}
 
   {% if user.is_staff %}

@@ -230,7 +230,7 @@ def seller_trigger_refund(request: HttpRequest, refund_id) -> HttpResponse:
     _require_seller_or_staff(request, rr)
 
     try:
-        trigger_refund(rr=rr, actor_user=request.user, allow_staff_safety_valve=False)
+        trigger_refund(rr=rr, actor_user=request.user, allow_staff_safety_valve=False, request_id=getattr(request, 'request_id', '') )
         messages.success(request, "Refund processed.")
     except Exception as e:
         messages.error(request, str(e) or "Unable to process refund.")
@@ -252,7 +252,7 @@ def staff_queue(request: HttpRequest) -> HttpResponse:
 def staff_trigger_refund(request: HttpRequest, refund_id) -> HttpResponse:
     rr = get_object_or_404(RefundRequest.objects.select_related("order"), pk=refund_id)
     try:
-        trigger_refund(rr=rr, actor_user=request.user, allow_staff_safety_valve=True)
+        trigger_refund(rr=rr, actor_user=request.user, allow_staff_safety_valve=True, request_id=getattr(request, 'request_id', '') )
         messages.success(request, "Refund processed.")
     except Exception as e:
         messages.error(request, str(e) or "Unable to process refund.")

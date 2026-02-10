@@ -461,3 +461,10 @@ Refunds is implemented and wired as a full feature.
 - Enhanced dev/prod LOGGING to include request_id/user_id/path and configurable LOG_LEVEL.
 - Extended core throttle decorator to support GET endpoints (methods=...).
 - Added throttles to digital download endpoints (paid + free) to prevent abuse/inflated counts.
+
+## 2026-02-09 — Ops observability hardening
+- Reintroduced operational models:
+  - `orders.StripeWebhookDelivery` to log webhook receipt/processing/duplicates/errors (request_id, timestamps).
+  - `refunds.RefundAttempt` to log each attempt to trigger a Stripe refund (success/failure, request_id).
+- Stripe webhook now returns **HTTP 500 on internal processing errors** (after signature verification) so Stripe retries; status is tracked in `StripeWebhookDelivery`.
+- Added **Admin Ops** dashboard (`/dashboard/admin/ops/`) showing recent webhook errors, refund failures, and order warnings.

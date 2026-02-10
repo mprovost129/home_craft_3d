@@ -19,7 +19,7 @@ from products.permissions import is_owner_user
 from notifications.models import Notification
 from notifications.services import notify_email_and_in_app
 
-from .models import AllocatedLineRefund, RefundRequest
+from .models import AllocatedLineRefund, RefundRequest, RefundAttempt
 from .stripe_service import create_stripe_refund_for_request
 
 logger = logging.getLogger(__name__)
@@ -458,7 +458,7 @@ def seller_decide(*, rr: RefundRequest, seller_user, approve: bool, note: str = 
 
 
 @transaction.atomic
-def trigger_refund(*, rr: RefundRequest, actor_user, allow_staff_safety_valve: bool = True) -> RefundRequest:
+def trigger_refund(*, rr: RefundRequest, actor_user, allow_staff_safety_valve: bool = True, request_id: str | None = None) -> RefundRequest:
     """
     Trigger the Stripe refund after approval.
     - Uses rr.total_refund_cents_snapshot as the source of truth.
@@ -484,7 +484,26 @@ def trigger_refund(*, rr: RefundRequest, actor_user, allow_staff_safety_valve: b
     else:
         raise PermissionDenied("You do not have permission to process this refund.")
 
-    refund_id = create_stripe_refund_for_request(rr=rr)
+    rid = (request_id or "").strip()
+    try:
+        refund_id = create_stripe_refund_for_request(rr=rr)
+    except Exception as e:
+        RefundAttempt.objects.create(
+            refund_request=rr,
+            actor=actor_user if getattr(actor_user, "is_authenticated", False) else None,
+            request_id=rid,
+            success=False,
+            error_message=(str(e) or "Refund failed")[:2000],
+        )
+        raise
+
+    RefundAttempt.objects.create(
+        refund_request=rr,
+        actor=actor_user if getattr(actor_user, "is_authenticated", False) else None,
+        request_id=rid,
+        success=True,
+        stripe_refund_id=refund_id,
+    )
 
     rr.stripe_refund_id = refund_id
     rr.refunded_at = timezone.now()

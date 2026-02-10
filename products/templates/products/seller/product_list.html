@@ -204,7 +204,7 @@
 
               <td>
                 {% if p.kind == "FILE" %}
-                  <span class="badge text-bg-light text-dark">{{ p.unique_downloaders|default:0 }}</span>
+                  <span class="badge text-bg-light text-dark">{{ p.unique_downloaders_count|default:0 }}</span>
                   <span class="text-secondary">/</span>
                   <span class="badge text-bg-light text-dark">{{ p.total_downloads|default:0 }}</span>
                 {% else %}

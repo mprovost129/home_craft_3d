@@ -27,8 +27,8 @@ from .forms import SiteConfigForm, ProductFreeUnlockForm
 from .plausible import get_summary as plausible_get_summary
 from .plausible import get_top_pages as plausible_get_top_pages
 from .plausible import is_configured as plausible_is_configured
-from orders.models import Order, OrderItem
-from refunds.models import RefundRequest
+from orders.models import Order, OrderItem, OrderEvent, StripeWebhookDelivery
+from refunds.models import RefundRequest, RefundAttempt
 from payments.models import SellerStripeAccount, SellerBalanceEntry
 from products.models import Product, ProductEngagementEvent, ProductDownloadEvent
 from products.permissions import is_owner_user, is_seller_user
@@ -686,6 +686,56 @@ def admin_settings(request):
         "dashboards/admin_settings.html",
         {"form": form, "site_config_updated_at": getattr(cfg, "updated_at", None)},
     )
+
+
+
+
+@login_required
+def admin_ops(request):
+    user = request.user
+    if not is_owner_user(user):
+        messages.info(request, "You don’t have access to admin ops.")
+        return redirect("dashboards:consumer")
+
+    since_7d = timezone.now() - timedelta(days=7)
+    since_24h = timezone.now() - timedelta(hours=24)
+
+    deliveries_qs = StripeWebhookDelivery.objects.filter(received_at__gte=since_7d)
+    deliveries_counts_raw = deliveries_qs.values("status").annotate(count=Count("id"))
+    deliveries_counts = {row["status"]: int(row["count"] or 0) for row in deliveries_counts_raw}
+
+    webhook_errors = deliveries_qs.filter(status=StripeWebhookDelivery.Status.ERROR).order_by("-received_at")[:25]
+
+    attempts_qs = RefundAttempt.objects.filter(created_at__gte=since_7d)
+    attempts_counts_raw = attempts_qs.values("success").annotate(count=Count("id"))
+    refund_attempt_counts = {"success": 0, "error": 0}
+    for row in attempts_counts_raw:
+        if row["success"]:
+            refund_attempt_counts["success"] = int(row["count"] or 0)
+        else:
+            refund_attempt_counts["error"] = int(row["count"] or 0)
+
+    refund_failures_24h = RefundAttempt.objects.filter(success=False, created_at__gte=since_24h).order_by("-created_at")[:25]
+
+    recent_order_warnings = (
+        OrderEvent.objects.filter(type=OrderEvent.Type.WARNING, created_at__gte=since_7d)
+        .select_related("order")
+        .order_by("-created_at")[:25]
+    )
+
+    return render(
+        request,
+        "dashboards/admin_ops.html",
+        {
+            "since_7d": since_7d,
+            "deliveries_counts": deliveries_counts,
+            "webhook_errors": webhook_errors,
+            "refund_attempt_counts": refund_attempt_counts,
+            "refund_failures_24h": refund_failures_24h,
+            "recent_order_warnings": recent_order_warnings,
+        },
+    )
+
 
 
 @login_required

@@ -28,7 +28,7 @@ from django.utils.html import format_html
 from payments.models import SellerStripeAccount
 from payments.services import get_seller_balance_cents
 
-from .models import Order, OrderItem, OrderEvent, StripeWebhookEvent
+from .models import Order, OrderItem, OrderEvent, StripeWebhookEvent, StripeWebhookDelivery
 from .stripe_service import create_transfers_for_paid_order
 
 # IMPORTANT: must match the stored DB value (lowercase)
@@ -813,3 +813,12 @@ class StripeWebhookEventAdmin(admin.ModelAdmin):
     search_fields = ("stripe_event_id", "event_type")
     readonly_fields = ("id", "stripe_event_id", "event_type", "created_at")
     ordering = ("-created_at",)
+
+
+@admin.register(StripeWebhookDelivery)
+class StripeWebhookDeliveryAdmin(admin.ModelAdmin):
+    list_display = ("event_type", "status", "stripe_event_id", "received_at", "processed_at", "request_id")
+    list_filter = ("status", "event_type", "received_at")
+    search_fields = ("stripe_event_id", "event_type", "request_id", "error_message")
+    readonly_fields = ("received_at", "processed_at")
+    ordering = ("-received_at",)

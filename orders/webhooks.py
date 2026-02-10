@@ -6,13 +6,14 @@ import logging
 from dataclasses import dataclass
 
 from django.db import transaction
+from django.utils import timezone
 from django.http import HttpRequest, HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 
 from payments.models import SellerBalanceEntry
 from payments.services import ensure_sale_balance_entries_for_paid_order
 
-from .models import Order, OrderEvent, StripeWebhookEvent, _send_order_failed_email
+from .models import Order, OrderEvent, StripeWebhookEvent, StripeWebhookDelivery, _send_order_failed_email
 from .stripe_service import create_transfers_for_paid_order, verify_and_parse_webhook
 
 logger = logging.getLogger(__name__)
@@ -164,7 +165,33 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
     if not stripe_event_id or not event_type:
         return HttpResponse(status=200)
 
+    rid = (getattr(request, "request_id", "") or "").strip()
+
+    delivery, created = StripeWebhookDelivery.objects.get_or_create(
+        stripe_event_id=stripe_event_id,
+        defaults={
+            "event_type": event_type or "",
+            "status": StripeWebhookDelivery.Status.RECEIVED,
+            "request_id": rid,
+        },
+    )
+    if not created:
+        # Keep the latest request id for debugging; do not clobber status.
+        if rid and delivery.request_id != rid:
+            delivery.request_id = rid
+            try:
+                delivery.save(update_fields=["request_id"])
+            except Exception:
+                pass
+
+    # Strict idempotency for business logic.
     if not _record_event_once(stripe_event_id=stripe_event_id, event_type=event_type):
+        try:
+            delivery.status = StripeWebhookDelivery.Status.DUPLICATE
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "processed_at"])
+        except Exception:
+            pass
         return HttpResponse(status=200)
 
     obj = (event.get("data") or {}).get("object") or {}
@@ -179,6 +206,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
     if not order_id:
         logger.warning("Stripe event %s (%s) missing order_id mapping", stripe_event_id, event_type)
+        try:
+            delivery.status = StripeWebhookDelivery.Status.PROCESSED
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "processed_at"])
+        except Exception:
+            pass
         return HttpResponse(status=200)
 
     try:
@@ -213,10 +246,23 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
 
                 # 4) Create transfers/payouts (this is where your -PAYOUT entries are created)
                 create_transfers_for_paid_order(order=order, payment_intent_id=payment_intent_id)
+
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
             if event_type == "checkout.session.expired":
                 order.mark_canceled(note="Checkout session expired")
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
             if event_type == "payment_intent.payment_failed":
@@ -227,6 +273,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     message=f"Payment failed (event={stripe_event_id})",
                 )
                 _send_order_failed_email(order, reason=failure_message)
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
             if event_type in {"charge.refunded", "refund.created", "refund.updated"}:
@@ -269,6 +321,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     refunded_total_cents=refunded_cents,
                     note=f"Stripe refund observed ({event_type}, {refunded_cents}c, event={stripe_event_id})",
                 )
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
             if event_type in {"charge.dispute.created", "charge.dispute.updated"}:
@@ -278,6 +336,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     type=OrderEvent.Type.WARNING,
                     message=f"Dispute event: {event_type} status={status or 'unknown'} event={stripe_event_id}",
                 )
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
             if event_type == "charge.dispute.closed":
@@ -320,6 +384,12 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                         order.save(update_fields=["status", "updated_at"])
                         OrderEvent.objects.create(order=order, type=OrderEvent.Type.REFUNDED, message="Chargeback lost")
 
+                    try:
+                        delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                        delivery.processed_at = timezone.now()
+                        delivery.save(update_fields=["status", "processed_at"])
+                    except Exception:
+                        pass
                     return HttpResponse(status=200)
 
                 OrderEvent.objects.create(
@@ -327,17 +397,43 @@ def stripe_webhook(request: HttpRequest) -> HttpResponse:
                     type=OrderEvent.Type.WARNING,
                     message=f"Chargeback closed with status={status or 'unknown'} event={stripe_event_id}",
                 )
+                try:
+                    delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                    delivery.processed_at = timezone.now()
+                    delivery.save(update_fields=["status", "processed_at"])
+                except Exception:
+                    pass
                 return HttpResponse(status=200)
 
+            try:
+                delivery.status = StripeWebhookDelivery.Status.PROCESSED
+                delivery.processed_at = timezone.now()
+                delivery.save(update_fields=["status", "processed_at"])
+            except Exception:
+                pass
             return HttpResponse(status=200)
 
     except Order.DoesNotExist:
+        try:
+            delivery.status = StripeWebhookDelivery.Status.PROCESSED
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "processed_at"])
+        except Exception:
+            pass
         return HttpResponse(status=200)
-    except Exception:
+    except Exception as e:
         logger.exception(
             "Stripe webhook processing failed event=%s type=%s order=%s",
             stripe_event_id,
             event_type,
             order_id,
         )
-        return HttpResponse(status=200)
+        try:
+            delivery.status = StripeWebhookDelivery.Status.ERROR
+            delivery.error_message = (str(e) or "Webhook processing failed")[:2000]
+            delivery.processed_at = timezone.now()
+            delivery.save(update_fields=["status", "error_message", "processed_at"])
+        except Exception:
+            pass
+        # IMPORTANT: return 500 so Stripe will retry.
+        return HttpResponse(status=500)
