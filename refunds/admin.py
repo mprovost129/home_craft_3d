@@ -133,8 +133,11 @@ class RefundRequestAdmin(admin.ModelAdmin):
 
 @admin.register(RefundAttempt)
 class RefundAttemptAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "success", "refund_request", "actor", "stripe_refund_id", "request_id")
-    list_filter = ("success", "created_at")
-    search_fields = ("refund_request__id", "stripe_refund_id", "request_id", "error_message", "actor__username")
-    ordering = ("-created_at",)
-    readonly_fields = ("created_at",)
+    list_display = (
+        "refund_request",
+        "success",
+        "stripe_refund_id",
+        "created_at",
+    )
+    list_filter = ("success",)
+    search_fields = ("stripe_refund_id",)

@@ -126,34 +126,33 @@ class RefundRequest(models.Model):
 
 
 class RefundAttempt(models.Model):
-    """Operational log for refund trigger attempts."""
+    """Audit trail of refund attempts (seller-triggered Stripe refunds).
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    refund_request = models.ForeignKey(RefundRequest, on_delete=models.CASCADE, related_name="attempts")
+    Keep this lightweight; it's primarily for troubleshooting and support.
+    """
 
+    refund_request = models.ForeignKey(
+        "refunds.RefundRequest",
+        on_delete=models.CASCADE,
+        related_name="attempts",
+    )
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="refund_attempts",
+        on_delete=models.SET_NULL,
     )
-    request_id = models.CharField(max_length=64, blank=True, default="")
-
     success = models.BooleanField(default=False)
     stripe_refund_id = models.CharField(max_length=255, blank=True, default="")
     error_message = models.TextField(blank=True, default="")
-
-    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    request_id = models.CharField(max_length=64, blank=True, default="")
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["success", "-created_at"]),
-            models.Index(fields=["-created_at"]),
-        ]
+        ordering = ("-created_at",)
 
     def __str__(self) -> str:
-        return f"RefundAttempt<{self.pk}> success={self.success}"
+        return f"RefundAttempt(refund={self.refund_request.id}, success={self.success})"
 
 
 @dataclass(frozen=True)

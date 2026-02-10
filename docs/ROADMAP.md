@@ -79,6 +79,10 @@ phase is always explicit.
 - Throttle GET download endpoints (paid + free)
 - Add lightweight audit/operational log lines for moderation + downloads
 
+### Migration stability (DONE)
+- Align ops/logging models to their migrations (no PK-type flips).
+- If local DB migration history becomes inconsistent, recover by dropping/recreating the local DB and rerunning `migrate`.
+
 ### Next: Ops + launch readiness
 - Add admin reconciliation page per-order (ledger totals vs transfers) + export.
 - Expand Admin Ops with: failed emails panel, payout/backlog summary, webhook latency histogram.

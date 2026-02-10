@@ -1220,35 +1220,44 @@ class StripeWebhookEvent(models.Model):
 
 
 class StripeWebhookDelivery(models.Model):
-    """Operational log for Stripe webhook deliveries.
+    """Persist webhook delivery metadata for ops/debugging.
 
-    Stripe sends events at-least-once; we already enforce strict idempotency via
-    StripeWebhookEvent. This model is for observability (admin/ops dashboard),
-    so we can see recent failures and confirm Stripe retries when needed.
+    This model is aligned to the existing migration
+    ``orders.0008_stripewebhookdelivery`` (UUID primary key + ``received_at``).
+    Do **not** change the PK type in-place; treat it as write-once logging.
     """
 
-    class Status(models.TextChoices):
-        RECEIVED = "received", "Received"
-        PROCESSED = "processed", "Processed"
-        DUPLICATE = "duplicate", "Duplicate (already processed)"
-        ERROR = "error", "Error"
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    STATUS_RECEIVED = "received"
+    STATUS_PROCESSED = "processed"
+    STATUS_ERROR = "error"
+
+    STATUS_CHOICES = [
+        (STATUS_RECEIVED, "Received"),
+        (STATUS_PROCESSED, "Processed"),
+        (STATUS_ERROR, "Error"),
+    ]
+
     stripe_event_id = models.CharField(max_length=255, unique=True)
     event_type = models.CharField(max_length=255, blank=True, default="")
-    status = models.CharField(max_length=16, choices=Status.choices, default=Status.RECEIVED)
-
-    request_id = models.CharField(max_length=64, blank=True, default="")
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_RECEIVED)
+    request_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        help_text="X-Request-ID if present.",
+    )
     error_message = models.TextField(blank=True, default="")
-
-    received_at = models.DateTimeField(default=timezone.now, db_index=True)
+    received_at = models.DateTimeField(default=timezone.now)
     processed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        ordering = ("-received_at",)
         indexes = [
             models.Index(fields=["status", "-received_at"]),
             models.Index(fields=["event_type", "-received_at"]),
         ]
 
     def __str__(self) -> str:
-        return f"{self.event_type} {self.status} ({self.stripe_event_id})"
+        return f"{self.event_type} ({self.status})"

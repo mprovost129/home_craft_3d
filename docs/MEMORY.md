@@ -2,6 +2,16 @@
 
 Last updated: 2026-02-09 (America/New_York)
 
+## 2026-02-10 — Local DB + migration recovery (launch hardening)
+- Fixed schema drift for `orders.StripeWebhookDelivery` by aligning the **model** to the already-created migration/table shape:
+  - UUID primary key
+  - `received_at` timestamp (not `created_at`)
+  - indexes on `(status, -received_at)` and `(event_type, -received_at)`
+- Cleaned up `refunds` migration history to eliminate UUID↔bigint cast failures during local resets:
+  - Removed the churny RefundAttempt create/delete/recreate chain
+  - Replaced with a single `refunds.0002_refundattempt` creating `RefundAttempt` with BigAuto PK
+- If local `django_migrations` becomes inconsistent (e.g., `payments.0002` applied before `orders.0002`), the supported recovery path is: **drop/recreate local DB** and re-run `migrate`.
+
 ## Goal
 A working marketplace for:
 - Physical 3D printed models (shipped by sellers)

@@ -28,7 +28,7 @@ def _sync_profile_stripe_fields(*, user, stripe_account_id: str, onboarding_comp
     try:
         Profile.objects.filter(user=user).update(
             stripe_account_id=stripe_account_id or "",
-            stripe_onboarding_complete=bool(onboarding_complete),
+            stripe_onboarding_complete=onboarding_complete,
             updated_at=timezone.now(),
         )
     except Exception:
@@ -70,7 +70,7 @@ class SellerStripeAccount(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"SellerStripeAccount<{self.user_id}> {self.stripe_account_id or 'unlinked'}"
+        return f"SellerStripeAccount<{self.user.id}> {self.stripe_account_id or 'unlinked'}"
 
     @property
     def is_ready(self) -> bool:
@@ -132,7 +132,7 @@ class SellerFeeWaiver(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"SellerFeeWaiver<{self.user_id}> {self.starts_at.date()} → {self.ends_at.date()}"
+        return f"SellerFeeWaiver<{self.user.id}> {self.starts_at.date()} → {self.ends_at.date()}"
 
     @property
     def is_active(self) -> bool:
@@ -145,8 +145,7 @@ class SellerFeeWaiver(models.Model):
         Create waiver if missing. Never shortens an existing waiver.
         """
         waiver_days = max(0, min(int(waiver_days or 0), 365))
-        obj = cls.objects.filter(user=user).first()
-        if obj:
+        if (obj := cls.objects.filter(user=user).first()):
             return obj
 
         starts = timezone.now()
@@ -217,4 +216,4 @@ class SellerBalanceEntry(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.seller_id}: {self.amount_cents} ({self.reason})"
+        return f"{self.seller.id}: {self.amount_cents} ({self.reason})"

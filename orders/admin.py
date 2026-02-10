@@ -817,8 +817,13 @@ class StripeWebhookEventAdmin(admin.ModelAdmin):
 
 @admin.register(StripeWebhookDelivery)
 class StripeWebhookDeliveryAdmin(admin.ModelAdmin):
-    list_display = ("event_type", "status", "stripe_event_id", "received_at", "processed_at", "request_id")
-    list_filter = ("status", "event_type", "received_at")
-    search_fields = ("stripe_event_id", "event_type", "request_id", "error_message")
-    readonly_fields = ("received_at", "processed_at")
+    list_display = (
+        "stripe_event_id",
+        "event_type",
+        "status",
+        "processed_at",
+        "received_at",
+    )
+    list_filter = ("status", "event_type")
+    search_fields = ("stripe_event_id", "event_type", "request_id")
     ordering = ("-received_at",)

@@ -3,6 +3,8 @@ from django.urls import path
 
 from . import views
 
+from .views_admin_ops import admin_reconciliation
+
 app_name = "dashboards"
 
 urlpatterns = [
@@ -14,4 +16,5 @@ urlpatterns = [
     path("admin/settings/", views.admin_settings, name="admin_settings"),
     path("admin/ops/", views.admin_ops, name="admin_ops"),
     path("ajax/verify-username/", views.ajax_verify_username, name="ajax_verify_username"),
+    path("admin/ops/reconciliation/", admin_reconciliation,name="admin_reconciliation",)
 ]

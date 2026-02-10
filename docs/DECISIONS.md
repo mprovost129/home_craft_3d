@@ -236,3 +236,8 @@ This file records decisions that govern implementation and must not be silently 
 - Stripe webhooks must be **idempotent** (StripeWebhookEvent) and **observable** (StripeWebhookDelivery).
 - After signature verification, **internal processing exceptions return HTTP 500** so Stripe will retry. Failures are logged in StripeWebhookDelivery with request_id.
 - Refund triggers must be logged with `refunds.RefundAttempt` so staff can diagnose misconfig/Stripe errors without digging through logs.
+
+## Migration hygiene (2026-02-10)
+- Do not change primary key types for already-shipped tables via migrations (UUID↔bigint casts are brittle and commonly fail).
+- `orders.StripeWebhookDelivery` is treated as append-only ops logging; schema is aligned to its initial migration (UUID pk + received_at).
+- If local dev migration history becomes inconsistent (e.g., a downstream app migration is marked applied before its dependency), the supported recovery is: **drop/recreate the local DB and rerun migrations**.
