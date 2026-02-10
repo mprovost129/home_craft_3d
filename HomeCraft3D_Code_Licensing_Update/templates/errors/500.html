@@ -1,0 +1,19 @@
+{# templates/errors/500.html #}
+{% extends "accounts/base_accounts.html" %}
+{% block title %}Server error · Home Craft 3D{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:680px;margin:40px auto;padding:28px;">
+    <div class="text-center">
+      <div class="text-uppercase text-secondary fw-bold" style="font-size:0.75rem;letter-spacing:0.08em;">Error 500</div>
+      <h1 style="margin:8px 0 10px;font-size:30px;font-weight:600;">Something went wrong</h1>
+      <p class="text-secondary" style="margin:0 auto 18px;max-width:520px;">
+        We’re having trouble loading this page. Please try again in a few minutes.
+      </p>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a class="btn" href="{% url 'core:home' %}">Go home</a>
+        <a class="btn secondary" href="{% url 'products:list' %}">Browse products</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

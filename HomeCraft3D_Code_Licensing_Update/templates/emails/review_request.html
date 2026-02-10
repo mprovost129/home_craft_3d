@@ -1,0 +1,13 @@
+{# templates/emails/review_request.html #}
+{% extends "emails/base.html" %}
+{% block content %}
+  <h1 style="margin:0 0 12px;font-size:20px;">How was your order?</h1>
+  <p style="margin:0 0 12px;">We'd love your feedback on <strong>{{ product_title }}</strong>.</p>
+
+  <div style="margin:16px 0;padding:16px;border:1px solid #e5e7eb;border-radius:10px;background:#f9fafb;">
+    <div style="font-size:12px;color:#6b7280;margin-bottom:6px;">Leave a review</div>
+    <a href="{{ review_link }}" style="color:#2563eb;text-decoration:none;">Write your review</a>
+  </div>
+
+  <p style="margin:0;color:#6b7280;font-size:13px;">Thanks for shopping at Home Craft 3D.</p>
+{% endblock %}

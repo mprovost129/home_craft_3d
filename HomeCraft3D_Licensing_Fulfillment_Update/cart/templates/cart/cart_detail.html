@@ -1,0 +1,278 @@
+{# cart/templates/cart/cart_detail.html #}
+{% extends "base.html" %}
+{% block title %}Cart · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 1100px;">
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Cart</h1>
+      <div class="text-secondary small">Review your items before checkout.</div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-dark" href="{% url 'products:list' %}">
+        <i class="bi bi-arrow-left me-1"></i>Continue shopping
+      </a>
+      <form method="post" action="{% url 'cart:clear' %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit" {% if not cart_lines %}disabled{% endif %}>
+          <i class="bi bi-trash me-1"></i>Clear cart
+        </button>
+      </form>
+    </div>
+  </div>
+
+  {% if unready_sellers %}
+    <div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <div class="fw-semibold">Checkout blocked</div>
+        <div class="small">
+          One or more sellers in your cart haven’t completed Stripe payout setup yet:
+          <strong>{{ unready_sellers|join:", " }}</strong>
+        </div>
+        <div class="small mt-1">
+          You can still keep these items in your cart, but you must remove them to proceed to checkout.
+        </div>
+      </div>
+      <a class="btn btn-dark" href="{% url 'products:list' %}">
+        <i class="bi bi-shop me-1"></i>Browse other items
+      </a>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="min-width: 320px;">Item</th>
+            <th>Type</th>
+            <th style="width: 180px;">Quantity</th>
+            <th class="text-end">Unit</th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Remove</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in cart_lines %}
+            <tr>
+              <td>
+                <div class="d-flex align-items-center gap-3">
+                  {% if line.product.primary_image %}
+                    <img src="{{ line.product.primary_image.image.url }}" alt="{{ line.product.title }}"
+                         style="width:64px;height:64px;object-fit:cover;" class="rounded border">
+                  {% else %}
+                    <div class="rounded border bg-light d-flex align-items-center justify-content-center"
+                         style="width:64px;height:64px;">
+                      <span class="text-secondary small">No image</span>
+                    </div>
+                  {% endif %}
+
+                  <div class="w-100">
+                    <div class="fw-semibold">
+                      <a class="text-decoration-none" href="{{ line.product.get_absolute_url }}">{{ line.product.title }}</a>
+                    </div>
+                    <div class="text-secondary small">
+                      by {{ line.product.seller.username }} · {{ line.product.category.name }}
+                    </div>
+
+                    {% if line.is_tip and line.tip_total and line.tip_total > 0 %}
+                      <div class="small mt-1">
+                        <span class="badge bg-primary me-1">Tip</span>
+                        <span class="text-secondary">Tip amount:</span>
+                        <strong>${{ line.tip_total|floatformat:2 }}</strong>
+                      </div>
+                    {% endif %}
+
+                    {% if line.buyer_notes %}
+                      <div class="alert alert-info mt-2 mb-0 p-2">
+                        <div class="small fw-semibold">
+                          <i class="bi bi-chat-left-text me-1"></i>Buyer notes
+                        </div>
+                        <div class="small" style="white-space: pre-wrap;">{{ line.buyer_notes }}</div>
+                      </div>
+                    {% endif %}
+
+                    <form method="post" action="{% url 'cart:update' %}" class="mt-2">
+                      {% csrf_token %}
+                      <input type="hidden" name="product_id" value="{{ line.product.pk }}">
+                      <input type="hidden" name="quantity" value="{{ line.quantity }}">
+                      <div class="input-group input-group-sm">
+                        <span class="input-group-text">Notes</span>
+                        <input class="form-control buyer-notes-input" name="buyer_notes" value="{{ line.buyer_notes }}" placeholder="Add a note for the seller (optional)" maxlength="1000" data-maxlength="1000">
+                        <button class="btn btn-outline-dark" type="submit">Save</button>
+                      </div>
+                      <div class="form-text d-flex justify-content-between">
+                        <span>Shown to the seller after purchase.</span>
+                        <span class="buyer-notes-remaining" data-maxlength="1000">1000 characters remaining</span>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </td>
+
+              <td>
+                <span class="badge text-bg-secondary">{{ line.product.get_kind_display }}</span>
+              </td>
+
+              <td>
+                {% if line.product.kind == KIND_FILE %}
+                  <div class="text-secondary small">1 (digital)</div>
+                {% else %}
+                  <form method="post" action="{% url 'cart:update' %}" class="d-flex gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{{ line.product.pk }}">
+                    <input class="form-control form-control-sm" type="number" name="quantity" min="1" value="{{ line.quantity }}">
+                    <button class="btn btn-sm btn-outline-dark" type="submit">Update</button>
+                  </form>
+                  <div class="form-text">Use the remove button to delete an item.</div>
+                  {% if line.product.max_purchases_per_buyer %}
+                    <div class="small text-secondary mt-1">
+                      Limit: {{ line.product.max_purchases_per_buyer }} per buyer.
+                    </div>
+                  {% endif %}
+                {% endif %}
+              </td>
+
+              <td class="text-end"><strong>${{ line.unit_price|floatformat:2 }}</strong></td>
+              <td class="text-end">
+                <div><strong>${{ line.line_total|floatformat:2 }}</strong></div>
+                {% if line.is_tip and line.tip_total and line.tip_total > 0 %}
+                  <div class="small text-secondary">+ Tip: ${{ line.tip_total|floatformat:2 }}</div>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <form method="post" action="{% url 'cart:remove' line.product.pk %}">
+                  {% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Remove" aria-label="Remove {{ line.product.title }} from cart">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-secondary py-4">Your cart is empty.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-footer bg-white">
+      <div class="d-flex justify-content-between align-items-center">
+        <div class="text-secondary">Subtotal</div>
+        <div class="h6 mb-0">${{ subtotal|floatformat:2 }}</div>
+      </div>
+
+      {% if tips_total and tips_total > 0 %}
+        <div class="d-flex justify-content-between align-items-center mt-1">
+          <div class="text-secondary">Tips</div>
+          <div class="h6 mb-0">${{ tips_total|floatformat:2 }}</div>
+        </div>
+      {% endif %}
+
+      <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+        <div class="fw-semibold">Total</div>
+        <div class="h5 mb-0">${{ grand_total|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3 d-flex justify-content-end">
+    <form id="place-order-form" method="post" action="{% url 'orders:place' %}" style="min-width: 420px;">
+      {% csrf_token %}
+      <input type="hidden" name="recaptcha_token" value="">
+
+      {% if not user.is_authenticated %}
+        <div class="mb-2">
+          <label class="form-label small text-secondary mb-1">Email (required for guest checkout)</label>
+          <input class="form-control" type="email" name="guest_email" placeholder="you@example.com" required>
+          <div class="form-text">We’ll email you a secure link for order status and downloads.</div>
+        </div>
+      {% endif %}
+
+      <div class="alert alert-light border small mb-2">
+        By placing an order you agree to our
+        <a href="{% url 'legal:terms' %}" class="text-decoration-none">Terms</a> and
+        <a href="{% url 'legal:privacy' %}" class="text-decoration-none">Privacy Policy</a>.
+      </div>
+
+      <button class="btn btn-dark w-100" type="submit" {% if not can_checkout %}disabled{% endif %}>
+        <i class="bi bi-receipt me-1"></i>Place order (pending payment)
+      </button>
+
+      {% if not cart_lines %}
+        <div class="small mt-2 text-secondary">
+          Add items to your cart to continue.
+        </div>
+      {% elif cart_lines and not can_checkout %}
+        <div class="small mt-2" style="color:#b45309;">
+          Remove items from sellers who haven’t finished Stripe setup to proceed.
+        </div>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if recaptcha_site_key %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ recaptcha_site_key }}"></script>
+    <script>
+      (function () {
+        var form = document.getElementById('place-order-form');
+        if (!form) return;
+        var tokenField = form.querySelector('input[name="recaptcha_token"]');
+
+        form.addEventListener('submit', function (e) {
+          if (!tokenField) return;
+          if (tokenField.value) return;
+
+          e.preventDefault();
+          if (!window.grecaptcha || !grecaptcha.ready) {
+            form.submit();
+            return;
+          }
+
+          grecaptcha.ready(function () {
+            grecaptcha.execute('{{ recaptcha_site_key }}', { action: 'checkout_place_order' }).then(function (token) {
+              tokenField.value = token;
+              form.submit();
+            });
+          });
+        });
+      })();
+    </script>
+  {% endif %}
+
+  <script>
+    (function () {
+      var inputs = document.querySelectorAll('.buyer-notes-input');
+      if (!inputs.length) return;
+
+      function updateRemaining(input) {
+        var max = parseInt(input.getAttribute('data-maxlength') || input.maxLength || '0', 10) || 0;
+        var value = input.value || '';
+        var remaining = Math.max(0, max - value.length);
+        var remainingEl = input.closest('form')?.querySelector('.buyer-notes-remaining');
+        if (remainingEl) {
+          remainingEl.textContent = remaining + ' characters remaining';
+        }
+      }
+
+      inputs.forEach(function (input) {
+        updateRemaining(input);
+        input.addEventListener('input', function () { updateRemaining(input); });
+      });
+    })();
+  </script>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{# refunds/templates/refunds/buyer_detail.html #}
+{% extends "base.html" %}
+{% load money %}
+
+{% block title %}Refund Request · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Refund request</h1>
+
+    {# If you arrived from an order link, best UX is to go back to the order. #}
+    <a class="btn btn-outline-secondary btn-sm"
+       href="{% url 'orders:detail' order_id=rr.order_id %}{% if order_token %}?t={{ order_token }}{% endif %}">
+      Back to order
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="fw-semibold">{{ rr.order_item.product.title }}</div>
+      <div class="text-muted small">Order #{{ rr.order_id }}</div>
+
+      <div class="mt-3">
+        <div><strong>Status:</strong> {{ rr.get_status_display }}</div>
+        <div><strong>Reason:</strong> {{ rr.get_reason_display }}</div>
+
+        {% if rr.notes %}
+          <div class="mt-2"><strong>Your notes:</strong><br>{{ rr.notes|linebreaksbr }}</div>
+        {% endif %}
+      </div>
+
+      <hr>
+
+      <div class="text-muted small">
+        Refund snapshot:
+        <div>Line: ${{ rr.line_subtotal_cents_snapshot|cents_to_dollars }}</div>
+        <div>Tax: ${{ rr.tax_cents_allocated_snapshot|cents_to_dollars }}</div>
+        <div>Shipping: ${{ rr.shipping_cents_allocated_snapshot|cents_to_dollars }}</div>
+        <div class="fw-semibold">Total: ${{ rr.total_refund_cents_snapshot|cents_to_dollars }}</div>
+      </div>
+
+      {% if rr.seller_decision_note %}
+        <div class="mt-3">
+          <strong>Seller note:</strong><br>{{ rr.seller_decision_note|linebreaksbr }}
+        </div>
+      {% endif %}
+
+      {% if rr.stripe_refund_id %}
+        <div class="mt-3">
+          <span class="badge text-bg-success">Refunded</span>
+          <div class="text-muted small mt-1">Stripe refund id: {{ rr.stripe_refund_id }}</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

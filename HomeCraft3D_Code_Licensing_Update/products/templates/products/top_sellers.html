@@ -1,0 +1,31 @@
+{# products/templates/products/top_sellers.html #}
+{% extends "base.html" %}
+{% block title %}Top Sellers · Home Craft 3D{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="mb-4">Top Sellers</h1>
+  <div class="row g-4">
+    {% for seller in top_sellers %}
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body text-center">
+            {% if seller.profile.avatar %}
+              <img src="{{ seller.profile.avatar.url }}" alt="{{ seller.profile.public_seller_name }} avatar" class="rounded-circle mb-2" style="width: 72px; height: 72px; object-fit: cover;">
+            {% endif %}
+            <div class="h5 mb-1">{{ seller.profile.public_seller_name|default:seller.username }}</div>
+            <div class="text-secondary small mb-1">Member since {{ seller.date_joined|date:"F Y" }}</div>
+            <div class="mb-2 small">{{ seller.product_count }} product{{ seller.product_count|pluralize }}</div>
+            <div class="mb-2 small">{{ seller.seller_review_count }} review{{ seller.seller_review_count|pluralize }}</div>
+            <div class="mb-2 small">Average rating: {{ seller.seller_avg_rating|floatformat:1 }}/5</div>
+            <a href="{% url 'products:seller_shop' seller.id %}" class="btn btn-sm btn-outline-primary">View Shop</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-secondary text-center">No top sellers found.</div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

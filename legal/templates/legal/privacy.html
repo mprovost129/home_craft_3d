@@ -1,34 +1,4 @@
-{# templates/legal/privacy.html #}
 {% extends "legal/_legal_base.html" %}
-
 {% block doc_content %}
-<h2>1. Information We Collect</h2>
-<ul>
-  <li>Account details (email, username)</li>
-  <li>Order and payment details (processed securely by our payment providers)</li>
-  <li>Usage data (pages visited, actions taken)</li>
-  <li>Device and browser information</li>
-</ul>
-
-<h2>2. How We Use Information</h2>
-<ul>
-  <li>To process orders and deliver digital downloads</li>
-  <li>To provide customer support</li>
-  <li>To improve site performance and security</li>
-  <li>To comply with legal obligations</li>
-</ul>
-
-<h2>3. Sharing</h2>
-<p>We share only what's necessary with sellers (to fulfill orders) and payment providers (to process payments). We do not sell personal data.</p>
-
-<h2>4. Cookies</h2>
-<p>We use cookies for login sessions, cart functionality, and analytics. You can manage cookies in your browser settings.</p>
-
-<h2>5. Data Retention</h2>
-<p>We keep data as long as needed for orders, legal compliance, and support.</p>
-
-<h2>6. Your Rights</h2>
-<p>You can request access, corrections, or deletion of your data by contacting support.</p>
-
-<p><strong>Contact:</strong> <a href="mailto:homecraft3dstore@gmail.com">homecraft3dstore@gmail.com</a></p>
+  {{ doc.body|safe }}
 {% endblock %}

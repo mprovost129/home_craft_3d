@@ -1,0 +1,97 @@
+{# orders/templates/orders/purchases.html #}
+{% extends "base.html" %}
+{% load money %}
+
+{% block title %}Purchases · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h4 mb-0">Purchases</h1>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <p class="text-secondary mb-0">Paid orders only. This is your download hub.</p>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Paid</th>
+            <th>Order</th>
+            <th>Items</th>
+            <th class="text-end">Total</th>
+            <th class="text-end">Downloads</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+            <tr>
+              <td class="text-muted small">{{ order.paid_at|date:"M j, Y" }}</td>
+              <td>
+                <a class="text-decoration-none" href="{% url 'orders:detail' order_id=order.id %}">
+                  {{ order.id }}
+                </a>
+              </td>
+              <td class="small">
+                {{ order.items.count }} item{{ order.items.count|pluralize }}
+              </td>
+              <td class="text-end fw-semibold">${{ order.total_cents|cents_to_dollars }}</td>
+              <td class="text-end">
+                <div class="d-flex flex-column gap-1 align-items-end">
+                  {% if order.has_digital_assets %}
+                    <a class="btn btn-sm btn-outline-primary"
+                       href="{% url 'orders:download_all_assets' order_id=order.id %}">
+                      <i class="bi bi-download me-1"></i>Download all
+                    </a>
+                  {% endif %}
+                  {% for item in order.items.all %}
+                    {% if item.is_digital %}
+                      {% for a in item.product.digital_assets.all %}
+                        <a class="btn btn-sm btn-outline-primary"
+                           href="{% url 'orders:download_asset' order_id=order.id asset_id=a.id %}">
+                          Download{% if a.original_filename %}: {{ a.original_filename }}{% endif %}
+                        </a>
+                      {% empty %}
+                        <span class="text-muted small">No files</span>
+                      {% endfor %}
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">No purchases yet.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+      <div class="card-footer bg-white">
+        <nav aria-label="Purchases pages">
+          <ul class="pagination mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

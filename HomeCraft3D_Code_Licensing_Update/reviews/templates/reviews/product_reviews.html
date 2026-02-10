@@ -1,0 +1,48 @@
+{# reviews/templates/reviews/product_reviews.html #}
+{% extends "base.html" %}
+{% block title %}Reviews · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 900px;">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h1 class="h4 mb-1">Product Reviews</h1>
+      <div class="text-secondary small">
+        {{ review_count }} review{{ review_count|pluralize }} · Avg {{ avg_rating|floatformat:1 }}/5
+      </div>
+    </div>
+    <a class="btn btn-outline-dark" href="{% url 'products:detail' pk=product_id slug='-' %}" style="display:none;"></a>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% for r in reviews %}
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="fw-semibold">{{ r.buyer.username }}</div>
+            <div class="text-secondary small">{{ r.created_at|date:"M j, Y" }}</div>
+          </div>
+          <div class="mt-1">
+            <span class="badge text-bg-dark">{{ r.rating }}/5</span>
+            {% if r.title %}
+              <span class="ms-2 fw-semibold">{{ r.title }}</span>
+            {% endif %}
+          </div>
+          {% if r.body %}
+            <div class="mt-2">{{ r.body|linebreaksbr }}</div>
+          {% endif %}
+
+          {% if r.reply %}
+            <div class="mt-2 p-2 rounded" style="background: rgba(0,0,0,0.03);">
+              <div class="small fw-semibold">Seller reply</div>
+              <div class="small mt-1">{{ r.reply.body|linebreaksbr }}</div>
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="text-secondary">No reviews yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

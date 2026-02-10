@@ -1,0 +1,92 @@
+{# payments/templates/payments/connect_status.html #}
+{% extends "base.html" %}
+{% block title %}Stripe Payouts · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 900px;">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Stripe Payouts</h1>
+      <div class="text-secondary small">Connect your Stripe Express account to receive payouts.</div>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-info mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="text-secondary small mb-1">Account</div>
+          {% if stripe.stripe_account_id %}
+            <div class="fw-semibold">{{ stripe.stripe_account_id }}</div>
+          {% else %}
+            <div class="text-secondary">Not connected yet.</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <div class="text-secondary small mb-1">Status</div>
+
+          <div class="d-flex flex-column gap-1">
+            <div>
+              {% if stripe.details_submitted %}
+                <span class="badge text-bg-success">Details submitted</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Details not submitted</span>
+              {% endif %}
+            </div>
+
+            <div>
+              {% if stripe.charges_enabled %}
+                <span class="badge text-bg-success">Charges enabled</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Charges disabled</span>
+              {% endif %}
+            </div>
+
+            <div>
+              {% if stripe.payouts_enabled %}
+                <span class="badge text-bg-success">Payouts enabled</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Payouts disabled</span>
+              {% endif %}
+            </div>
+
+            {% if ready %}
+              <div class="mt-2">
+                <span class="badge text-bg-success">Ready to sell</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <hr>
+
+      <form method="post" action="{% url 'payments:connect_start' %}">
+        {% csrf_token %}
+        <button class="btn btn-dark" type="submit">
+          <i class="bi bi-link-45deg me-1"></i>
+          {% if stripe.stripe_account_id %}Continue Stripe setup{% else %}Connect Stripe{% endif %}
+        </button>
+      </form>
+
+      <div class="text-secondary small mt-2">
+        You’ll be redirected to Stripe to complete onboarding. Home Craft 3D never stores your sensitive banking details.
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <div class="fw-semibold mb-1">Stripe setup status</div>
+    You’re ready to sell when all three badges show: Details submitted, Charges enabled, and Payouts enabled (or when “Ready to sell” appears).
+  </div>
+</div>
+{% endblock %}

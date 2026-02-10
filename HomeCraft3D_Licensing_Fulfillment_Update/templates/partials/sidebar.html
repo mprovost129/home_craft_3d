@@ -1,0 +1,15 @@
+{# templates/partials/sidebar.html #}
+{% comment %}
+Sidebar router.
+
+- Dashboard pages -> dashboard action sidebar
+- Everything else -> storefront category sidebar
+
+We check `app_name` because `namespace` is often empty unless you explicitly pass a namespace in include().
+{% endcomment %}
+
+{% if request.resolver_match and request.resolver_match.app_name == "dashboards" %}
+  {% include "partials/sidebar_dashboard.html" %}
+{% else %}
+  {% include "partials/sidebar_store.html" %}
+{% endif %}
