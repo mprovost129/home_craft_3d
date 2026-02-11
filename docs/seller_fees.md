@@ -3,7 +3,7 @@
 Home Craft 3D charges a 10% fee on each completed sale. This fee covers payment processing, platform maintenance, and support.
 
 ## How the Fee Works
-- The 7.5% fee is automatically deducted from the sale price of each order.
+- The 10% fee is automatically deducted from the sale price of each order.
 - The remaining amount is paid out to you (the seller).
 - There are no additional hidden charges.
 
