@@ -10,8 +10,8 @@ from .models import SiteConfig
 
 # (default_value, description)
 DEFAULTS: Dict[str, Tuple[str, str]] = {
-    # Platform cut taken from sales (percent). Example: "10.0" => 10%
-    "marketplace_sales_percent": ("10.0", "Platform cut of each sale, as a percent (e.g. 10.0)."),
+    # Platform cut taken from sales (percent). Example: "15.0" => 15%
+    "marketplace_sales_percent": ("15.0", "Platform cut of each sale, as a percent (e.g. 15.0)."),
 
     # You mentioned adding a platform fee later (flat fee). Leave default at 0 for now.
     "order_platform_fee_cents": ("0", "Optional flat fee per order in cents (0 disables)."),

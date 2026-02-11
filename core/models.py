@@ -99,12 +99,12 @@ class SiteConfig(models.Model):
         help_text="Home page hero paragraph (left side).",
     )
 
-    # Marketplace fee: percent of seller gross (e.g. 10.00 -> 10%)
+    # Marketplace fee: percent of seller gross (e.g. 15.00 -> 15%)
     marketplace_sales_percent = models.DecimalField(
         max_digits=6,
         decimal_places=2,
-        default=Decimal("10.00"),
-        help_text="Percent of sales withheld by the marketplace (e.g., 10.00 = 10%).",
+        default=Decimal("15.00"),
+        help_text="Percent of sales withheld by the marketplace (e.g., 15.00 = 15%).",
     )
 
     # Optional fixed platform fee in cents (kept here even if you start at 0)
