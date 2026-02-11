@@ -1,0 +1,71 @@
+{# templates/accounts/2fa_status.html #}
+{% extends 'accounts/base_accounts.html' %}
+
+{% block title %}2FA Status{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Two-Factor Authentication</h4>
+                </div>
+                <div class="card-body">
+                    {% if is_2fa_enabled %}
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">✓ 2FA is Enabled</h5>
+                            <p>Your account is protected with two-factor authentication.</p>
+                        </div>
+
+                        <div class="mb-4">
+                            <h6 class="text-muted">Authenticator App</h6>
+                            <p>You're using an authenticator app to generate security codes.</p>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'accounts:show_recovery_codes' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-key"></i> View Recovery Codes
+                            </a>
+                            <a href="{% url 'accounts:regenerate_recovery_codes' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise"></i> Regenerate Recovery Codes
+                            </a>
+                            <form method="post" action="{% url 'accounts:disable_2fa' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger w-100" 
+                                        onclick="return confirm('Are you sure you want to disable 2FA? This will reduce your account security.');">
+                                    <i class="bi bi-shield-x"></i> Disable 2FA
+                                </button>
+                            </form>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <h5 class="alert-heading">⚠ 2FA is Not Enabled</h5>
+                            <p>Your account is not currently protected with two-factor authentication.</p>
+                        </div>
+
+                        <p>Enabling 2FA adds an extra layer of security to your account by requiring a code from your phone in addition to your password.</p>
+
+                        <div class="d-grid">
+                            <a href="{% url 'accounts:setup_2fa' %}" class="btn btn-primary btn-lg">
+                                <i class="bi bi-shield-check"></i> Enable 2FA Now
+                            </a>
+                        </div>
+
+                        <hr>
+
+                        <h6>Why enable 2FA?</h6>
+                        <ul class="small text-muted">
+                            <li>Protects against unauthorized access even if your password is compromised</li>
+                            <li>Required for enhanced account security</li>
+                            <li>Takes less than 2 minutes to set up</li>
+                        </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

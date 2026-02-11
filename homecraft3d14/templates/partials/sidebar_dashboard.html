@@ -1,0 +1,160 @@
+{# templates/partials/sidebar_dashboard.html #}
+{% comment %}
+Dashboard sidebar.
+
+Flags are provided by core.context_processors.sidebar_flags:
+  - user_is_owner
+  - user_is_seller
+  - seller_stripe_ready
+
+Keep this template conservative: only reference public attributes and valid url tags.
+{% endcomment %}
+
+<div class="p-2">
+  <div class="text-uppercase small text-secondary fw-semibold mb-2">
+    <i class="bi bi-speedometer2 me-1"></i>Dashboard
+  </div>
+
+  <ul class="list-unstyled mb-4">
+    <li class="mb-1">
+      <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+         href="{% url 'dashboards:home' %}">
+        <i class="bi bi-house"></i>
+        <span>Overview</span>
+      </a>
+    </li>
+  </ul>
+
+  <div class="text-uppercase small text-secondary fw-semibold mb-2">
+    <i class="bi bi-person me-1"></i>Consumer
+  </div>
+
+  <ul class="list-unstyled mb-4">
+    <li class="mb-1">
+      <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+         href="{% url 'dashboards:consumer' %}">
+        <i class="bi bi-bag"></i>
+        <span>My Orders</span>
+      </a>
+    </li>
+    <li class="mb-1">
+      <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+         href="{% url 'accounts:profile' %}">
+        <i class="bi bi-person-circle"></i>
+        <span>Profile</span>
+      </a>
+    </li>
+  </ul>
+
+  {% if user_is_seller %}
+    <div class="text-uppercase small text-secondary fw-semibold mb-2">
+      <i class="bi bi-shop me-1"></i>Seller
+    </div>
+
+    <ul class="list-unstyled mb-4">
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:seller' %}">
+          <i class="bi bi-graph-up"></i>
+          <span>Seller Overview</span>
+        </a>
+      </li>
+
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:seller_analytics' %}">
+          <i class="bi bi-bar-chart"></i>
+          <span>Analytics</span>
+        </a>
+      </li>
+
+<li class="mb-1">
+  <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+     href="{% url 'dashboards:seller_payouts' %}">
+    <i class="bi bi-cash-stack"></i>
+    <span>Payouts</span>
+  </a>
+</li>
+
+
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'products:seller_list' %}">
+          <i class="bi bi-box"></i>
+          <span>My Listings</span>
+        </a>
+      </li>
+
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'orders:seller_orders_list' %}">
+          <i class="bi bi-truck"></i>
+          <span>Fulfillment</span>
+        </a>
+      </li>
+
+      {% if seller_stripe_ready is not None and not seller_stripe_ready %}
+        <li class="mt-2">
+          <div class="alert alert-warning py-2 px-2 small mb-0">
+            Stripe Connect isn’t fully set up yet. Some selling actions may be gated.
+          </div>
+        </li>
+      {% endif %}
+    </ul>
+  {% endif %}
+
+  {% if user_is_owner %}
+    <div class="text-uppercase small text-secondary fw-semibold mb-2">
+      <i class="bi bi-shield-lock me-1"></i>Admin
+    </div>
+
+    <ul class="list-unstyled mb-4">
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:admin' %}">
+          <i class="bi bi-speedometer"></i>
+          <span>Admin Dashboard</span>
+        </a>
+      </li>
+
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:admin_settings' %}">
+          <i class="bi bi-gear"></i>
+          <span>Site Settings</span>
+        </a>
+      </li>
+    
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'dashboards:admin_ops' %}">
+          <i class="bi bi-wrench-adjustable"></i>
+          <span>Admin Ops</span>
+        </a>
+      </li>
+</ul>
+  {% endif %}
+
+  {% if user.is_staff %}
+    <div class="text-uppercase small text-secondary fw-semibold mb-2">
+      <i class="bi bi-flag me-1"></i>Moderation
+    </div>
+
+    <ul class="list-unstyled mb-2">
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'qa:staff_reports_queue' %}">
+          <i class="bi bi-exclamation-triangle"></i>
+          <span>Q&amp;A Reports</span>
+        </a>
+      </li>
+      <li class="mb-1">
+        <a class="d-flex align-items-center gap-2 py-2 px-2 rounded text-decoration-none text-dark hc3-tree-row"
+           href="{% url 'qa:staff_suspensions_list' %}">
+          <i class="bi bi-person-x"></i>
+          <span>Suspensions</span>
+        </a>
+      </li>
+    </ul>
+  {% endif %}
+</div>

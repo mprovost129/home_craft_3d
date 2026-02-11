@@ -1,0 +1,19 @@
+{# templates/errors/400.html #}
+{% extends "accounts/base_accounts.html" %}
+{% block title %}Bad request · Home Craft 3D{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width:680px;margin:40px auto;padding:28px;">
+    <div class="text-center">
+      <div class="text-uppercase text-secondary fw-bold" style="font-size:0.75rem;letter-spacing:0.08em;">Error 400</div>
+      <h1 style="margin:8px 0 10px;font-size:30px;font-weight:600;">Bad request</h1>
+      <p class="text-secondary" style="margin:0 auto 18px;max-width:520px;">
+        The request couldn’t be processed. Please check the URL and try again.
+      </p>
+      <div class="d-flex justify-content-center gap-2 flex-wrap">
+        <a class="btn" href="{% url 'core:home' %}">Go home</a>
+        <a class="btn secondary" href="{% url 'products:list' %}">Browse products</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}

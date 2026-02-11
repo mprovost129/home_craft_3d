@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.core.validators import validate_email
-from django.db.models import F
+from django.db.models import F, Q, Count
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -25,9 +25,9 @@ from core.throttle_rules import CHECKOUT_START, DOWNLOAD
 from core.recaptcha import require_recaptcha_v3
 from payments.utils import seller_is_stripe_ready
 from products.models import DigitalAsset, Product, ProductDownloadEvent
-from products.permissions import is_owner_user, is_seller_user
+from products.permissions import is_owner_user, is_seller_user, seller_required
 
-from .models import Order
+from .models import Order, OrderItem
 from .services import create_order_from_cart, refresh_fulfillment_task_for_seller
 from .stripe_service import create_checkout_session_for_order
 
@@ -557,176 +557,222 @@ def my_orders(request):
     page = paginator.get_page(request.GET.get("page") or 1)
     return render(request, "orders/my_orders.html", {"page_obj": page, "orders": page.object_list})
 
-
 @login_required
 def seller_orders_list(request):
+    """Seller fulfillment queue.
+
+    Shows PAID orders and the seller's *physical* line items that still require action.
+    Primary view is the pending queue (unfulfilled physical items).
+    """
     user = request.user
     if not (is_seller_user(user) or is_owner_user(user)):
         messages.info(request, "You don’t have access to seller orders.")
         return redirect("dashboards:consumer")
 
+    status = (request.GET.get("status") or "pending").strip().lower()
+    if status not in {"pending", "shipped", "delivered", "all"}:
+        status = "pending"
+
     qs = (
-        Order.objects.filter(status=Order.Status.PAID, paid_at__isnull=False)
-        .prefetch_related("items", "items__product", "items__seller")
-        .order_by("-paid_at", "-created_at")
+        OrderItem.objects.filter(order__status=Order.Status.PAID, order__paid_at__isnull=False, requires_shipping=True)
+        .select_related("order", "product", "seller")
+        .order_by("-order__paid_at", "-created_at")
     )
 
     if not is_owner_user(user):
-        qs = qs.filter(items__seller=user).distinct()
+        qs = qs.filter(seller=user)
+
+    if status == "pending":
+        qs = qs.filter(fulfillment_status=OrderItem.FulfillmentStatus.PENDING)
+    elif status == "shipped":
+        qs = qs.filter(fulfillment_status=OrderItem.FulfillmentStatus.SHIPPED)
+    elif status == "delivered":
+        qs = qs.filter(fulfillment_status=OrderItem.FulfillmentStatus.DELIVERED)
+
+    # Counters for tabs (seller-scoped)
+    base_counter_qs = OrderItem.objects.filter(
+        order__status=Order.Status.PAID,
+        order__paid_at__isnull=False,
+        requires_shipping=True,
+    )
+    if not is_owner_user(user):
+        base_counter_qs = base_counter_qs.filter(seller=user)
+
+    counts = base_counter_qs.aggregate(
+        pending=Count("id", filter=Q(fulfillment_status=OrderItem.FulfillmentStatus.PENDING)),
+        shipped=Count("id", filter=Q(fulfillment_status=OrderItem.FulfillmentStatus.SHIPPED)),
+        delivered=Count("id", filter=Q(fulfillment_status=OrderItem.FulfillmentStatus.DELIVERED)),
+        total=Count("id"),
+    )
 
     paginator = Paginator(qs, 25)
     page = paginator.get_page(request.GET.get("page") or 1)
-    return render(request, "orders/seller_orders_list.html", {"page_obj": page, "orders": page.object_list})
-
-
-@login_required
-def seller_order_detail(request, order_id):
-    user = request.user
-    if not (is_seller_user(user) or is_owner_user(user)):
-        messages.info(request, "You don’t have access to seller orders.")
-        return redirect("dashboards:consumer")
-
-    order = get_object_or_404(
-        Order.objects.prefetch_related("items", "items__product", "items__seller"),
-        pk=order_id,
-    )
-
-    if not is_owner_user(user):
-        if not order.items.filter(seller=user).exists():
-            return redirect("orders:seller_orders_list")
-
-    seller_items = order.items.select_related("product", "seller").all()
-    if not is_owner_user(user):
-        seller_items = seller_items.filter(seller=user)
-
-    seller_total_cents = sum(int(it.line_total_cents or 0) for it in seller_items)
-    seller_total = seller_total_cents / 100
 
     return render(
         request,
-        "orders/seller/order_detail.html",
-        {"order": order, "items": seller_items, "seller_total": seller_total},
+        "orders/seller_orders_list.html",
+        {
+            "page_obj": page,
+            "items": page.object_list,
+            "status": status,
+            "counts": counts,
+        },
     )
 
 @login_required
-@require_POST
-def mark_item_shipped(request, order_id, item_id):
-    """Mark an OrderItem as shipped and send buyer notification."""
-    user = request.user
-    if not (is_seller_user(user) or is_owner_user(user)):
-        messages.error(request, "You don't have permission to update orders.")
-        return redirect("dashboards:consumer")
-
-    order = get_object_or_404(Order, pk=order_id)
-    
-    # Get the item and verify seller owns it
-    item = get_object_or_404(
-        order.items.select_related("seller"),
-        pk=item_id,
-    )
-    
-    # Check permission: must be the seller of this item or an admin
-    if not is_owner_user(user) and item.seller != user:
-        messages.error(request, "You can only update your own items.")
-        return redirect("orders:seller_orders_list")
-    
-    # Get carrier/tracking info from POST data
-    carrier = (request.POST.get("carrier") or "").strip()
-    tracking_number = (request.POST.get("tracking_number") or "").strip()
-    
-    # Only mark shipped if it requires shipping (physical items)
-    if not item.requires_shipping:
-        messages.warning(request, "This item doesn't require shipping.")
-        return redirect("orders:seller_order_detail", order_id=order_id)
-    
-    # Mark item as shipped
-    success = item.mark_shipped(tracking_number, carrier)
-    
-    if success:
-        msg = "Item marked as shipped."
-        if carrier:
-            msg += f" Carrier: {carrier}."
-        if tracking_number:
-            msg += f" Tracking number: {tracking_number}"
-        messages.success(request, msg)
-    else:
-        messages.info(request, "This item has already been marked as shipped.")
-    
-    try:
-        refresh_fulfillment_task_for_seller(order=order, seller_id=item.seller_id)
-    except Exception:
-        pass
-
-    return redirect("orders:seller_order_detail", order_id=order_id)
-
-
-@login_required
-@require_POST
-def mark_item_delivered(request, order_id, item_id):
-    """Mark an OrderItem as delivered."""
-    user = request.user
-    if not (is_seller_user(user) or is_owner_user(user)):
-        messages.error(request, "You don't have permission to update orders.")
-        return redirect("dashboards:consumer")
-
-    order = get_object_or_404(Order, pk=order_id)
-
-    item = get_object_or_404(
-        order.items.select_related("seller"),
-        pk=item_id,
-    )
-
-    if not is_owner_user(user) and item.seller != user:
-        messages.error(request, "You can only update your own items.")
-        return redirect("orders:seller_orders_list")
-
-    if not item.requires_shipping:
-        messages.warning(request, "This item doesn't require shipping.")
-        return redirect("orders:seller_order_detail", order_id=order_id)
-
-    if item.fulfillment_status != item.FulfillmentStatus.SHIPPED:
-        messages.info(request, "Item must be shipped before marking delivered.")
-        return redirect("orders:seller_order_detail", order_id=order_id)
-
-    if item.mark_delivered():
-        messages.success(request, "Item marked as delivered.")
-    else:
-        messages.info(request, "This item has already been marked delivered.")
-
-    try:
-        refresh_fulfillment_task_for_seller(order=order, seller_id=item.seller_id)
-    except Exception:
-        pass
-
-    return redirect("orders:seller_order_detail", order_id=order_id)
-
-
 @require_POST
 def mark_item_delivered_buyer(request, order_id, item_id):
-    """Allow buyers to confirm delivery for shipped physical items."""
-    order = get_object_or_404(Order, pk=order_id)
+    """
+    Buyer confirms a shipped physical line item was delivered.
+    Only allowed for the authenticated buyer on their own paid order.
+    """
+    order = get_object_or_404(Order, id=order_id)
 
-    if not _user_can_access_order(request, order):
-        if order.buyer_id and not request.user.is_authenticated:
-            return redirect("accounts:login")
-        raise Http404("Not found")
+    # Only the buyer can confirm delivery
+    if getattr(order, "buyer_id", None) != request.user.id:
+        raise Http404()
 
-    item = get_object_or_404(order.items.all(), pk=item_id)
+    item = get_object_or_404(OrderItem, id=item_id, order=order)
 
-    if not item.requires_shipping:
-        messages.info(request, "This item doesn't require shipping.")
-        return redirect("orders:detail", order_id=order.pk)
+    # Guardrails
+    if item.is_digital or item.is_tip or not item.requires_shipping:
+        raise Http404()
 
-    if item.fulfillment_status != item.FulfillmentStatus.SHIPPED:
-        messages.info(request, "Item must be shipped before marking delivered.")
-        return redirect("orders:detail", order_id=order.pk)
+    if getattr(order, "status", "") != Order.Status.PAID:
+        messages.info(request, "This order isn’t paid yet.")
+        return redirect("orders:detail", order_id=order.id)
 
-    if item.mark_delivered():
-        messages.success(request, "Thanks for confirming delivery.")
+    if item.fulfillment_status != OrderItem.FulfillmentStatus.SHIPPED:
+        messages.info(request, "This item can only be marked delivered after it’s shipped.")
+        return redirect("orders:detail", order_id=order.id)
+
+    item.mark_delivered()
+    messages.success(request, "Marked as delivered. Thanks!")
+
+    return redirect("orders:detail", order_id=order.id)
+
+
+def _ensure_seller_can_access_order(request, order: Order) -> None:
+    """
+    Seller can access an order if at least one line item belongs to them.
+    Owner/admin is allowed too (if you have that concept, the decorator likely handles it).
+    """
+    qs = OrderItem.objects.filter(order=order, seller=request.user)
+    if not qs.exists():
+        raise Http404()
+
+
+def _seller_line_item_or_404(request, order: Order, item_id):
+    item = get_object_or_404(OrderItem, id=item_id, order=order)
+    if getattr(item, "seller_id", None) != request.user.id:
+        raise Http404()
+    return item
+
+
+@login_required
+@seller_required
+def seller_order_detail(request, order_id):
+    """
+    Seller view of a single order: shows only this seller's line items.
+    """
+    order = get_object_or_404(Order, id=order_id)
+    _ensure_seller_can_access_order(request, order)
+
+    seller_items = (
+        OrderItem.objects.filter(order=order, seller=request.user)
+        .select_related("product")
+        .order_by("created_at")
+    )
+
+    # Useful rollups for template
+    has_physical = any(getattr(i, "requires_shipping", False) for i in seller_items)
+    has_digital = any(getattr(i, "is_digital", False) for i in seller_items)
+
+    context = {
+        "order": order,
+        "items": seller_items,
+        "has_physical": has_physical,
+        "has_digital": has_digital,
+    }
+    return render(request, "orders/seller_order_detail.html", context)
+
+
+@login_required
+@seller_required
+@require_POST
+def mark_item_shipped(request, order_id, item_id):
+    """
+    Seller marks a physical line item as shipped.
+    """
+    order = get_object_or_404(Order, id=order_id)
+    _ensure_seller_can_access_order(request, order)
+
+    item = _seller_line_item_or_404(request, order, item_id)
+
+    # Guardrails
+    if getattr(item, "is_digital", False) or getattr(item, "is_tip", False) or not getattr(item, "requires_shipping", False):
+        raise Http404()
+
+    # Only for paid orders
+    if getattr(order, "status", "") != getattr(Order, "Status", Order).PAID:
+        # Works whether Order.Status exists or not
+        messages.info(request, "This order isn’t paid yet.")
+        return redirect("orders:seller_order_detail", order_id=order.id)
+
+    # Mark shipped
+    if hasattr(item, "mark_shipped"):
+        item.mark_shipped()
     else:
-        messages.info(request, "This item has already been marked delivered.")
+        # Fallback: set fulfillment_status + timestamp fields if they exist
+        if hasattr(OrderItem, "FulfillmentStatus") and hasattr(item, "fulfillment_status"):
+            item.fulfillment_status = OrderItem.FulfillmentStatus.SHIPPED
+        if hasattr(item, "shipped_at"):
+            from django.utils import timezone
+            item.shipped_at = timezone.now()
+        item.save(update_fields=[f for f in ["fulfillment_status", "shipped_at"] if hasattr(item, f)])
 
-    t = _token_from_request(request)
-    if order.is_guest and t:
-        return redirect(f"{reverse('orders:detail', kwargs={'order_id': order.pk})}?t={t}")
-    return redirect("orders:detail", order_id=order.pk)
+    messages.success(request, "Marked as shipped.")
+    return redirect("orders:seller_order_detail", order_id=order.id)
+
+
+@login_required
+@seller_required
+@require_POST
+def mark_item_delivered(request, order_id, item_id):
+    """
+    Seller marks a physical line item as delivered (optional workflow).
+    Buyer-confirm-delivered also exists separately.
+    """
+    order = get_object_or_404(Order, id=order_id)
+    _ensure_seller_can_access_order(request, order)
+
+    item = _seller_line_item_or_404(request, order, item_id)
+
+    # Guardrails
+    if getattr(item, "is_digital", False) or getattr(item, "is_tip", False) or not getattr(item, "requires_shipping", False):
+        raise Http404()
+
+    if getattr(order, "status", "") != getattr(Order, "Status", Order).PAID:
+        messages.info(request, "This order isn’t paid yet.")
+        return redirect("orders:seller_order_detail", order_id=order.id)
+
+    # Optional guard: only allow delivered after shipped
+    if hasattr(OrderItem, "FulfillmentStatus") and hasattr(item, "fulfillment_status"):
+        if item.fulfillment_status != OrderItem.FulfillmentStatus.SHIPPED:
+            messages.info(request, "Mark shipped first.")
+            return redirect("orders:seller_order_detail", order_id=order.id)
+
+    # Mark delivered
+    if hasattr(item, "mark_delivered"):
+        item.mark_delivered()
+    else:
+        if hasattr(OrderItem, "FulfillmentStatus") and hasattr(item, "fulfillment_status"):
+            item.fulfillment_status = OrderItem.FulfillmentStatus.DELIVERED
+        if hasattr(item, "delivered_at"):
+            from django.utils import timezone
+            item.delivered_at = timezone.now()
+        item.save(update_fields=[f for f in ["fulfillment_status", "delivered_at"] if hasattr(item, f)])
+
+    messages.success(request, "Marked as delivered.")
+    return redirect("orders:seller_order_detail", order_id=order.id)
+

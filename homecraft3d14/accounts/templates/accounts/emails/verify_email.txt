@@ -1,0 +1,6 @@
+Verify your email
+
+Click the link below to verify your email for {{ site_name }}:
+{{ verify_url }}
+
+If you did not create an account, you can ignore this message.

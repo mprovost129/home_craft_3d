@@ -1,0 +1,108 @@
+{# templates/accounts/profile.html #}
+{% extends "accounts/base_accounts.html" %}
+{% block title %}Profile · Home Craft 3D{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2 style="margin-top:0;">Profile</h2>
+    <div class="help">Username (public): <strong>{{ request.user.username }}</strong></div>
+
+    <form method="post" enctype="multipart/form-data" novalidate style="margin-top:14px;">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="msg error">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.first_name.id_for_label }}">First name</label>
+          {{ form.first_name }}
+          {% for e in form.first_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.last_name.id_for_label }}">Last name</label>
+          {{ form.last_name }}
+          {% for e in form.last_name.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.email.id_for_label }}">Email</label>
+          {{ form.email }}
+          {% for e in form.email.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        {% if profile.email_verified %}
+          <div class="help" style="color:#16A34A;"><strong>Email verified</strong></div>
+        {% else %}
+          <div class="help" style="color:#b45309;">Email not verified. <a href="{% url 'accounts:verify_email_status' %}">Verify now</a>.</div>
+        {% endif %}
+
+        <div>
+          <label for="{{ form.phone_1.id_for_label }}">Phone 1</label>
+          {{ form.phone_1 }}
+          {% for e in form.phone_1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.phone_2.id_for_label }}">Phone 2</label>
+          {{ form.phone_2 }}
+          {% for e in form.phone_2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.address_1.id_for_label }}">Address 1</label>
+          {{ form.address_1 }}
+          {% for e in form.address_1.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.address_2.id_for_label }}">Address 2</label>
+          {{ form.address_2 }}
+          {% for e in form.address_2.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.city.id_for_label }}">City</label>
+          {{ form.city }}
+          {% for e in form.city.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.state.id_for_label }}">State</label>
+          {{ form.state }}
+          {% for e in form.state.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.zip_code.id_for_label }}">ZIP</label>
+          {{ form.zip_code }}
+          {% for e in form.zip_code.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div>
+          <label for="{{ form.avatar.id_for_label }}">Profile picture</label>
+          {% if form.avatar.value %}
+            <div class="d-flex align-items-center gap-3" style="margin: 6px 0 10px;">
+              <img src="{{ form.avatar.value.url }}" alt="Current profile picture" class="rounded border" style="width:64px;height:64px;object-fit:cover;">
+              <div class="small text-secondary">Current image</div>
+            </div>
+          {% endif %}
+          {{ form.avatar }}
+          {% for e in form.avatar.errors %}<div class="help" style="color:#b91c1c;">{{ e }}</div>{% endfor %}
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="{{ form.is_seller.id_for_label }}">Seller account</label>
+        {{ form.is_seller }}
+        <div class="help">Sellers will be required to complete Stripe onboarding before selling.</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}

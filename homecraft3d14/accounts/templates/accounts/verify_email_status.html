@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Verify Email · Home Craft 3D{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width: 860px;">
+  <div class="mb-3">
+    <h1 class="h4 mb-1">Verify your email</h1>
+    <div class="text-secondary small">Some features are locked until your email is verified.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {% if is_verified %}
+        <div class="alert alert-success mb-3">
+          <i class="bi bi-check2-circle me-1"></i>Your email is verified.
+        </div>
+        <a class="btn btn-dark" href="{% url 'accounts:profile' %}">Back to profile</a>
+      {% else %}
+        <div class="alert alert-warning mb-3">
+          <i class="bi bi-exclamation-triangle me-1"></i>Your email is not verified yet.
+        </div>
+
+        <p class="mb-3">
+          We sent a verification link to <strong>{{ request.user.email }}</strong> (if available). If you don't see it, check spam.
+        </p>
+
+        <form method="post" class="d-flex flex-wrap gap-2">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <button class="btn btn-dark" type="submit">
+            <i class="bi bi-envelope me-1"></i>Resend verification email
+          </button>
+          <a class="btn btn-outline-secondary" href="{% url 'accounts:profile' %}">Back to profile</a>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

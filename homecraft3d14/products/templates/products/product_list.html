@@ -1,0 +1,155 @@
+{# products/templates/products/product_list.html #}
+{% extends "base.html" %}
+{% block title %}{{ page_title }} · Home Craft 3D{% endblock %}
+{% block meta_title %}{{ page_title }} · Home Craft 3D{% endblock %}
+{% block og_title %}{{ product.title }} · Home Craft 3D{% endblock %}
+{% block og_description %}{{ product.short_description }}{% endblock %}
+{% block meta_description %}
+  {% if kind == "MODEL" %}
+    Browse 3D printed models shipped by sellers on Home Craft 3D.
+  {% elif kind == "FILE" %}
+    Download 3D files from sellers on Home Craft 3D.
+  {% else %}
+    Explore 3D models and files from sellers on Home Craft 3D.
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% if messages %}
+    <div class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} mb-2">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ page_title }}</h1>
+      <div class="text-secondary small">
+        {% if kind == "MODEL" %}
+          Physical prints shipped by sellers.
+        {% elif kind == "FILE" %}
+          Digital downloads from sellers.
+        {% else %}
+          Explore models and files from sellers.
+        {% endif %}
+      </div>
+
+      {% if sort == "top" and not top_fallback %}
+        <div class="text-secondary small mt-1">
+          Showing only products with at least {{ min_reviews_top_rated }} reviews.
+        </div>
+      {% endif %}
+
+      {% if sort == "top" and top_fallback %}
+        <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="max-width: 760px;">
+          <strong>Not enough reviews yet.</strong>
+          Showing best early ratings (this will switch to “min {{ min_reviews_top_rated }} reviews” automatically once the shop has more feedback).
+        </div>
+      {% endif %}
+
+      {% if sort == "trending" and trending_fallback %}
+        <div class="alert alert-warning py-2 px-3 mt-2 mb-0" style="max-width: 760px;">
+          <strong>Early trending signal.</strong>
+          Until purchases/reviews build up, Trending is based on engagement + ratings + recency.
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#productFilters" aria-expanded="{% if filters_active %}true{% else %}false{% endif %}" aria-controls="productFilters">
+        <i class="bi bi-funnel me-1"></i>Filters
+      </button>
+      {% if filters_active %}
+        {% if kind == "MODEL" %}
+          <a class="btn btn-outline-secondary" href="{% url 'products:models' %}">Clear</a>
+        {% elif kind == "FILE" %}
+          <a class="btn btn-outline-secondary" href="{% url 'products:files' %}">Clear</a>
+        {% else %}
+          <a class="btn btn-outline-secondary" href="{% url 'products:list' %}">Clear</a>
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="collapse{% if filters_active %} show{% endif %} mt-2" id="productFilters">
+      <form class="d-flex flex-wrap gap-2" method="get">
+        <input class="form-control" name="q" value="{{ q }}" placeholder="Search..." style="min-width:240px;">
+
+        {% if kind == "MODEL" or kind == "FILE" %}
+          <input type="hidden" name="kind" value="{{ kind }}">
+        {% else %}
+          <select class="form-select" name="kind" style="min-width:200px;">
+            <option value="">All</option>
+            <option value="MODEL" {% if request.GET.kind == "MODEL" %}selected{% endif %}>3D Models (Physical)</option>
+            <option value="FILE" {% if request.GET.kind == "FILE" %}selected{% endif %}>3D Files (Digital)</option>
+          </select>
+        {% endif %}
+
+        {% if kind != "MODEL" %}
+          <select class="form-select" name="file_type" style="min-width:170px;">
+            <option value="">All file types</option>
+            {% for t in file_type_options %}
+              <option value="{{ t }}" {% if file_type == t %}selected{% endif %}>.{{ t }}</option>
+            {% endfor %}
+          </select>
+          <select class="form-select" name="license_type" style="min-width:200px;">
+            <option value="">All licenses</option>
+            <option value="personal" {% if license_type == "personal" %}selected{% endif %}>Personal Use Only</option>
+            <option value="commercial" {% if license_type == "commercial" %}selected{% endif %}>Commercial Use Allowed</option>
+            <option value="educational" {% if license_type == "educational" %}selected{% endif %}>Educational Use</option>
+            <option value="open_source" {% if license_type == "open_source" %}selected{% endif %}>Open Source / CC License</option>
+          </select>
+          <label class="d-flex align-items-center gap-2 small text-secondary">
+            <input type="checkbox" name="instant" value="1" {% if instant == "1" %}checked{% endif %}>
+            Instant download only
+          </label>
+        {% endif %}
+
+        <input type="number" class="form-control" name="price_min" value="{{ price_min }}" placeholder="Min price" style="max-width:140px;">
+        <input type="number" class="form-control" name="price_max" value="{{ price_max }}" placeholder="Max price" style="max-width:140px;">
+
+        <select class="form-select" name="complexity" style="min-width:200px;">
+          <option value="">All levels</option>
+          {% for value, label in complexity_options %}
+            <option value="{{ value }}" {% if complexity == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+
+        <select class="form-select" name="rating_min" style="min-width:150px;">
+          <option value="">All ratings</option>
+          <option value="4" {% if rating_min == "4" %}selected{% endif %}>4★ & up</option>
+          <option value="3" {% if rating_min == "3" %}selected{% endif %}>3★ & up</option>
+          <option value="2" {% if rating_min == "2" %}selected{% endif %}>2★ & up</option>
+          <option value="1" {% if rating_min == "1" %}selected{% endif %}>1★ & up</option>
+        </select>
+
+        <select class="form-select" name="sort" style="min-width:220px;">
+          <option value="new" {% if sort == "new" %}selected{% endif %}>Sort: New</option>
+          <option value="trending" {% if sort == "trending" %}selected{% endif %}>Sort: Trending</option>
+          <option value="top" {% if sort == "top" %}selected{% endif %}>Sort: Top Rated</option>
+        </select>
+
+        <button class="btn btn-dark" type="submit">Search</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    {% for p in products %}
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        {% include "products/_product_card.html" with p=p show_add_to_cart=True show_category=True image_height="180px" %}
+      </div>
+    {% empty %}
+      <div class="col-12">
+        <div class="alert alert-secondary mb-0">
+          {% if sort == "top" and not top_fallback %}
+            No products have at least {{ min_reviews_top_rated }} reviews yet.
+          {% else %}
+            No products yet.
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

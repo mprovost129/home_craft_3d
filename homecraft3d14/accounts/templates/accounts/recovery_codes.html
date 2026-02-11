@@ -1,0 +1,98 @@
+{# templates/accounts/recovery_codes.html #}
+{% extends 'accounts/base_accounts.html' %}
+
+{% block title %}Recovery Codes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">Recovery Codes</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <strong>Important:</strong> Save these codes in a secure location. Each code can only be used once.
+                        If you lose access to your authenticator app, use these codes to sign in.
+                    </div>
+
+                    <div class="alert alert-light border">
+                        <div id="codes-list">
+                            {% for code in codes %}
+                                <div class="code-item mb-2">
+                                    <code>{{ code }}</code>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <button class="btn btn-outline-secondary me-2" onclick="copyAllCodes()">
+                            <i class="bi bi-clipboard"></i> Copy All Codes
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="printCodes()">
+                            <i class="bi bi-printer"></i> Print
+                        </button>
+                    </div>
+
+                    <hr>
+
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-info-circle"></i>
+                        Store these codes securely (password manager, safe, etc.).
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'accounts:view_2fa_status' %}" class="btn btn-secondary">
+                        Back to 2FA Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyAllCodes() {
+    const codes = document.querySelectorAll('.code-item code');
+    const text = Array.from(codes).map(c => c.textContent.trim()).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Recovery codes copied to clipboard!');
+    }).catch(() => {
+        alert('Failed to copy codes. Please try again.');
+    });
+}
+
+function printCodes() {
+    const printWindow = window.open('', '', 'height=600,width=600');
+    const codes = document.querySelectorAll('.code-item code');
+    const codeList = Array.from(codes).map(c => c.textContent.trim()).join('<br>');
+    
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>2FA Recovery Codes</title>
+            <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                h2 { margin-bottom: 20px; }
+                .warning { color: red; font-weight: bold; margin-bottom: 20px; }
+                pre { font-size: 14px; background: #f5f5f5; padding: 10px; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <h2>Two-Factor Authentication Recovery Codes</h2>
+            <p class="warning">⚠️ KEEP THESE CODES SAFE</p>
+            <p>These codes can be used to access your account if you lose your authenticator app.</p>
+            <pre>${codeList}</pre>
+            <p style="margin-top: 30px; font-size: 12px; color: #666;">
+                Generated: ${new Date().toLocaleString()}
+            </p>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 250);
+}
+</script>
+{% endblock %}
