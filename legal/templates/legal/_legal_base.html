@@ -34,7 +34,7 @@
   <div class="card">
     <div class="card-body">
       {% block doc_content %}
-        {{ doc.body|safe }}
+        <div style="white-space: pre-line;">{{ doc.body|linebreaksbr }}</div>
       {% endblock %}
     </div>
 
