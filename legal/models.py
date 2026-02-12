@@ -11,6 +11,12 @@ from django.utils import timezone
 
 
 class LegalDocument(models.Model):
+        def formatted_body(self):
+            """
+            Returns the body with line breaks preserved for admin display.
+            """
+            from django.utils.html import format_html
+            return format_html('<div style="white-space: pre-line;">{}</div>', self.body)
     """
     A versioned legal document displayed publicly (Terms, Privacy, etc).
 

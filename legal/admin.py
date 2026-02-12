@@ -10,7 +10,10 @@ from .models import LegalAcceptance, LegalDocument
 
 @admin.register(LegalDocument)
 class LegalDocumentAdmin(admin.ModelAdmin):
-    list_display = ("doc_type", "version", "title", "is_published", "created_at")
+    list_display = ("doc_type", "version", "title", "is_published", "created_at", "formatted_body_display")
+    @admin.display(description="Body (formatted)", ordering="body")
+    def formatted_body_display(self, obj):
+            return obj.formatted_body()
     list_filter = ("doc_type", "is_published", "created_at")
     search_fields = ("title", "body")
     ordering = ("doc_type", "-version")
